@@ -1,12 +1,10 @@
 {
-  "name": "construction-os",
+  "name": "construction-ios",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "tsx scripts/prepare-vercel-env.ts && prisma generate && prisma migrate deploy && next build",
-    "vercel-build": "tsx scripts/prepare-vercel-env.ts && prisma generate && prisma migrate deploy && next build",
-    "postinstall": "prisma generate",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },

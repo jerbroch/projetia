@@ -6,7 +6,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ConstructionOS - Construction Management SaaS",
+  title: "ConstructionIOS - Construction Management SaaS",
   description: "All-in-one platform for construction companies to manage customers, quotes, invoices, scheduling, and payments.",
 };
 

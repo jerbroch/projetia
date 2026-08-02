@@ -65,7 +65,7 @@ export function LoginForm() {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <HardHat className="h-6 w-6" />
           </div>
-          <CardTitle className="text-2xl">Welcome to ConstructionOS</CardTitle>
+          <CardTitle className="text-2xl">Welcome to ConstructionIOS</CardTitle>
           <CardDescription>Sign in to manage your construction business</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -78,7 +78,7 @@ export function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@constructionos.com"
+                placeholder="admin@constructionios.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -96,7 +96,7 @@ export function LoginForm() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Demo: admin@constructionos.com / Admin123!
+              Demo: admin@constructionios.com / Admin123!
             </p>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
