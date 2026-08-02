@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "tsx scripts/prepare-vercel-env.ts && prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "tsx scripts/prepare-vercel-env.ts && prisma generate && prisma migrate deploy && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint"
   },
