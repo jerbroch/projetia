@@ -96,7 +96,7 @@ export function LoginForm() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Demo: admin@constructionos.com / admin123
+              Demo: admin@constructionos.com / Admin123!
             </p>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
