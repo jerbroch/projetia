@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authConfig } from "@/auth.config";
-import { authenticateUser } from "@/lib/users";
+import { demoUsers } from "@/lib/mock-data";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -20,12 +20,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        try {
-          return await authenticateUser(email.trim(), password);
-        } catch (error) {
-          console.error("Authentication failed:", error);
+        const user = demoUsers.find((u) => u.email === email);
+        if (!user || password !== user.password) {
           return null;
         }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          companyId: user.companyId,
+        };
       },
     }),
   ],

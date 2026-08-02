@@ -1,12 +1,5 @@
-import { config } from "dotenv";
-
-config({ path: ".env.local" });
-config({ path: ".env" });
-
 async function main() {
-  const { ensureDefaultAdmin } = await import("../src/lib/users");
-  await ensureDefaultAdmin();
-  console.log("Default administrator account ensured.");
+  console.log("Database seeding skipped (mock auth mode).");
 }
 
 main()

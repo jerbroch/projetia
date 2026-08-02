@@ -412,6 +412,7 @@ export const demoUsers = [
     id: "user-1",
     name: "Admin User",
     email: "admin@constructionos.com",
+    password: "Admin123!",
     role: "admin" as const,
     companyId: "company-1",
   },
