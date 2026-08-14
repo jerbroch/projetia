@@ -39,7 +39,12 @@ test.describe("8. Super Admin", () => {
     await ensureDashboardAccess(page);
 
     if (!page.url().includes("/admin")) {
-      await page.goto("/admin");
+      await page.goto("/dashboard");
+      await ensureDashboardAccess(page);
+      const quickLink = page.getByTestId("super-admin-quick-link");
+      await expect(quickLink).toBeVisible({ timeout: 15000 });
+      await quickLink.click();
+      await page.waitForURL(/\/admin/, { timeout: 15000 });
     }
 
     await expect(
