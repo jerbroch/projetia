@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Receipt, Wrench } from "lucide-react";
 import type { Customer, Employee, ScheduleEvent } from "@/types";
+import { canSubmitJobStatus } from "@/lib/job-workflow";
 import {
   buildScheduleEvent,
   createCustomerFromForm,
@@ -41,9 +42,12 @@ interface ScheduleEventFormProps {
   formDefaults?: ScheduleFormDefaults;
   customers: Customer[];
   employees: Employee[];
+  companyId: string;
   onSave: (event: ScheduleEvent, newCustomer?: Customer) => void;
   onCancelJob: (eventId: string) => void;
   onDelete: (eventId: string) => void;
+  onBilling?: (event: ScheduleEvent) => void;
+  onCloseWork?: (event: ScheduleEvent) => void;
 }
 
 export function ScheduleEventForm({
@@ -54,9 +58,12 @@ export function ScheduleEventForm({
   formDefaults,
   customers,
   employees,
+  companyId,
   onSave,
   onCancelJob,
   onDelete,
+  onBilling,
+  onCloseWork,
 }: ScheduleEventFormProps) {
   const [form, setForm] = useState<ScheduleFormValues>(() =>
     getDefaultFormValues(formDefaults, event)
@@ -124,7 +131,7 @@ export function ScheduleEventForm({
     let customerId = form.customerId;
 
     if (form.customerMode === "new") {
-      const newCustomer = createCustomerFromForm(form);
+      const newCustomer = createCustomerFromForm(form, companyId);
       updatedCustomers = [...customers, newCustomer];
       customerId = newCustomer.id;
     }
@@ -231,7 +238,7 @@ export function ScheduleEventForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="status">Job Status</Label>
+                <Label htmlFor="status">Statut</Label>
                 <Select
                   value={form.status}
                   onValueChange={(v) => updateField("status", v as ScheduleFormValues["status"])}
@@ -240,12 +247,32 @@ export function ScheduleEventForm({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="scheduled">Planifié</SelectItem>
+                    <SelectItem value="en-route">En route</SelectItem>
+                    <SelectItem value="in-progress">En travail</SelectItem>
+                    <SelectItem value="completed">Travaux terminés</SelectItem>
+                    <SelectItem value="pending-review">À vérifier</SelectItem>
+                    <SelectItem value="ready-to-invoice">Prêt à facturer</SelectItem>
+                    <SelectItem value="invoice-sent">Facture envoyée</SelectItem>
+                    <SelectItem value="paid">Payé</SelectItem>
+                    <SelectItem value="cancelled">Annulé</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              {mode === "edit" && event?.jobNumber && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>No. de travail</Label>
+                  <Input value={event.jobNumber} readOnly disabled className="bg-muted" />
+                </div>
+              )}
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="clientPoNumber">Numéro de P.O. client</Label>
+                <Input
+                  id="clientPoNumber"
+                  value={form.clientPoNumber}
+                  onChange={(e) => updateField("clientPoNumber", e.target.value)}
+                  placeholder="Optionnel"
+                />
               </div>
             </div>
           </div>
@@ -401,6 +428,31 @@ export function ScheduleEventForm({
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
             {mode === "edit" && event && (
               <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                {onCloseWork && event && canSubmitJobStatus(event.status) && (
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={() => {
+                      onCloseWork(event);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Wrench className="mr-2 h-4 w-4" />
+                    Fermer le travail
+                  </Button>
+                )}
+                {onBilling && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      onBilling(event);
+                    }}
+                  >
+                    <Receipt className="mr-2 h-4 w-4" />
+                    Facturation
+                  </Button>
+                )}
                 {event.status !== "cancelled" && (
                   <Button
                     type="button"

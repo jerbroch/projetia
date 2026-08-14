@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   Menu,
   Receipt,
+  Archive,
+  Settings,
   Users,
   UserCircle,
   X,
@@ -17,28 +19,49 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import type { Company } from "@/types";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Quotes", href: "/quotes", icon: FileText },
-  { name: "Invoices", href: "/invoices", icon: Receipt },
-  { name: "Schedule", href: "/schedule", icon: Calendar },
-  { name: "Employees", href: "/employees", icon: UserCircle },
-  { name: "Payments", href: "/payments", icon: CreditCard },
+  { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Clients", href: "/customers", icon: Users },
+  { name: "Soumissions", href: "/quotes", icon: FileText },
+  { name: "Factures", href: "/invoices", icon: Receipt },
+  { name: "Calendrier", href: "/schedule", icon: Calendar },
+  { name: "Archives", href: "/archives", icon: Archive },
+  { name: "Employés", href: "/employees", icon: UserCircle },
+  { name: "Paiements", href: "/payments", icon: CreditCard },
+  { name: "Paramètres", href: "/settings", icon: Settings },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  company: Company;
+  isDemo?: boolean;
+}
+
+export function Sidebar({ company, isDemo }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navContent = (
     <>
       <div className="flex h-16 items-center gap-2 border-b px-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <HardHat className="h-4 w-4" />
+        {company.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={company.logoUrl} alt={company.name} className="h-8 w-8 rounded-lg object-cover" />
+        ) : (
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-foreground"
+            style={{ backgroundColor: company.primaryColor ?? undefined }}
+          >
+            <HardHat className="h-4 w-4" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-bold">{company.name}</span>
+          {isDemo && (
+            <span className="block truncate text-[10px] text-amber-600">Compte de démonstration</span>
+          )}
         </div>
-        <span className="text-lg font-bold">ConstructionIOS</span>
         <Button
           variant="ghost"
           size="icon"
@@ -74,7 +97,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile menu button */}
       <Button
         variant="ghost"
         size="icon"
@@ -84,7 +106,6 @@ export function Sidebar() {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -92,7 +113,6 @@ export function Sidebar() {
         />
       )}
 
-      {/* Mobile sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-background transition-transform lg:hidden",
@@ -102,7 +122,6 @@ export function Sidebar() {
         {navContent}
       </aside>
 
-      {/* Desktop sidebar */}
       <aside className="hidden w-64 flex-col border-r bg-background lg:flex">
         {navContent}
       </aside>

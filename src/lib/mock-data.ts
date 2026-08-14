@@ -8,6 +8,9 @@ import type {
   ScheduleEvent,
 } from "@/types";
 import { getEmployeeFullName } from "@/lib/employee-utils";
+import { DEMO_COMPANY_ID } from "@/lib/demo/constants";
+
+const CID = DEMO_COMPANY_ID;
 
 export const dashboardStats: DashboardStats = {
   totalRevenue: 487250,
@@ -21,6 +24,7 @@ export const dashboardStats: DashboardStats = {
 export const customers: Customer[] = [
   {
     id: "cust-1",
+    companyId: CID,
     name: "Sarah Mitchell",
     email: "sarah@mitchellproperties.com",
     phone: "(555) 234-5678",
@@ -32,6 +36,7 @@ export const customers: Customer[] = [
   },
   {
     id: "cust-2",
+    companyId: CID,
     name: "James Rodriguez",
     email: "j.rodriguez@citybuild.com",
     phone: "(555) 345-6789",
@@ -43,6 +48,7 @@ export const customers: Customer[] = [
   },
   {
     id: "cust-3",
+    companyId: CID,
     name: "Emily Chen",
     email: "emily@chenhomes.com",
     phone: "(555) 456-7890",
@@ -54,6 +60,7 @@ export const customers: Customer[] = [
   },
   {
     id: "cust-4",
+    companyId: CID,
     name: "Robert Williams",
     email: "rwilliams@williamsconstruction.com",
     phone: "(555) 567-8901",
@@ -65,6 +72,7 @@ export const customers: Customer[] = [
   },
   {
     id: "cust-5",
+    companyId: CID,
     name: "Lisa Thompson",
     email: "lisa.t@thompsonrealty.com",
     phone: "(555) 678-9012",
@@ -79,30 +87,47 @@ export const customers: Customer[] = [
 export const quotes: Quote[] = [
   {
     id: "quote-1",
+    companyId: CID,
     quoteNumber: "QT-2025-001",
     customerId: "cust-1",
     customerName: "Mitchell Properties LLC",
+    customerEmail: "contact@mitchellproperties.com",
     title: "Kitchen & Bath Remodel",
     description: "Full kitchen renovation with custom cabinetry and master bath update",
     amount: 78500,
     status: "accepted",
     validUntil: "2025-03-15",
     createdAt: "2025-01-20",
+    depositRequired: false,
+    depositStatus: "not_required",
+    lineItems: [],
+    acceptedAt: "2025-01-22",
   },
   {
     id: "quote-2",
+    companyId: CID,
     quoteNumber: "QT-2025-002",
     customerId: "cust-2",
     customerName: "CityBuild Development",
+    customerEmail: "projects@citybuild.com",
     title: "Commercial Office Build-Out",
     description: "12,000 sq ft office space build-out with HVAC and electrical",
     amount: 245000,
-    status: "sent",
+    status: "deposit_paid",
     validUntil: "2025-04-01",
     createdAt: "2025-02-01",
+    depositRequired: true,
+    depositPercentage: 20,
+    depositAmount: 49000,
+    depositStatus: "paid",
+    lineItems: [],
+    sentAt: "2025-02-01",
+    acceptedAt: "2025-02-03",
+    publicToken: "demo-quote-2",
   },
   {
     id: "quote-3",
+    companyId: CID,
     quoteNumber: "QT-2025-003",
     customerId: "cust-3",
     customerName: "Chen Custom Homes",
@@ -112,24 +137,35 @@ export const quotes: Quote[] = [
     status: "draft",
     validUntil: "2025-03-30",
     createdAt: "2025-02-05",
+    depositRequired: false,
+    depositStatus: "not_required",
+    lineItems: [],
   },
   {
     id: "quote-4",
+    companyId: CID,
     quoteNumber: "QT-2025-004",
     customerId: "cust-4",
     customerName: "Williams Construction Co.",
+    customerEmail: "billing@williamsconstruction.com",
     title: "Warehouse Expansion",
     description: "5,000 sq ft warehouse addition with loading dock",
     amount: 189000,
     status: "sent",
     validUntil: "2025-03-20",
     createdAt: "2025-01-28",
+    depositRequired: false,
+    depositStatus: "not_required",
+    lineItems: [],
+    sentAt: "2025-01-28",
+    publicToken: "demo-quote-4",
   },
 ];
 
 export const invoices: Invoice[] = [
   {
     id: "inv-1",
+    companyId: CID,
     invoiceNumber: "INV-2025-001",
     customerId: "cust-1",
     customerName: "Mitchell Properties LLC",
@@ -142,6 +178,7 @@ export const invoices: Invoice[] = [
   },
   {
     id: "inv-2",
+    companyId: CID,
     invoiceNumber: "INV-2025-002",
     customerId: "cust-1",
     customerName: "Mitchell Properties LLC",
@@ -154,6 +191,7 @@ export const invoices: Invoice[] = [
   },
   {
     id: "inv-3",
+    companyId: CID,
     invoiceNumber: "INV-2025-003",
     customerId: "cust-4",
     customerName: "Williams Construction Co.",
@@ -165,6 +203,7 @@ export const invoices: Invoice[] = [
   },
   {
     id: "inv-4",
+    companyId: CID,
     invoiceNumber: "INV-2025-004",
     customerId: "cust-2",
     customerName: "CityBuild Development",
@@ -179,6 +218,7 @@ export const invoices: Invoice[] = [
 export const employees: Employee[] = [
   {
     id: "emp-1",
+    companyId: CID,
     firstName: "Mike",
     lastName: "Johnson",
     trade: "Project Manager",
@@ -193,6 +233,7 @@ export const employees: Employee[] = [
   },
   {
     id: "emp-2",
+    companyId: CID,
     firstName: "Carlos",
     lastName: "Martinez",
     trade: "Lead Carpenter",
@@ -206,6 +247,7 @@ export const employees: Employee[] = [
   },
   {
     id: "emp-3",
+    companyId: CID,
     firstName: "Jennifer",
     lastName: "Lee",
     trade: "Electrician",
@@ -219,6 +261,7 @@ export const employees: Employee[] = [
   },
   {
     id: "emp-4",
+    companyId: CID,
     firstName: "David",
     lastName: "Brown",
     trade: "Site Supervisor",
@@ -232,6 +275,7 @@ export const employees: Employee[] = [
   },
   {
     id: "emp-5",
+    companyId: CID,
     firstName: "Amanda",
     lastName: "Foster",
     trade: "Estimator",
@@ -245,6 +289,7 @@ export const employees: Employee[] = [
   },
   {
     id: "emp-6",
+    companyId: CID,
     firstName: "Tom",
     lastName: "Reyes",
     trade: "Plumber",
@@ -261,6 +306,7 @@ export const employees: Employee[] = [
 export const scheduleEvents: ScheduleEvent[] = [
   {
     id: "evt-1",
+    companyId: CID,
     title: "Kitchen Demo - Mitchell Properties",
     description: "Begin demolition of existing kitchen",
     start: "2025-02-10T08:00:00",
@@ -277,9 +323,15 @@ export const scheduleEvents: ScheduleEvent[] = [
     internalNotes: "Client requested work start before 8 AM.",
     status: "completed",
     type: "job",
+    jobNumber: "CON-2025-0001",
+    jobNumberType: "contract",
+    jobOrigin: "quote",
+    quoteId: "quote-1",
+    clientPoNumber: "PO-MIT-2401",
   },
   {
     id: "evt-2",
+    companyId: CID,
     title: "Electrical Rough-In",
     description: "Electrical rough-in for office build-out",
     start: "2025-02-12T07:00:00",
@@ -299,6 +351,7 @@ export const scheduleEvents: ScheduleEvent[] = [
   },
   {
     id: "evt-3",
+    companyId: CID,
     title: "Site Inspection - Warehouse",
     description: "Pre-construction site inspection",
     start: "2025-02-14T10:00:00",
@@ -317,6 +370,7 @@ export const scheduleEvents: ScheduleEvent[] = [
   },
   {
     id: "evt-4",
+    companyId: CID,
     title: "Client Meeting - Chen Homes",
     description: "Review foundation quote and timeline",
     start: "2025-02-15T14:00:00",
@@ -335,6 +389,7 @@ export const scheduleEvents: ScheduleEvent[] = [
   },
   {
     id: "evt-5",
+    companyId: CID,
     title: "Cabinet Installation",
     description: "Install custom kitchen cabinets",
     start: "2025-02-17T08:00:00",
@@ -353,6 +408,7 @@ export const scheduleEvents: ScheduleEvent[] = [
   },
   {
     id: "evt-6",
+    companyId: CID,
     title: "Roof Repair Estimate",
     description: "Unassigned emergency roof patch — awaiting crew dispatch",
     start: "2025-02-12T13:00:00",
@@ -370,11 +426,84 @@ export const scheduleEvents: ScheduleEvent[] = [
     status: "scheduled",
     type: "job",
   },
+  {
+    id: "evt-7",
+    companyId: CID,
+    title: "Rénovation salle de bain — en cours",
+    description: "Installation céramique et plomberie finale",
+    start: "2025-02-10T08:00:00",
+    end: "2025-02-10T17:00:00",
+    customerId: "cust-2",
+    customerName: "CityBuild Development",
+    customerPhone: "(555) 345-6789",
+    customerEmail: "j.rodriguez@citybuild.com",
+    billingAddress: "890 Commerce Blvd, Dallas, TX 75201",
+    jobSiteAddress: "890 Commerce Blvd, Dallas, TX 75201",
+    employeeIds: ["emp-1", "emp-2", "emp-3"],
+    employeeNames: [
+      getEmployeeFullName(employees[0]),
+      getEmployeeFullName(employees[1]),
+      getEmployeeFullName(employees[2]),
+    ],
+    location: "890 Commerce Blvd, Dallas, TX 75201",
+    internalNotes: "Équipe complète sur place.",
+    status: "in-progress",
+    type: "job",
+    jobNumber: "CON-2025-0002",
+    jobNumberType: "contract",
+    jobOrigin: "quote",
+  },
+  {
+    id: "evt-8",
+    companyId: CID,
+    title: "Réparation fuite d'eau",
+    description: "Appel direct — remplacement joint",
+    start: "2025-01-20T09:00:00",
+    end: "2025-01-20T11:00:00",
+    customerId: "cust-3",
+    customerName: "Chen Custom Homes",
+    customerPhone: "(555) 456-7890",
+    customerEmail: "emily@chenhomes.com",
+    billingAddress: "567 Maple Ave, Houston, TX 77002",
+    jobSiteAddress: "567 Maple Ave, Houston, TX 77002",
+    employeeIds: ["emp-3"],
+    employeeNames: [getEmployeeFullName(employees[2])],
+    location: "567 Maple Ave, Houston, TX 77002",
+    status: "completed",
+    type: "job",
+    jobNumber: "BT-2025-0001",
+    jobNumberType: "service_call",
+    jobOrigin: "direct",
+    clientPoNumber: "PO-CH-1188",
+  },
+  {
+    id: "evt-9",
+    companyId: CID,
+    title: "Inspection annulée",
+    description: "Client a reporté le projet",
+    start: "2025-01-15T10:00:00",
+    end: "2025-01-15T12:00:00",
+    customerId: "cust-4",
+    customerName: "Williams Construction Co.",
+    customerPhone: "(555) 567-8901",
+    customerEmail: "rwilliams@williamsconstruction.com",
+    billingAddress: "234 Industrial Pkwy, San Antonio, TX 78205",
+    jobSiteAddress: "234 Industrial Pkwy, San Antonio, TX 78205",
+    employeeIds: ["emp-4"],
+    employeeNames: [getEmployeeFullName(employees[3])],
+    location: "234 Industrial Pkwy, San Antonio, TX 78205",
+    status: "cancelled",
+    type: "inspection",
+    jobNumber: "BT-2025-0002",
+    jobNumberType: "service_call",
+    jobOrigin: "direct",
+  },
 ];
 
 export const payments: Payment[] = [
   {
     id: "pay-1",
+    companyId: CID,
     invoiceId: "inv-1",
     invoiceNumber: "INV-2025-001",
     customerName: "Mitchell Properties LLC",
@@ -386,6 +515,7 @@ export const payments: Payment[] = [
   },
   {
     id: "pay-2",
+    companyId: CID,
     invoiceId: "inv-4",
     invoiceNumber: "INV-2025-004",
     customerName: "CityBuild Development",
@@ -397,6 +527,7 @@ export const payments: Payment[] = [
   },
   {
     id: "pay-3",
+    companyId: CID,
     invoiceId: "inv-2",
     invoiceNumber: "INV-2025-002",
     customerName: "Mitchell Properties LLC",
@@ -404,16 +535,5 @@ export const payments: Payment[] = [
     method: "card",
     status: "pending",
     createdAt: "2025-02-08",
-  },
-];
-
-export const demoUsers = [
-  {
-    id: "user-1",
-    name: "Admin User",
-    email: "admin@constructionios.com",
-    password: "Admin123!",
-    role: "admin" as const,
-    companyId: "company-1",
   },
 ];

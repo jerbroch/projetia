@@ -1,11 +1,12 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { AdminQuickLink } from "@/components/admin/admin-quick-link";
+import { requireCompanyAccess } from "@/lib/session";
 
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth();
-  if (!session) {
-    redirect("/login");
-  }
-
-  return <>{children}</>;
+  await requireCompanyAccess();
+  return (
+    <>
+      {children}
+      <AdminQuickLink />
+    </>
+  );
 }

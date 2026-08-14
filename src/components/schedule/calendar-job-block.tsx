@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { format, parseISO } from "date-fns";
 import type { ScheduleEvent } from "@/types";
-import { StatusBadge } from "@/components/shared/status-badge";
+import { isoToLocalDateTime, isoToZonedMinutes } from "@/lib/schedule-timezone";
+import { getScheduleBlockAppearance } from "@/lib/schedule-utils";
 import { cn } from "@/lib/utils";
 import {
   HOUR_WIDTH,
@@ -18,19 +18,12 @@ interface CalendarJobBlockProps {
   lane: number;
   laneCount: number;
   rowEmployeeId: string | null;
-  onEdit: (event: ScheduleEvent) => void;
+  onClick: (event: ScheduleEvent) => void;
   onMove: (event: ScheduleEvent, sourceEmployeeId: string | null, targetEmployeeId: string | null, startMinutes: number, clientX: number) => void;
   onResize: (event: ScheduleEvent, endMinutes: number) => void;
   getMinutesFromClientX: (clientX: number) => number;
   getEmployeeIdFromClientY: (clientY: number) => string | null;
 }
-
-const statusColors: Record<ScheduleEvent["status"], string> = {
-  scheduled: "bg-blue-500/90 border-blue-600 text-white",
-  "in-progress": "bg-amber-500/90 border-amber-600 text-white",
-  completed: "bg-emerald-600/90 border-emerald-700 text-white",
-  cancelled: "bg-muted border-border text-muted-foreground line-through",
-};
 
 export function CalendarJobBlock({
   event,
@@ -39,13 +32,14 @@ export function CalendarJobBlock({
   lane,
   laneCount,
   rowEmployeeId,
-  onEdit,
+  onClick,
   onMove,
   onResize,
   getMinutesFromClientX,
   getEmployeeIdFromClientY,
 }: CalendarJobBlockProps) {
   const interaction = useRef<{ mode: "move" | "resize"; startX: number; startMinutes: number; endMinutes: number; moved: boolean } | null>(null);
+  const appearance = getScheduleBlockAppearance(event.status);
 
   const laneHeight = Math.max(28, Math.floor(64 / laneCount));
   const top = 8 + lane * laneHeight;
@@ -53,16 +47,16 @@ export function CalendarJobBlock({
   function beginMove(e: React.PointerEvent) {
     if ((e.target as HTMLElement).dataset.handle === "resize") return;
     e.stopPropagation();
-    const startMinutes = parseISO(event.start).getHours() * 60 + parseISO(event.start).getMinutes();
-    const endMinutes = parseISO(event.end).getHours() * 60 + parseISO(event.end).getMinutes();
+    const startMinutes = isoToZonedMinutes(event.start);
+    const endMinutes = isoToZonedMinutes(event.end);
     interaction.current = { mode: "move", startX: e.clientX, startMinutes, endMinutes, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
   function beginResize(e: React.PointerEvent) {
     e.stopPropagation();
-    const startMinutes = parseISO(event.start).getHours() * 60 + parseISO(event.start).getMinutes();
-    const endMinutes = parseISO(event.end).getHours() * 60 + parseISO(event.end).getMinutes();
+    const startMinutes = isoToZonedMinutes(event.start);
+    const endMinutes = isoToZonedMinutes(event.end);
     interaction.current = { mode: "resize", startX: e.clientX, startMinutes, endMinutes, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -80,7 +74,7 @@ export function CalendarJobBlock({
     interaction.current = null;
 
     if (!state.moved && state.mode === "move") {
-      onEdit(event);
+      onClick(event);
       return;
     }
 
@@ -100,19 +94,22 @@ export function CalendarJobBlock({
       data-event-id={event.id}
       className={cn(
         "absolute z-10 overflow-hidden rounded-md border px-2 py-1 shadow-sm transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing",
-        statusColors[event.status]
+        appearance.className
       )}
       style={{ left, width, top, height: laneHeight }}
       onPointerDown={beginMove}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
     >
-      <div className="pointer-events-none space-y-0.5 pr-3">
+      <div className="pointer-events-none space-y-0.5">
+        {event.jobNumber && (
+          <p className="truncate text-[10px] font-bold opacity-95">{event.jobNumber}</p>
+        )}
         <p className="truncate text-[11px] font-semibold leading-tight">{event.title}</p>
         <p className="truncate text-[10px] opacity-90">{event.customerName}</p>
         <p className="hidden truncate text-[10px] opacity-80 sm:block">{event.jobSiteAddress ?? event.location}</p>
         <p className="text-[10px] opacity-80">
-          {format(parseISO(event.start), "h:mm a")} – {format(parseISO(event.end), "h:mm a")}
+          {isoToLocalDateTime(event.start).time} – {isoToLocalDateTime(event.end).time}
         </p>
       </div>
       <div
@@ -122,9 +119,6 @@ export function CalendarJobBlock({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
       />
-      <div className="pointer-events-none absolute right-1 top-1 hidden scale-75 origin-top-right sm:block">
-        <StatusBadge status={event.status} />
-      </div>
     </div>
   );
 }

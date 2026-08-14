@@ -45,13 +45,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { filterScheduleCalendarEvents } from "@/lib/schedule-utils";
+import { calendarDayKey } from "@/lib/schedule-timezone";
 import { cn } from "@/lib/utils";
 
 export interface ScheduleFilters {
   workerId: string;
   trade: string;
   truck: string;
-  jobStatus: string;
 }
 
 interface ResourceCalendarProps {
@@ -64,7 +65,7 @@ interface ResourceCalendarProps {
   filters: ScheduleFilters;
   onFiltersChange: (filters: ScheduleFilters) => void;
   onSlotClick: (employeeId: string | null, date: Date, startMinutes: number) => void;
-  onEventEdit: (event: ScheduleEvent) => void;
+  onEventClick: (event: ScheduleEvent) => void;
   onEventMove: (
     event: ScheduleEvent,
     sourceEmployeeId: string | null,
@@ -88,7 +89,7 @@ export function ResourceCalendar({
   filters,
   onFiltersChange,
   onSlotClick,
-  onEventEdit,
+  onEventClick,
   onEventMove,
   onEventResize,
   onEmployeeProfile,
@@ -111,21 +112,7 @@ export function ResourceCalendar({
     return true;
   });
 
-  const filteredEvents = events.filter((event) => {
-    if (filters.jobStatus !== "all" && event.status !== filters.jobStatus) return false;
-    if (filters.workerId !== "all" && !event.employeeIds.includes(filters.workerId) && event.employeeIds.length > 0) {
-      return false;
-    }
-    if (filters.trade !== "all") {
-      const assigned = employees.filter((e) => event.employeeIds.includes(e.id));
-      if (assigned.length > 0 && !assigned.some((e) => e.trade === filters.trade)) return false;
-    }
-    if (filters.truck !== "all") {
-      const assigned = employees.filter((e) => event.employeeIds.includes(e.id));
-      if (assigned.length > 0 && !assigned.some((e) => e.truckNumber === filters.truck)) return false;
-    }
-    return true;
-  });
+  const filteredEvents = filterScheduleCalendarEvents(events, filters, employees);
 
   const visibleDays = view === "day" ? [currentDate] : weekDays;
   const timelineWidth = getTimelineWidth(view);
@@ -133,7 +120,9 @@ export function ResourceCalendar({
 
   function eventsForRow(employeeId: string | null) {
     return filteredEvents.filter((event) => {
-      const inRange = visibleDays.some((day) => getEventDayKey(event.start) === format(day, "yyyy-MM-dd"));
+      const inRange = visibleDays.some(
+        (day) => getEventDayKey(event.start) === calendarDayKey(day)
+      );
       if (!inRange) return false;
       if (employeeId === null) return event.employeeIds.length === 0;
       return event.employeeIds.includes(employeeId);
@@ -215,72 +204,62 @@ export function ResourceCalendar({
   }
 
   const rows: { id: string | null; label: string; employee?: Employee }[] = [
-    { id: null, label: "Unassigned Jobs" },
+    { id: null, label: "Non assignés" },
     ...filteredEmployees.map((employee) => ({ id: employee.id, label: getEmployeeFullName(employee), employee })),
   ];
 
   return (
-    <Card>
+    <Card className="max-w-full overflow-hidden">
       <div className="flex flex-col gap-4 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="icon" onClick={navigateBack}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" onClick={() => onDateChange(new Date(2025, 1, 12))}>Today</Button>
+          <Button variant="outline" size="sm" onClick={() => onDateChange(new Date())}>Aujourd&apos;hui</Button>
           <Button variant="outline" size="icon" onClick={navigateForward}><ChevronRight className="h-4 w-4" /></Button>
           <h2 className="min-w-[180px] text-lg font-semibold">
-            {view === "day" ? format(currentDate, "EEEE, MMM d, yyyy") : `Week of ${format(weekDays[0], "MMM d")} – ${format(weekDays[6], "MMM d, yyyy")}`}
+            {view === "day" ? format(currentDate, "EEEE d MMMM yyyy", { locale: undefined }) : `Semaine du ${format(weekDays[0], "d MMM")} au ${format(weekDays[6], "d MMM yyyy")}`}
           </h2>
         </div>
         <div className="flex gap-2">
-          <Button variant={view === "day" ? "default" : "outline"} size="sm" onClick={() => onViewChange("day")}>Day</Button>
-          <Button variant={view === "week" ? "default" : "outline"} size="sm" onClick={() => onViewChange("week")}>Week</Button>
+          <Button variant={view === "day" ? "default" : "outline"} size="sm" onClick={() => onViewChange("day")}>Jour</Button>
+          <Button variant={view === "week" ? "default" : "outline"} size="sm" onClick={() => onViewChange("week")}>Semaine</Button>
         </div>
       </div>
 
-      <div className="grid gap-3 border-b p-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 border-b p-4 md:grid-cols-3">
         <Select value={filters.workerId} onValueChange={(v) => onFiltersChange({ ...filters, workerId: v })}>
-          <SelectTrigger><SelectValue placeholder="Worker" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Employé" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Workers</SelectItem>
+            <SelectItem value="all">Tous les employés</SelectItem>
             {employees.map((e) => (
               <SelectItem key={e.id} value={e.id}>{getEmployeeFullName(e)}</SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={filters.trade} onValueChange={(v) => onFiltersChange({ ...filters, trade: v })}>
-          <SelectTrigger><SelectValue placeholder="Trade" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Métier" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Trades</SelectItem>
+            <SelectItem value="all">Tous les métiers</SelectItem>
             {trades.map((trade) => <SelectItem key={trade} value={trade}>{trade}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filters.truck} onValueChange={(v) => onFiltersChange({ ...filters, truck: v })}>
-          <SelectTrigger><SelectValue placeholder="Truck" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Camion" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Trucks</SelectItem>
+            <SelectItem value="all">Tous les camions</SelectItem>
             {trucks.map((truck) => <SelectItem key={truck} value={truck}>{truck}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.jobStatus} onValueChange={(v) => onFiltersChange({ ...filters, jobStatus: v })}>
-          <SelectTrigger><SelectValue placeholder="Job Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <CardContent className="p-0">
-        <div ref={scrollRef} className="overflow-auto">
+        <div ref={scrollRef} className="max-w-full overflow-x-auto overflow-y-auto">
           <div className="min-w-[720px]">
             <div className="flex border-b bg-muted/30">
               <div
                 className="sticky left-0 z-20 shrink-0 border-r bg-background px-3 py-2 text-xs font-medium text-muted-foreground"
                 style={{ width: LEFT_COLUMN_WIDTH }}
               >
-                Worker
+                Employé
               </div>
               <div className="relative" style={{ width: timelineWidth, minWidth: timelineWidth }}>
                 {view === "week" && weekDays.map((day, index) => (
@@ -332,7 +311,7 @@ export function ResourceCalendar({
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold">{row.label}</p>
                             <p className="truncate text-xs text-muted-foreground">{row.employee.trade}</p>
-                            <p className="text-xs text-muted-foreground">Truck {row.employee.truckNumber || "—"}</p>
+                            <p className="text-xs text-muted-foreground">Camion {row.employee.truckNumber || "—"}</p>
                           </div>
                         </div>
                         <StatusBadge status={row.employee.status} />
@@ -354,8 +333,8 @@ export function ResourceCalendar({
                       </div>
                     ) : (
                       <div>
-                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Unassigned Jobs</p>
-                        <p className="text-xs text-muted-foreground">Jobs awaiting crew dispatch</p>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Non assignés</p>
+                        <p className="text-xs text-muted-foreground">Travaux en attente d&apos;assignation</p>
                       </div>
                     )}
                   </div>
@@ -378,7 +357,7 @@ export function ResourceCalendar({
                           key={day.toISOString()}
                           className={cn(
                             "absolute inset-y-0 border-r border-border/40",
-                            isSameDay(day, new Date(2025, 1, 12)) && "bg-primary/5"
+                            isSameDay(day, new Date()) && "bg-primary/5"
                           )}
                           style={{ left: index * dayWidth, width: dayWidth }}
                         />
@@ -401,7 +380,7 @@ export function ResourceCalendar({
                         lane={lane}
                         laneCount={laneCount}
                         rowEmployeeId={row.id}
-                        onEdit={onEventEdit}
+                        onClick={onEventClick}
                         onMove={(evt, source, target, startMinutes, clientX) => {
                           onEventMove(evt, source, target, startMinutes, getDayFromClientX(clientX));
                         }}

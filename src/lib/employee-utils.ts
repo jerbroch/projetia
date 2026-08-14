@@ -65,9 +65,14 @@ export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormV
   };
 }
 
-export function buildEmployeeFromForm(form: EmployeeFormValues, existingId?: string): Employee {
+export function buildEmployeeFromForm(
+  form: EmployeeFormValues,
+  existingId?: string,
+  companyId = ""
+): Employee {
   return {
     id: existingId ?? generateId("emp"),
+    companyId,
     firstName: form.firstName.trim(),
     lastName: form.lastName.trim(),
     trade: form.trade.trim(),

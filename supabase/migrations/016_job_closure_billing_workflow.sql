@@ -1,0 +1,5 @@
+-- OBSOLÈTE — utiliser à la place :
+--   1. supabase/migrations/016a_add_workflow_statuses.sql  (ENUM uniquement)
+--   2. supabase/migrations/016b_billing_workflow.sql         (colonnes + index)
+--
+-- PostgreSQL exige un COMMIT entre l'ajout de valeurs ENUM et leur utilisation (55P04 / 22P02).

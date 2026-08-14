@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -9,11 +10,28 @@ interface StatCardProps {
   icon: LucideIcon;
   trend?: { value: number; label: string };
   className?: string;
+  href?: string;
+  ariaLabel?: string;
 }
 
-export function StatCard({ title, value, description, icon: Icon, trend, className }: StatCardProps) {
-  return (
-    <Card className={cn("", className)}>
+export function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  trend,
+  className,
+  href,
+  ariaLabel,
+}: StatCardProps) {
+  const card = (
+    <Card
+      className={cn(
+        href &&
+          "cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -29,5 +47,17 @@ export function StatCard({ title, value, description, icon: Icon, trend, classNa
         )}
       </CardContent>
     </Card>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link
+      href={href}
+      aria-label={ariaLabel ?? title}
+      className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {card}
+    </Link>
   );
 }

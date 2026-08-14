@@ -1,0 +1,6 @@
+# Playwright artifacts (paths relative to this directory)
+.auth/
+.test-credentials.json
+report/
+../test-results/
+../playwright-report/

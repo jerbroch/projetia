@@ -17,3 +17,7 @@ export function getStripe(): Stripe {
 
   return stripeClient;
 }
+
+export function isStripeConfigured(): boolean {
+  return Boolean(process.env.STRIPE_SECRET_KEY);
+}

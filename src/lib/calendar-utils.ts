@@ -4,9 +4,13 @@ import {
   format,
   parseISO,
   setHours,
-  setMinutes,
-  startOfDay,
 } from "date-fns";
+import {
+  calendarDayKey,
+  isoToZonedDateKey,
+  isoToZonedMinutes,
+  localDateTimeToISO,
+} from "@/lib/schedule-timezone";
 import type { ScheduleEvent } from "@/types";
 
 export const CALENDAR_START_HOUR = 6;
@@ -31,8 +35,7 @@ export function getDayTimelineWidth(): number {
 }
 
 export function timeToMinutes(iso: string): number {
-  const date = parseISO(iso);
-  return date.getHours() * 60 + date.getMinutes();
+  return isoToZonedMinutes(iso);
 }
 
 export function minutesToTimeLabel(minutes: number): string {
@@ -64,19 +67,18 @@ export function getEventDurationMinutes(event: ScheduleEvent): number {
 }
 
 export function getEventDayKey(iso: string): string {
-  return format(parseISO(iso), "yyyy-MM-dd");
+  return isoToZonedDateKey(iso);
 }
 
 export function buildIsoFromDayAndMinutes(day: Date, minutes: number): string {
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  const base = startOfDay(day);
-  return format(setMinutes(setHours(base, hours), mins), "yyyy-MM-dd'T'HH:mm:ss");
+  const date = calendarDayKey(day);
+  const time = minutesToTimeValue(minutes);
+  return localDateTimeToISO(date, time);
 }
 
 export function getEventPositionForDay(event: ScheduleEvent, day: Date): { left: number; width: number } | null {
   const eventDay = getEventDayKey(event.start);
-  const targetDay = format(day, "yyyy-MM-dd");
+  const targetDay = calendarDayKey(day);
   if (eventDay !== targetDay) return null;
 
   const startMinutes = timeToMinutes(event.start);
@@ -88,7 +90,7 @@ export function getEventPositionForDay(event: ScheduleEvent, day: Date): { left:
 
 export function getEventPositionForWeek(event: ScheduleEvent, weekDays: Date[]): { left: number; width: number } | null {
   const eventDayKey = getEventDayKey(event.start);
-  const dayIndex = weekDays.findIndex((day) => format(day, "yyyy-MM-dd") === eventDayKey);
+  const dayIndex = weekDays.findIndex((day) => calendarDayKey(day) === eventDayKey);
   if (dayIndex === -1) return null;
 
   const dayWidth = getDayTimelineWidth();
