@@ -53,7 +53,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Company, Customer, Employee, Quote, ScheduleEvent, User } from "@/types";
+import type { Company, Customer, Employee, LaborRateTemplate, Quote, ScheduleEvent, User } from "@/types";
 
 interface QuotesPageClientProps {
   initialQuotes: Quote[];
@@ -61,6 +61,7 @@ interface QuotesPageClientProps {
   employees: Employee[];
   scheduledEventsByQuoteId: Record<string, ScheduleEvent>;
   company: Company;
+  laborTemplates: LaborRateTemplate[];
   user: User;
   isDemo?: boolean;
 }
@@ -89,6 +90,7 @@ export function QuotesPageClient({
   employees,
   scheduledEventsByQuoteId: initialScheduledEvents,
   company,
+  laborTemplates,
   user,
   isDemo,
 }: QuotesPageClientProps) {
@@ -463,6 +465,8 @@ export function QuotesPageClient({
         mode={formMode}
         quote={editingQuote}
         customers={customers}
+        company={company}
+        laborTemplates={laborTemplates}
         companyId={company.id}
         isDemo={isDemo}
         existingQuotes={quoteList}

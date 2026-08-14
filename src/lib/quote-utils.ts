@@ -1,4 +1,12 @@
-import type { Company, Quote, QuoteLineItem } from "@/types";
+import type { Company, Quote, QuoteCostEstimation, QuoteLineItem } from "@/types";
+import {
+  buildClientLineItemsFromEstimation,
+  buildProfitabilitySnapshot,
+  calculateCostEstimationSummary,
+  createEmptyCostEstimation,
+  hasCostEstimationLines,
+  recalculateCostEstimation,
+} from "@/lib/quote-cost-utils";
 
 export interface QuoteFormValues {
   title: string;
@@ -12,6 +20,8 @@ export interface QuoteFormValues {
   depositRequired: boolean;
   depositPercentage: string;
   terms: string;
+  costEstimation: QuoteCostEstimation;
+  manualPriceOverride: boolean;
 }
 
 export const QUOTE_STATUS_LABELS: Record<Quote["status"], string> = {
@@ -57,6 +67,10 @@ export function buildDefaultLineItems(quote: Pick<Quote, "title" | "description"
 }
 
 export function getQuoteLineItems(quote: Quote): QuoteLineItem[] {
+  if (quote.costEstimation && hasCostEstimationLines(quote.costEstimation)) {
+    const clientItems = buildClientLineItemsFromEstimation(quote);
+    if (clientItems.length > 0) return clientItems;
+  }
   const items = quote.lineItems ?? [];
   if (items.length > 0) return items;
   return buildDefaultLineItems(quote);
@@ -97,6 +111,8 @@ export function getDefaultQuoteFormValues(quote?: Quote): QuoteFormValues {
     depositRequired: quote?.depositRequired ?? false,
     depositPercentage: quote?.depositPercentage != null ? String(quote.depositPercentage) : "20",
     terms: quote?.terms ?? "",
+    costEstimation: quote?.costEstimation ?? createEmptyCostEstimation(),
+    manualPriceOverride: quote?.costEstimation?.manualPriceOverride ?? false,
   };
 }
 
@@ -116,10 +132,44 @@ export function buildQuoteFromForm(
   values: QuoteFormValues,
   companyId: string,
   quoteNumber: string,
-  id?: string
+  id?: string,
+  company?: Pick<Company, "gstRate" | "qstRate">
 ): Quote {
+  const hasLines = hasCostEstimationLines(values.costEstimation);
   const amount = Number(values.amount) || 0;
   const depositPercentage = values.depositRequired ? Number(values.depositPercentage) || 20 : undefined;
+
+  let calculatedCost: number | undefined;
+  let proposedAmount: number | undefined;
+  let lineItems: QuoteLineItem[];
+
+  if (hasLines) {
+    const estimation = recalculateCostEstimation({
+      ...values.costEstimation,
+      manualPriceOverride: values.manualPriceOverride,
+    });
+    const summary = calculateCostEstimationSummary(estimation, company ?? {}, amount);
+    calculatedCost = summary.calculatedSubtotal;
+    proposedAmount = summary.proposedSubtotal;
+    estimation.profitability = buildProfitabilitySnapshot(estimation, summary);
+    values.costEstimation = estimation;
+
+    lineItems = buildClientLineItemsFromEstimation({
+      title: values.title.trim(),
+      description: values.description.trim(),
+      amount: proposedAmount,
+      proposedAmount,
+      costEstimation: estimation,
+    });
+  } else {
+    lineItems = buildDefaultLineItems({
+      title: values.title.trim(),
+      description: values.description.trim(),
+      amount,
+    });
+  }
+
+  const finalAmount = hasLines ? (proposedAmount ?? amount) : amount;
 
   return {
     id: id ?? `quote-${Date.now()}`,
@@ -130,22 +180,21 @@ export function buildQuoteFromForm(
     customerEmail: values.customerEmail.trim() || undefined,
     title: values.title.trim(),
     description: values.description.trim(),
-    amount,
+    amount: finalAmount,
     status: values.status,
     validUntil: values.validUntil,
     createdAt: new Date().toISOString(),
     depositRequired: values.depositRequired,
     depositPercentage,
     depositAmount: values.depositRequired && depositPercentage
-      ? calculateDepositAmount(amount, depositPercentage)
+      ? calculateDepositAmount(finalAmount, depositPercentage)
       : undefined,
     depositStatus: values.depositRequired ? "pending" : "not_required",
     terms: values.terms.trim() || undefined,
-    lineItems: buildDefaultLineItems({
-      title: values.title.trim(),
-      description: values.description.trim(),
-      amount,
-    }),
+    lineItems,
+    costEstimation: hasLines ? values.costEstimation : undefined,
+    calculatedCost,
+    proposedAmount: hasLines ? proposedAmount : undefined,
   };
 }
 
@@ -162,6 +211,7 @@ export function duplicateQuote(source: Quote, newQuoteNumber: string): Quote {
     acceptedAt: undefined,
     rejectedAt: undefined,
     depositStatus: source.depositRequired ? "pending" : "not_required",
+    scheduledJobId: undefined,
   };
 }
 
@@ -183,8 +233,18 @@ export function canScheduleQuote(quote: Quote): boolean {
 
 export function buildQuoteScheduleNotes(quote: Quote): string {
   const parts = [`Soumission ${quote.quoteNumber}`];
-  if (quote.amount > 0) {
-    parts.push(`Montant: ${quote.amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`);
+  const amount = quote.proposedAmount ?? quote.amount;
+  if (amount > 0) {
+    parts.push(`Montant: ${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`);
+  }
+  if (quote.costEstimation?.labor.length) {
+    const hours = quote.costEstimation.labor.reduce(
+      (sum, line) => sum + line.hours * line.workerCount,
+      0
+    );
+    if (hours > 0) {
+      parts.push(`Heures estimées: ${hours.toLocaleString("fr-CA")} h`);
+    }
   }
   return parts.join(" · ");
 }

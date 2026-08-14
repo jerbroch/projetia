@@ -31,7 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Customer, Quote } from "@/types";
+import type { Company, Customer, LaborRateTemplate, Quote } from "@/types";
+import { CostEstimationSection } from "@/components/quotes/cost-estimation-section";
+import { hasCostEstimationLines } from "@/lib/quote-cost-utils";
 
 interface QuoteFormProps {
   open: boolean;
@@ -39,6 +41,8 @@ interface QuoteFormProps {
   mode: "create" | "edit";
   quote?: Quote;
   customers: Customer[];
+  company: Company;
+  laborTemplates: LaborRateTemplate[];
   companyId: string;
   isDemo?: boolean;
   existingQuotes: Quote[];
@@ -51,6 +55,8 @@ export function QuoteForm({
   mode,
   quote,
   customers,
+  company,
+  laborTemplates,
   companyId,
   isDemo,
   existingQuotes,
@@ -103,7 +109,8 @@ export function QuoteForm({
           form,
           companyId,
           quoteNumber,
-          mode === "edit" ? quote?.id : undefined
+          mode === "edit" ? quote?.id : undefined,
+          company
         );
         onSave(saved);
         onOpenChange(false);
@@ -123,6 +130,10 @@ export function QuoteForm({
       formData.set("depositRequired", String(form.depositRequired));
       formData.set("depositPercentage", form.depositPercentage);
       formData.set("terms", form.terms);
+      formData.set("manualPriceOverride", String(form.manualPriceOverride));
+      if (hasCostEstimationLines(form.costEstimation)) {
+        formData.set("costEstimation", JSON.stringify(form.costEstimation));
+      }
 
       const result =
         mode === "edit" ? await updateQuoteAction(formData) : await createQuoteAction(formData);
@@ -139,7 +150,7 @@ export function QuoteForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             {mode === "create" ? "Nouvelle soumission" : "Modifier la soumission"}
@@ -212,6 +223,19 @@ export function QuoteForm({
               placeholder="client@exemple.com"
             />
           </div>
+          <CostEstimationSection
+            company={company}
+            laborTemplates={laborTemplates}
+            estimation={form.costEstimation}
+            amount={form.amount}
+            manualPriceOverride={form.manualPriceOverride}
+            onEstimationChange={(costEstimation) => updateField("costEstimation", costEstimation)}
+            onAmountChange={(amount) => updateField("amount", amount)}
+            onManualPriceOverrideChange={(manualPriceOverride) =>
+              updateField("manualPriceOverride", manualPriceOverride)
+            }
+          />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="amount">Montant ($)</Label>
@@ -221,7 +245,12 @@ export function QuoteForm({
                 min="0"
                 step="0.01"
                 value={form.amount}
-                onChange={(e) => updateField("amount", e.target.value)}
+                onChange={(e) => {
+                  updateField("amount", e.target.value);
+                  if (!form.manualPriceOverride && hasCostEstimationLines(form.costEstimation)) {
+                    updateField("manualPriceOverride", true);
+                  }
+                }}
                 required
               />
             </div>

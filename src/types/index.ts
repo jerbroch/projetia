@@ -109,6 +109,83 @@ export interface QuoteLineItem {
   total: number;
 }
 
+export type QuoteLaborCategory = "compagnon" | "apprenti" | "equipe" | "autre";
+
+export type QuoteFeeType =
+  | "transport"
+  | "location"
+  | "sous_traitance"
+  | "permis"
+  | "livraison"
+  | "divers"
+  | "autre";
+
+export interface QuoteLaborLine {
+  id: string;
+  category: QuoteLaborCategory;
+  employeeCategory?: string;
+  hours: number;
+  hourlyRate: number;
+  workerCount: number;
+  total: number;
+}
+
+export interface QuoteMaterialLine {
+  id: string;
+  catalogItemId?: string;
+  name: string;
+  description?: string;
+  quantity: number;
+  unit: string;
+  costPrice: number;
+  marginPct: number;
+  salePrice: number;
+  total: number;
+  isCustom?: boolean;
+}
+
+export interface QuoteFeeLine {
+  id: string;
+  feeType: QuoteFeeType;
+  description: string;
+  quantity: number;
+  price: number;
+  marginPct?: number;
+  total: number;
+}
+
+/** Future-ready schema for estimated vs actual profitability tracking. */
+export interface QuoteProfitabilitySnapshot {
+  estimatedHours?: number;
+  actualHours?: number | null;
+  estimatedMaterialsCost?: number;
+  actualMaterialsCost?: number | null;
+  soldPrice?: number;
+  actualCost?: number | null;
+  profit?: number | null;
+}
+
+export interface QuoteCostEstimation {
+  labor: QuoteLaborLine[];
+  materials: QuoteMaterialLine[];
+  fees: QuoteFeeLine[];
+  showLaborOnClient?: boolean;
+  showMaterialsOnClient?: boolean;
+  manualPriceOverride?: boolean;
+  profitability?: QuoteProfitabilitySnapshot;
+}
+
+export interface QuoteEstimationSnapshot {
+  quoteId: string;
+  quoteNumber: string;
+  costEstimation?: QuoteCostEstimation;
+  calculatedCost?: number;
+  proposedAmount?: number;
+  budget?: number;
+  estimatedHours?: number;
+  capturedAt: string;
+}
+
 export interface Quote {
   id: string;
   companyId: string;
@@ -135,6 +212,9 @@ export interface Quote {
   lineItems: QuoteLineItem[];
   /** Set when this quote has been scheduled on the calendar */
   scheduledJobId?: string;
+  costEstimation?: QuoteCostEstimation;
+  calculatedCost?: number;
+  proposedAmount?: number;
 }
 
 export interface InvoiceLineItem {
@@ -342,6 +422,7 @@ export interface ScheduleEvent {
   sentAt?: string;
   sentTo?: string;
   sentBy?: string;
+  quoteEstimationSnapshot?: QuoteEstimationSnapshot;
 }
 
 export interface Payment {

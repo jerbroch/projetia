@@ -27,6 +27,13 @@ import type {
 import { countActiveFieldWorkers } from "@/lib/field-workers";
 import { isArchivedJob } from "@/lib/job-utils";
 import { calculateDepositAmount } from "@/lib/quote-utils";
+import {
+  mapCostEstimationFromDb,
+  mapEstimationSnapshotFromDb,
+  serializeCostEstimationForDb,
+  serializeEstimationSnapshotForDb,
+} from "@/lib/quote-cost-utils";
+import type { QuoteCostEstimation } from "@/types";
 
 function adminClient() {
   if (!isSupabaseAdminConfigured()) return null;
@@ -258,6 +265,9 @@ export function mapQuoteRow(row: Record<string, unknown>): Quote {
     depositStatus: (row.deposit_status as Quote["depositStatus"]) ?? "not_required",
     terms: row.terms ? String(row.terms) : undefined,
     lineItems,
+    costEstimation: mapCostEstimationFromDb(row.cost_estimation),
+    calculatedCost: row.calculated_cost != null ? Number(row.calculated_cost) : undefined,
+    proposedAmount: row.proposed_amount != null ? Number(row.proposed_amount) : undefined,
   };
 }
 
@@ -319,6 +329,9 @@ export async function insertQuoteForCompany(
     depositAmount?: number;
     terms?: string;
     lineItems?: Quote["lineItems"];
+    costEstimation?: QuoteCostEstimation;
+    calculatedCost?: number;
+    proposedAmount?: number;
   }
 ) {
   const supabase = await createClient();
@@ -348,6 +361,11 @@ export async function insertQuoteForCompany(
       deposit_status: input.depositRequired ? "pending" : "not_required",
       terms: input.terms || null,
       line_items: lineItems,
+      cost_estimation: input.costEstimation
+        ? serializeCostEstimationForDb(input.costEstimation)
+        : null,
+      calculated_cost: input.calculatedCost ?? null,
+      proposed_amount: input.proposedAmount ?? null,
     })
     .select("*")
     .single();
@@ -370,6 +388,9 @@ export async function updateQuoteForCompany(
     depositAmount?: number;
     terms?: string;
     lineItems?: Quote["lineItems"];
+    costEstimation?: QuoteCostEstimation;
+    calculatedCost?: number;
+    proposedAmount?: number;
   }
 ) {
   const supabase = await createClient();
@@ -397,6 +418,11 @@ export async function updateQuoteForCompany(
       deposit_status: input.depositRequired ? "pending" : "not_required",
       terms: input.terms || null,
       line_items: lineItems,
+      cost_estimation: input.costEstimation
+        ? serializeCostEstimationForDb(input.costEstimation)
+        : null,
+      calculated_cost: input.calculatedCost ?? null,
+      proposed_amount: input.proposedAmount ?? null,
     })
     .eq("id", quoteId)
     .eq("company_id", companyId)
@@ -442,6 +468,9 @@ export async function duplicateQuoteForCompany(companyId: string, quoteId: strin
       deposit_status: source.deposit_required ? "pending" : "not_required",
       terms: source.terms,
       line_items: source.line_items ?? [],
+      cost_estimation: source.cost_estimation ?? null,
+      calculated_cost: source.calculated_cost ?? null,
+      proposed_amount: source.proposed_amount ?? null,
     })
     .select("*")
     .single();
@@ -804,6 +833,7 @@ export function mapScheduleRow(row: Record<string, unknown>): ScheduleEvent {
     sentAt: row.sent_at ? String(row.sent_at) : undefined,
     sentTo: row.sent_to ? String(row.sent_to) : undefined,
     sentBy: row.sent_by ? String(row.sent_by) : undefined,
+    quoteEstimationSnapshot: mapEstimationSnapshotFromDb(row.quote_estimation_snapshot),
   };
 }
 
@@ -907,6 +937,9 @@ function toScheduleRowInput(event: ScheduleEvent) {
     sent_by: event.sentBy || null,
     sent_at: event.sentAt || null,
     sent_to: event.sentTo || null,
+    quote_estimation_snapshot: event.quoteEstimationSnapshot
+      ? serializeEstimationSnapshotForDb(event.quoteEstimationSnapshot)
+      : null,
   };
 }
 

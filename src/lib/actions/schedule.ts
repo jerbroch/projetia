@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/tenant-data";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { buildQuoteScheduleNotes, canScheduleQuote } from "@/lib/quote-utils";
+import { buildQuoteEstimationSnapshot } from "@/lib/quote-cost-utils";
 import {
   buildDateTime,
   buildScheduleEventFromQuote,
@@ -159,6 +160,10 @@ export async function scheduleQuoteAction(formData: FormData): Promise<ScheduleQ
 
   if (parsed.data.clientPoNumber) {
     event.clientPoNumber = parsed.data.clientPoNumber;
+  }
+
+  if (quote.costEstimation) {
+    event.quoteEstimationSnapshot = buildQuoteEstimationSnapshot(quote);
   }
 
   const { data, error } = await insertScheduledJobForCompany(ctx.company.id, event);

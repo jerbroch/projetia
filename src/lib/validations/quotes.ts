@@ -11,6 +11,60 @@ const quoteStatusSchema = z.enum([
   "deposit_paid",
 ]);
 
+const laborCategorySchema = z.enum(["compagnon", "apprenti", "equipe", "autre"]);
+const feeTypeSchema = z.enum([
+  "transport",
+  "location",
+  "sous_traitance",
+  "permis",
+  "livraison",
+  "divers",
+  "autre",
+]);
+
+export const quoteLaborLineSchema = z.object({
+  id: z.string().min(1),
+  category: laborCategorySchema,
+  employeeCategory: z.string().trim().optional(),
+  hours: z.coerce.number().min(0),
+  hourlyRate: z.coerce.number().min(0),
+  workerCount: z.coerce.number().min(1),
+  total: z.coerce.number().min(0),
+});
+
+export const quoteMaterialLineSchema = z.object({
+  id: z.string().min(1),
+  catalogItemId: z.string().uuid().optional(),
+  name: z.string().trim().min(1, "Le nom du matériau est requis"),
+  description: z.string().trim().optional(),
+  quantity: z.coerce.number().min(0),
+  unit: z.string().trim().min(1),
+  costPrice: z.coerce.number().min(0),
+  marginPct: z.coerce.number().min(0),
+  salePrice: z.coerce.number().min(0),
+  total: z.coerce.number().min(0),
+  isCustom: z.coerce.boolean().optional(),
+});
+
+export const quoteFeeLineSchema = z.object({
+  id: z.string().min(1),
+  feeType: feeTypeSchema,
+  description: z.string().trim().min(1, "La description du frais est requise"),
+  quantity: z.coerce.number().min(0),
+  price: z.coerce.number().min(0),
+  marginPct: z.coerce.number().min(0).optional(),
+  total: z.coerce.number().min(0),
+});
+
+export const quoteCostEstimationSchema = z.object({
+  labor: z.array(quoteLaborLineSchema).default([]),
+  materials: z.array(quoteMaterialLineSchema).default([]),
+  fees: z.array(quoteFeeLineSchema).default([]),
+  showLaborOnClient: z.coerce.boolean().optional(),
+  showMaterialsOnClient: z.coerce.boolean().optional(),
+  manualPriceOverride: z.coerce.boolean().optional(),
+});
+
 export const quoteFormSchema = z.object({
   title: z.string().trim().min(1, "Le titre est requis"),
   description: z.string().trim().optional(),
@@ -23,6 +77,8 @@ export const quoteFormSchema = z.object({
   depositRequired: z.coerce.boolean().optional().default(false),
   depositPercentage: z.coerce.number().min(1).max(100).optional(),
   terms: z.string().trim().optional(),
+  costEstimation: quoteCostEstimationSchema.optional(),
+  manualPriceOverride: z.coerce.boolean().optional().default(false),
 });
 
 export type QuoteFormInput = z.infer<typeof quoteFormSchema>;

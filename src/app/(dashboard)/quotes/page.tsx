@@ -5,16 +5,18 @@ import {
   getQuotes,
   getScheduleEvents,
 } from "@/lib/data/tenant-data";
+import { getLaborRateTemplates } from "@/lib/data/billing-data";
 import { requireTenantContext } from "@/lib/session";
-import type { ScheduleEvent } from "@/types";
+import type { LaborRateTemplate, ScheduleEvent } from "@/types";
 
 export default async function QuotesPage() {
   const ctx = await requireTenantContext();
-  const [quotes, customers, employees, scheduleEvents] = await Promise.all([
+  const [quotes, customers, employees, scheduleEvents, laborTemplates] = await Promise.all([
     getQuotes(ctx.company.id, ctx.isDemo),
     getCustomers(ctx.company.id, ctx.isDemo),
     getEmployees(ctx.company.id, ctx.isDemo),
     getScheduleEvents(ctx.company.id, ctx.isDemo),
+    ctx.isDemo ? Promise.resolve([] as LaborRateTemplate[]) : getLaborRateTemplates(ctx.company.id),
   ]);
 
   const scheduledEventsByQuoteId = scheduleEvents.reduce<Record<string, ScheduleEvent>>(
@@ -32,6 +34,7 @@ export default async function QuotesPage() {
       employees={employees}
       scheduledEventsByQuoteId={scheduledEventsByQuoteId}
       company={ctx.company}
+      laborTemplates={laborTemplates}
       user={ctx.user}
       isDemo={ctx.isDemo}
     />

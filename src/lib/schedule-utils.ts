@@ -486,6 +486,7 @@ export function mergeScheduleJobForUpdate(
     sentAt: existing.sentAt,
     sentTo: existing.sentTo,
     sentBy: existing.sentBy,
+    quoteEstimationSnapshot: existing.quoteEstimationSnapshot ?? updates.quoteEstimationSnapshot,
   };
 }
 

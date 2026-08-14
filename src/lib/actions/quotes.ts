@@ -11,6 +11,14 @@ import {
   resolveAppOriginFromHeaders,
 } from "@/lib/quote-utils";
 import {
+  buildClientLineItemsFromEstimation,
+  buildProfitabilitySnapshot,
+  calculateCostEstimationSummary,
+  hasCostEstimationLines,
+  recalculateCostEstimation,
+} from "@/lib/quote-cost-utils";
+import { searchMaterialCatalog } from "@/lib/data/billing-data";
+import {
   deleteQuoteForCompany,
   duplicateQuoteForCompany,
   getNextQuoteNumber,
@@ -21,7 +29,7 @@ import {
 } from "@/lib/data/tenant-data";
 import { requireTenantContext } from "@/lib/session";
 import { quoteFormSchema, quoteIdSchema, sendQuoteSchema } from "@/lib/validations/quotes";
-import type { Quote } from "@/types";
+import type { Quote, QuoteCostEstimation } from "@/types";
 
 export type QuoteActionResult =
   | { success: true; quote: Quote }
@@ -33,6 +41,16 @@ export type SendQuoteResult =
 
 function safeError(message: string): QuoteActionResult {
   return { success: false, error: message };
+}
+
+function parseCostEstimationFromForm(formData: FormData) {
+  const raw = formData.get("costEstimation");
+  if (typeof raw !== "string" || !raw.trim()) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
 }
 
 function parseQuoteForm(formData: FormData) {
@@ -48,18 +66,50 @@ function parseQuoteForm(formData: FormData) {
     depositRequired: formData.get("depositRequired") === "true",
     depositPercentage: formData.get("depositPercentage") || undefined,
     terms: formData.get("terms") || undefined,
+    costEstimation: parseCostEstimationFromForm(formData),
+    manualPriceOverride: formData.get("manualPriceOverride") === "true",
   });
 }
 
-function toQuoteInput(parsed: NonNullable<ReturnType<typeof parseQuoteForm>["data"]>) {
-  const lineItems = buildDefaultLineItems({
+function toQuoteInput(
+  parsed: NonNullable<ReturnType<typeof parseQuoteForm>["data"]>,
+  company: { gstRate?: number; qstRate?: number }
+) {
+  const hasLines = parsed.costEstimation && hasCostEstimationLines(parsed.costEstimation);
+  let amount = parsed.amount;
+  let lineItems = buildDefaultLineItems({
     title: parsed.title,
     description: parsed.description ?? "",
     amount: parsed.amount,
   });
+  let costEstimation: QuoteCostEstimation | undefined = parsed.costEstimation
+    ? recalculateCostEstimation(parsed.costEstimation as QuoteCostEstimation)
+    : undefined;
+  let calculatedCost: number | undefined;
+  let proposedAmount: number | undefined;
+
+  if (hasLines && costEstimation) {
+    costEstimation = recalculateCostEstimation({
+      ...costEstimation,
+      manualPriceOverride: parsed.manualPriceOverride,
+    });
+    const summary = calculateCostEstimationSummary(costEstimation, company, parsed.amount);
+    calculatedCost = summary.calculatedSubtotal;
+    proposedAmount = summary.proposedSubtotal;
+    amount = proposedAmount;
+    costEstimation.profitability = buildProfitabilitySnapshot(costEstimation, summary);
+    lineItems = buildClientLineItemsFromEstimation({
+      title: parsed.title,
+      description: parsed.description ?? "",
+      amount,
+      proposedAmount,
+      costEstimation,
+    });
+  }
+
   const depositAmount =
     parsed.depositRequired && parsed.depositPercentage
-      ? calculateDepositAmount(parsed.amount, parsed.depositPercentage)
+      ? calculateDepositAmount(amount, parsed.depositPercentage)
       : undefined;
 
   return {
@@ -68,7 +118,7 @@ function toQuoteInput(parsed: NonNullable<ReturnType<typeof parseQuoteForm>["dat
     customerId: parsed.customerId,
     customerName: parsed.customerName,
     customerEmail: parsed.customerEmail || undefined,
-    amount: parsed.amount,
+    amount,
     status: parsed.status,
     validUntil: parsed.validUntil,
     depositRequired: parsed.depositRequired,
@@ -76,6 +126,9 @@ function toQuoteInput(parsed: NonNullable<ReturnType<typeof parseQuoteForm>["dat
     depositAmount,
     terms: parsed.terms,
     lineItems,
+    costEstimation: hasLines ? costEstimation : undefined,
+    calculatedCost,
+    proposedAmount,
   };
 }
 
@@ -92,7 +145,7 @@ export async function createQuoteAction(formData: FormData): Promise<QuoteAction
   const quoteNumber = await getNextQuoteNumber(ctx.company.id);
   const { data, error } = await insertQuoteForCompany(ctx.company.id, {
     quoteNumber,
-    ...toQuoteInput(parsed.data),
+    ...toQuoteInput(parsed.data, ctx.company),
   });
 
   if (error || !data) {
@@ -121,7 +174,7 @@ export async function updateQuoteAction(formData: FormData): Promise<QuoteAction
   const { data, error } = await updateQuoteForCompany(
     ctx.company.id,
     idParsed.data.id,
-    toQuoteInput(parsed.data)
+    toQuoteInput(parsed.data, ctx.company)
   );
 
   if (error || !data) {
@@ -230,4 +283,15 @@ export async function sendQuoteAction(formData: FormData): Promise<SendQuoteResu
     publicUrl,
     emailProvider: emailResult.provider,
   };
+}
+
+export async function searchQuoteMaterialsAction(query: string) {
+  const ctx = await requireTenantContext();
+  if (ctx.isDemo || !isSupabaseConfigured()) return [];
+
+  const result = await searchMaterialCatalog(ctx.company.id, {
+    query,
+    pageSize: 10,
+  });
+  return result.items;
 }
