@@ -11,6 +11,7 @@ import {
   FEE_TYPE_LABELS,
   hasCostEstimationLines,
   LABOR_CATEGORY_LABELS,
+  normalizeCostEstimation,
   recalculateCostEstimation,
   resolveDefaultLaborRate,
   resolveDefaultWorkerCount,
@@ -162,7 +163,10 @@ export function CostEstimationSection({
   onManualPriceOverrideChange,
 }: CostEstimationSectionProps) {
   const defaultMargin = company.defaultMaterialMargin ?? 0.4;
-  const normalized = useMemo(() => recalculateCostEstimation(estimation), [estimation]);
+  const normalized = useMemo(
+    () => recalculateCostEstimation(normalizeCostEstimation(estimation)),
+    [estimation]
+  );
   const summary: QuoteCostSummary = useMemo(
     () =>
       calculateCostEstimationSummary(

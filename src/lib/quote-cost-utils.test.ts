@@ -8,10 +8,12 @@ import {
   calculateMaterialLineTotal,
   calculateMaterialSalePrice,
   createEmptyCostEstimation,
+  hasCostEstimationLines,
+  normalizeCostEstimation,
   recalculateCostEstimation,
   resolveDefaultLaborRate,
 } from "@/lib/quote-cost-utils";
-import type { LaborRateTemplate, Quote } from "@/types";
+import type { LaborRateTemplate, Quote, QuoteCostEstimation } from "@/types";
 
 const company = { gstRate: 0.05, qstRate: 0.09975 };
 
@@ -176,5 +178,23 @@ describe("quote-cost-utils calculations", () => {
     expect(snapshot.quoteNumber).toBe("SO-2026-001");
     expect(snapshot.proposedAmount).toBe(1200);
     expect(snapshot.estimatedHours).toBe(8);
+  });
+
+  it("handles null or partial cost estimation without throwing", () => {
+    expect(hasCostEstimationLines(null)).toBe(false);
+    expect(hasCostEstimationLines(undefined)).toBe(false);
+    expect(hasCostEstimationLines({} as Quote["costEstimation"])).toBe(false);
+
+    const partial = {
+      showLaborOnClient: true,
+      manualPriceOverride: false,
+    } as QuoteCostEstimation;
+
+    expect(() => recalculateCostEstimation(partial)).not.toThrow();
+    const normalized = recalculateCostEstimation(partial);
+    expect(normalized.labor).toEqual([]);
+    expect(normalized.materials).toEqual([]);
+    expect(normalized.fees).toEqual([]);
+    expect(normalized.showLaborOnClient).toBe(true);
   });
 });

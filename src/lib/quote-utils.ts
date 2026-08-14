@@ -3,10 +3,15 @@ import {
   buildClientLineItemsFromEstimation,
   buildProfitabilitySnapshot,
   calculateCostEstimationSummary,
+  calculateQuoteTotals,
   createEmptyCostEstimation,
   hasCostEstimationLines,
+  normalizeCostEstimation,
   recalculateCostEstimation,
 } from "@/lib/quote-cost-utils";
+
+export { calculateQuoteTotals };
+export type { QuoteTotals } from "@/lib/quote-cost-utils";
 
 export interface QuoteFormValues {
   title: string;
@@ -34,26 +39,6 @@ export const QUOTE_STATUS_LABELS: Record<Quote["status"], string> = {
   deposit_pending: "Dépôt en attente",
   deposit_paid: "Dépôt payé",
 };
-
-export interface QuoteTotals {
-  subtotal: number;
-  gst: number;
-  qst: number;
-  total: number;
-}
-
-/** Quebec-style tax: QST applies to subtotal + GST */
-export function calculateQuoteTotals(
-  subtotal: number,
-  company: Pick<Company, "gstRate" | "qstRate">
-): QuoteTotals {
-  const gstRate = company.gstRate ?? 0.05;
-  const qstRate = company.qstRate ?? 0.09975;
-  const gst = Math.round(subtotal * gstRate * 100) / 100;
-  const qst = Math.round((subtotal + gst) * qstRate * 100) / 100;
-  const total = Math.round((subtotal + gst + qst) * 100) / 100;
-  return { subtotal, gst, qst, total };
-}
 
 export function buildDefaultLineItems(quote: Pick<Quote, "title" | "description" | "amount">): QuoteLineItem[] {
   return [
@@ -111,8 +96,8 @@ export function getDefaultQuoteFormValues(quote?: Quote): QuoteFormValues {
     depositRequired: quote?.depositRequired ?? false,
     depositPercentage: quote?.depositPercentage != null ? String(quote.depositPercentage) : "20",
     terms: quote?.terms ?? "",
-    costEstimation: quote?.costEstimation ?? createEmptyCostEstimation(),
-    manualPriceOverride: quote?.costEstimation?.manualPriceOverride ?? false,
+    costEstimation: normalizeCostEstimation(quote?.costEstimation),
+    manualPriceOverride: normalizeCostEstimation(quote?.costEstimation).manualPriceOverride ?? false,
   };
 }
 
@@ -237,7 +222,7 @@ export function buildQuoteScheduleNotes(quote: Quote): string {
   if (amount > 0) {
     parts.push(`Montant: ${amount.toLocaleString("fr-CA", { style: "currency", currency: "CAD" })}`);
   }
-  if (quote.costEstimation?.labor.length) {
+  if (quote.costEstimation?.labor?.length) {
     const hours = quote.costEstimation.labor.reduce(
       (sum, line) => sum + line.hours * line.workerCount,
       0

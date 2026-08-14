@@ -1,5 +1,4 @@
 import { generateId } from "@/lib/id";
-import { calculateQuoteTotals } from "@/lib/quote-utils";
 import type {
   Company,
   LaborRateTemplate,
@@ -13,6 +12,26 @@ import type {
   QuoteLineItem,
   QuoteMaterialLine,
 } from "@/types";
+
+export interface QuoteTotals {
+  subtotal: number;
+  gst: number;
+  qst: number;
+  total: number;
+}
+
+/** Quebec-style tax: QST applies to subtotal + GST */
+export function calculateQuoteTotals(
+  subtotal: number,
+  company: Pick<Company, "gstRate" | "qstRate">
+): QuoteTotals {
+  const gstRate = company.gstRate ?? 0.05;
+  const qstRate = company.qstRate ?? 0.09975;
+  const gst = Math.round(subtotal * gstRate * 100) / 100;
+  const qst = Math.round((subtotal + gst) * qstRate * 100) / 100;
+  const total = Math.round((subtotal + gst + qst) * 100) / 100;
+  return { subtotal, gst, qst, total };
+}
 
 export const LABOR_CATEGORY_LABELS: Record<QuoteLaborCategory, string> = {
   compagnon: "Compagnon",
@@ -111,6 +130,22 @@ export function createEmptyCostEstimation(): QuoteCostEstimation {
   };
 }
 
+/** Ensures labor/materials/fees arrays exist — safe for null DB values or partial JSON. */
+export function normalizeCostEstimation(
+  estimation?: QuoteCostEstimation | null
+): QuoteCostEstimation {
+  if (!estimation || typeof estimation !== "object") {
+    return createEmptyCostEstimation();
+  }
+  return {
+    ...createEmptyCostEstimation(),
+    ...estimation,
+    labor: Array.isArray(estimation.labor) ? estimation.labor : [],
+    materials: Array.isArray(estimation.materials) ? estimation.materials : [],
+    fees: Array.isArray(estimation.fees) ? estimation.fees : [],
+  };
+}
+
 export function createDefaultLaborLine(templates: LaborRateTemplate[] = []): QuoteLaborLine {
   const category: QuoteLaborCategory = "compagnon";
   const hourlyRate = resolveDefaultLaborRate(category, templates);
@@ -177,12 +212,15 @@ export function recalculateFeeLine(line: QuoteFeeLine): QuoteFeeLine {
   };
 }
 
-export function recalculateCostEstimation(estimation: QuoteCostEstimation): QuoteCostEstimation {
+export function recalculateCostEstimation(
+  estimation: QuoteCostEstimation | null | undefined
+): QuoteCostEstimation {
+  const normalized = normalizeCostEstimation(estimation);
   return {
-    ...estimation,
-    labor: estimation.labor.map(recalculateLaborLine),
-    materials: estimation.materials.map(recalculateMaterialLine),
-    fees: estimation.fees.map(recalculateFeeLine),
+    ...normalized,
+    labor: normalized.labor.map(recalculateLaborLine),
+    materials: normalized.materials.map(recalculateMaterialLine),
+    fees: normalized.fees.map(recalculateFeeLine),
   };
 }
 
@@ -201,9 +239,14 @@ export interface QuoteCostSummary {
   estimatedMaterialsCost: number;
 }
 
-export function hasCostEstimationLines(estimation?: QuoteCostEstimation): boolean {
+export function hasCostEstimationLines(estimation?: QuoteCostEstimation | null): boolean {
   if (!estimation) return false;
-  return estimation.labor.length > 0 || estimation.materials.length > 0 || estimation.fees.length > 0;
+  const normalized = normalizeCostEstimation(estimation);
+  return (
+    normalized.labor.length > 0 ||
+    normalized.materials.length > 0 ||
+    normalized.fees.length > 0
+  );
 }
 
 export function calculateCostEstimationSummary(

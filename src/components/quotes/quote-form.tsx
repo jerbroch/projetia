@@ -223,18 +223,20 @@ export function QuoteForm({
               placeholder="client@exemple.com"
             />
           </div>
-          <CostEstimationSection
-            company={company}
-            laborTemplates={laborTemplates}
-            estimation={form.costEstimation}
-            amount={form.amount}
-            manualPriceOverride={form.manualPriceOverride}
-            onEstimationChange={(costEstimation) => updateField("costEstimation", costEstimation)}
-            onAmountChange={(amount) => updateField("amount", amount)}
-            onManualPriceOverrideChange={(manualPriceOverride) =>
-              updateField("manualPriceOverride", manualPriceOverride)
-            }
-          />
+          {open && (
+            <CostEstimationSection
+              company={company}
+              laborTemplates={laborTemplates ?? []}
+              estimation={form.costEstimation}
+              amount={form.amount}
+              manualPriceOverride={form.manualPriceOverride}
+              onEstimationChange={(costEstimation) => updateField("costEstimation", costEstimation)}
+              onAmountChange={(amount) => updateField("amount", amount)}
+              onManualPriceOverrideChange={(manualPriceOverride) =>
+                updateField("manualPriceOverride", manualPriceOverride)
+              }
+            />
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
