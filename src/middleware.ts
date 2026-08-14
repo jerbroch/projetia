@@ -20,7 +20,7 @@ const TENANT_PREFIXES = [
 
 const PROTECTED_PREFIXES = [...TENANT_PREFIXES, "/onboarding", "/admin"];
 
-const AUTH_PAGES = ["/login", "/register", "/forgot-password", "/reset-password"];
+const AUTH_PAGES_REDIRECT_WHEN_LOGGED_IN = ["/login", "/register", "/forgot-password"];
 
 const ACCESS_GATE_PAGES = ["/choose-plan"];
 
@@ -36,8 +36,8 @@ function isTenantRoute(pathname: string): boolean {
   return matchesPrefix(pathname, TENANT_PREFIXES);
 }
 
-function isAuthPage(pathname: string): boolean {
-  return matchesPrefix(pathname, AUTH_PAGES);
+function shouldRedirectLoggedInFromAuthPage(pathname: string): boolean {
+  return matchesPrefix(pathname, AUTH_PAGES_REDIRECT_WHEN_LOGGED_IN);
 }
 
 function isAccessGatePage(pathname: string): boolean {
@@ -136,7 +136,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (isAuthPage(pathname) && isLoggedIn) {
+  if (shouldRedirectLoggedInFromAuthPage(pathname) && isLoggedIn) {
     let destination = "/dashboard";
     if (supabase && userId) {
       destination = await resolvePostLoginPath(supabase, userId, isDemo);
