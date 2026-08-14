@@ -208,6 +208,61 @@ export async function addLaborLineAction(input: {
   }
 }
 
+export async function addCustomLaborLineAction(input: {
+  jobId: string;
+  description: string;
+  hours: number;
+  workerCount: number;
+  hourlyRate: number;
+}): Promise<BillingActionResult<JobBillingSheet>> {
+  const ctx = await requireTenantContext();
+  if (!isSupabaseConfigured()) return fail("Supabase n'est pas configuré.");
+
+  try {
+    const edit = await resolveBillingEditContext(ctx.company.id, input.jobId, ctx.membershipRole, ctx.company);
+    if (!edit.ok) return fail(edit.error);
+    const sheet = edit.sheet;
+
+    const description = input.description.trim();
+    if (!description) return fail("La description est requise.");
+
+    const hours = input.hours;
+    const workerCount = Math.max(1, input.workerCount);
+    const hourlyRate = input.hourlyRate;
+    if (!hours || hours <= 0) return fail("Heures invalides.");
+    if (!hourlyRate || hourlyRate <= 0) return fail("Taux horaire invalide.");
+
+    const effectiveRate = Math.round(hourlyRate * workerCount * 100) / 100;
+    const lineTotal = calculateLineTotal(hours, effectiveRate);
+    const supabase = await createClient();
+
+    const { error: insertError } = await supabase.from("job_billing_lines").insert({
+      billing_sheet_id: sheet.id,
+      company_id: ctx.company.id,
+      line_type: "labor",
+      description: `${description} (${workerCount} travailleur${workerCount > 1 ? "s" : ""} × ${hours} h)`,
+      quantity: hours,
+      unit_cost: 0,
+      unit_sell_price: effectiveRate,
+      margin_pct: 0,
+      line_total: lineTotal,
+      sort_order: sheet.lines.length,
+    });
+    if (insertError) return saveFail(insertError.message);
+
+    const updated = await finalizeBillingSheetUpdate(
+      ctx.company.id,
+      input.jobId,
+      sheet.id,
+      ctx.company,
+      edit
+    );
+    return updated ? { success: true, data: updated } : saveFail("Feuille introuvable après enregistrement.");
+  } catch (e) {
+    return saveFail(e instanceof Error ? e.message : "Erreur inconnue.");
+  }
+}
+
 export async function addMaterialLineAction(input: {
   jobId: string;
   catalogItemId: string;
@@ -359,7 +414,12 @@ export async function updateBillingLineAction(input: {
 
     const quantity = input.quantity ?? line.quantity;
     const unitCost = input.unitPrice ?? line.unitCost;
-    const unitSellPrice = line.lineType === "material" ? unitCost : line.unitSellPrice;
+    const unitSellPrice =
+      input.unitPrice != null
+        ? input.unitPrice
+        : line.lineType === "material"
+          ? unitCost
+          : line.unitSellPrice;
     const lineTotal = calculateLineTotal(quantity, unitSellPrice);
     const supabase = await createClient();
 

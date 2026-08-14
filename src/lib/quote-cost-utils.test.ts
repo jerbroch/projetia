@@ -7,11 +7,15 @@ import {
   calculateLaborLineTotal,
   calculateMaterialLineTotal,
   calculateMaterialSalePrice,
+  createCustomLaborLine,
   createEmptyCostEstimation,
+  getLaborLineDisplayLabel,
   hasCostEstimationLines,
-  normalizeCostEstimation,
+  isCustomLaborLine,
+  mapCostEstimationFromDb,
   recalculateCostEstimation,
   resolveDefaultLaborRate,
+  serializeCostEstimationForDb,
 } from "@/lib/quote-cost-utils";
 import type { LaborRateTemplate, Quote, QuoteCostEstimation } from "@/types";
 
@@ -196,5 +200,70 @@ describe("quote-cost-utils calculations", () => {
     expect(normalized.materials).toEqual([]);
     expect(normalized.fees).toEqual([]);
     expect(normalized.showLaborOnClient).toBe(true);
+  });
+
+  it("creates and identifies custom labor lines", () => {
+    const line = createCustomLaborLine(templates, "Technicien spécialisé");
+    expect(line.category).toBe("autre");
+    expect(line.employeeCategory).toBe("Technicien spécialisé");
+    expect(isCustomLaborLine(line)).toBe(true);
+    expect(getLaborLineDisplayLabel(line)).toBe("Technicien spécialisé");
+    expect(line.hourlyRate).toBe(125);
+    expect(line.total).toBe(125);
+  });
+
+  it("preserves manually overridden hourly rate through serialize/deserialize", () => {
+    const estimation = recalculateCostEstimation({
+      ...createEmptyCostEstimation(),
+      labor: [
+        {
+          id: "l1",
+          category: "compagnon",
+          hours: 8,
+          hourlyRate: 185,
+          workerCount: 1,
+          total: 1480,
+        },
+        createCustomLaborLine([], "Équipe de nuit"),
+      ],
+    });
+    estimation.labor[1]!.hourlyRate = 275;
+    estimation.labor[1]!.hours = 6;
+    estimation.labor[1]!.workerCount = 2;
+    estimation.labor[1]!.total = 3300;
+
+    const serialized = serializeCostEstimationForDb(estimation);
+    const restored = mapCostEstimationFromDb(serialized);
+    expect(restored?.labor[0]?.hourlyRate).toBe(185);
+    expect(restored?.labor[1]?.hourlyRate).toBe(275);
+    expect(restored?.labor[1]?.employeeCategory).toBe("Équipe de nuit");
+    expect(restored?.labor[1]?.total).toBe(3300);
+  });
+
+  it("builds client line items with custom labor label", () => {
+    const customLine = createCustomLaborLine([], "Équipe de nuit");
+    customLine.hourlyRate = 275;
+    customLine.hours = 4;
+    customLine.workerCount = 2;
+    customLine.total = 2200;
+
+    const quote: Pick<Quote, "title" | "description" | "amount" | "costEstimation" | "proposedAmount"> =
+      {
+        title: "Projet",
+        description: "",
+        amount: 2200,
+        proposedAmount: 2200,
+        costEstimation: recalculateCostEstimation({
+          ...createEmptyCostEstimation(),
+          showLaborOnClient: true,
+          labor: [customLine],
+        }),
+      };
+
+    const items = buildClientLineItemsFromEstimation(quote);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.description).toContain("Équipe de nuit");
+    expect(items[0]?.unitPrice).toBe(275);
+    expect(items[0]?.total).toBe(2200);
   });
 });

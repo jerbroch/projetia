@@ -161,6 +161,41 @@ export function createDefaultLaborLine(templates: LaborRateTemplate[] = []): Quo
   };
 }
 
+/** Custom labor line — category "autre" with free-text label; rate is editable and persisted. */
+export function createCustomLaborLine(
+  templates: LaborRateTemplate[] = [],
+  customLabel = ""
+): QuoteLaborLine {
+  const category: QuoteLaborCategory = "autre";
+  const hourlyRate = resolveDefaultLaborRate(category, templates);
+  const workerCount = 1;
+  const hours = 1;
+  return {
+    id: generateId("ql"),
+    category,
+    employeeCategory: customLabel.trim() || undefined,
+    hours,
+    hourlyRate,
+    workerCount,
+    total: calculateLaborLineTotal(hours, hourlyRate, workerCount),
+  };
+}
+
+export function isCustomLaborLine(line: QuoteLaborLine): boolean {
+  return line.category === "autre" && Boolean(line.employeeCategory?.trim());
+}
+
+export function getLaborLineDisplayLabel(line: QuoteLaborLine): string {
+  if (isCustomLaborLine(line)) {
+    return line.employeeCategory!.trim();
+  }
+  const base = LABOR_CATEGORY_LABELS[line.category];
+  if (line.employeeCategory?.trim()) {
+    return `${base} (${line.employeeCategory.trim()})`;
+  }
+  return base;
+}
+
 export function createDefaultMaterialLine(defaultMargin = 0.4): QuoteMaterialLine {
   const costPrice = 0;
   const marginPct = defaultMargin;
@@ -322,9 +357,8 @@ export function buildClientLineItemsFromEstimation(
 
   if (normalized.showLaborOnClient) {
     for (const line of normalized.labor) {
-      const label = LABOR_CATEGORY_LABELS[line.category];
       items.push({
-        description: `Main-d'œuvre — ${label}${line.employeeCategory ? ` (${line.employeeCategory})` : ""}`,
+        description: `Main-d'œuvre — ${getLaborLineDisplayLabel(line)}`,
         quantity: line.hours * line.workerCount,
         unitPrice: line.hourlyRate,
         total: line.total,

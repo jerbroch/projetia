@@ -347,21 +347,34 @@ export async function seedBillingSheetFromQuote(
       quantity: line.quantity,
       unit_cost: line.unitCost,
       unit_sell_price: line.unitSellPrice,
-      margin_pct: null,
+      margin_pct: line.marginPct ?? null,
       line_total: lineTotal,
       sort_order: index,
-      is_divers: true,
+      is_divers: line.lineType === "material" ? (line.isDivers ?? false) : false,
     });
     checkSupabaseError(error, "job_billing_lines");
   }
+
+  const laborSubtotal =
+    Math.round(
+      prefill.lines
+        .filter((l) => l.lineType === "labor")
+        .reduce((sum, l) => sum + l.quantity * l.unitSellPrice, 0) * 100
+    ) / 100;
+  const materialSubtotal =
+    Math.round(
+      prefill.lines
+        .filter((l) => l.lineType === "material")
+        .reduce((sum, l) => sum + l.quantity * l.unitSellPrice, 0) * 100
+    ) / 100;
 
   const { error: sheetError } = await supabase
     .from("job_billing_sheets")
     .update({
       material_margin_pct: QUOTE_BILLING_MATERIAL_MARGIN,
-      material_cost_subtotal: prefill.subtotal,
-      material_subtotal: prefill.subtotal,
-      labor_subtotal: 0,
+      material_cost_subtotal: materialSubtotal,
+      material_subtotal: materialSubtotal,
+      labor_subtotal: laborSubtotal,
       subtotal: prefill.subtotal,
       gst_amount: prefill.gst,
       qst_amount: prefill.qst,

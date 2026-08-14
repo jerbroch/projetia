@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBillingLinesFromQuote,
+  buildBillingLinesFromQuoteEstimation,
   buildInvoiceBreakdownFromSheet,
   buildQuoteBillingPrefill,
   calculateInvoiceAmountBreakdown,
+  convertQuoteLaborToBillingLine,
   resolveInvoicePaidAmountOnSync,
   resolveQuoteDepositPaid,
 } from "@/lib/quote-invoice-link";
+import { recalculateCostEstimation, createEmptyCostEstimation } from "@/lib/quote-cost-utils";
 import type { Quote } from "@/types";
 
 const baseQuote: Quote = {
@@ -70,6 +73,63 @@ describe("buildBillingLinesFromQuote", () => {
       unitCost: 8000,
       unitSellPrice: 8000,
     });
+  });
+});
+
+describe("buildBillingLinesFromQuoteEstimation", () => {
+  it("copies labor lines with custom rates intact", () => {
+    const quote: Quote = {
+      ...baseQuote,
+      costEstimation: recalculateCostEstimation({
+        ...createEmptyCostEstimation(),
+        labor: [
+          {
+            id: "l1",
+            category: "compagnon",
+            hours: 8,
+            hourlyRate: 185,
+            workerCount: 1,
+            total: 1480,
+          },
+          {
+            id: "l2",
+            category: "autre",
+            employeeCategory: "Équipe de nuit",
+            hours: 6,
+            hourlyRate: 275,
+            workerCount: 2,
+            total: 3300,
+          },
+        ],
+      }),
+    };
+
+    const lines = buildBillingLinesFromQuoteEstimation(quote);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatchObject({
+      lineType: "labor",
+      quantity: 8,
+      unitSellPrice: 185,
+    });
+    expect(lines[1]).toMatchObject({
+      lineType: "labor",
+      quantity: 6,
+      unitSellPrice: 550,
+    });
+    expect(lines[1]?.description).toContain("Équipe de nuit");
+  });
+
+  it("convertQuoteLaborToBillingLine preserves total via effective rate", () => {
+    const line = convertQuoteLaborToBillingLine({
+      id: "l1",
+      category: "autre",
+      employeeCategory: "Technicien spécialisé",
+      hours: 4,
+      hourlyRate: 185,
+      workerCount: 1,
+      total: 740,
+    });
+    expect(line.quantity * line.unitSellPrice).toBe(740);
   });
 });
 

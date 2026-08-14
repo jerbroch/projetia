@@ -1,6 +1,11 @@
 import type { BillingLineInput } from "@/lib/billing-utils";
 import { calculateQuoteTotals, getQuoteLineItems } from "@/lib/quote-utils";
-import type { Company, Quote } from "@/types";
+import {
+  getLaborLineDisplayLabel,
+  hasCostEstimationLines,
+  normalizeCostEstimation,
+} from "@/lib/quote-cost-utils";
+import type { Company, Quote, QuoteLaborLine } from "@/types";
 
 /** Margin applied to quote-sourced material lines — quote prices are already final sell prices. */
 export const QUOTE_BILLING_MATERIAL_MARGIN = 0;
@@ -38,6 +43,62 @@ export function resolveQuoteDepositPaid(quote: Pick<Quote, "depositRequired" | "
   return amount > 0 ? roundCurrency(amount) : 0;
 }
 
+/** Converts a quote labor line to a billing line, preserving the stored hourly rate. */
+export function convertQuoteLaborToBillingLine(line: QuoteLaborLine): BillingLineInput {
+  const label = getLaborLineDisplayLabel(line);
+  const effectiveRate = line.hourlyRate * line.workerCount;
+  return {
+    lineType: "labor",
+    description: `${label} (${line.workerCount} travailleur${line.workerCount > 1 ? "s" : ""} × ${line.hours} h)`,
+    quantity: line.hours,
+    unitCost: 0,
+    unitSellPrice: effectiveRate,
+    marginPct: 0,
+  };
+}
+
+/** Builds billing lines from quote cost estimation (labor, materials, fees) with persisted rates. */
+export function buildBillingLinesFromQuoteEstimation(quote: Quote): BillingLineInput[] {
+  const estimation = normalizeCostEstimation(quote.costEstimation);
+  if (!hasCostEstimationLines(estimation)) {
+    return buildBillingLinesFromQuote(quote);
+  }
+
+  const lines: BillingLineInput[] = [];
+
+  for (const laborLine of estimation.labor) {
+    lines.push(convertQuoteLaborToBillingLine(laborLine));
+  }
+
+  for (const materialLine of estimation.materials) {
+    lines.push({
+      lineType: "material",
+      description: materialLine.description
+        ? `${materialLine.name} — ${materialLine.description}`
+        : materialLine.name,
+      quantity: materialLine.quantity,
+      unitCost: materialLine.salePrice,
+      unitSellPrice: materialLine.salePrice,
+      isDivers: materialLine.isCustom ?? false,
+    });
+  }
+
+  for (const feeLine of estimation.fees) {
+    const unitPrice =
+      feeLine.quantity > 0 ? roundCurrency(feeLine.total / feeLine.quantity) : feeLine.total;
+    lines.push({
+      lineType: "material",
+      description: feeLine.description,
+      quantity: feeLine.quantity,
+      unitCost: unitPrice,
+      unitSellPrice: unitPrice,
+      isDivers: true,
+    });
+  }
+
+  return lines;
+}
+
 /** Converts quote line items to billing sheet lines (material, sell price = quote unit price). */
 export function buildBillingLinesFromQuote(quote: Quote): BillingLineInput[] {
   return getQuoteLineItems(quote).map((item) => ({
@@ -52,7 +113,10 @@ export function buildBillingLinesFromQuote(quote: Quote): BillingLineInput[] {
 
 /** Builds billing prefill totals from a quote using company tax rates. */
 export function buildQuoteBillingPrefill(quote: Quote, company: Pick<Company, "gstRate" | "qstRate">): QuoteBillingPrefill {
-  const lines = buildBillingLinesFromQuote(quote);
+  const lines =
+    quote.costEstimation && hasCostEstimationLines(quote.costEstimation)
+      ? buildBillingLinesFromQuoteEstimation(quote)
+      : buildBillingLinesFromQuote(quote);
   const subtotal = roundCurrency(lines.reduce((sum, line) => sum + line.quantity * line.unitSellPrice, 0));
   const taxes = calculateQuoteTotals(subtotal, company);
   return {

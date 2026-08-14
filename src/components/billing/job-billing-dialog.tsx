@@ -5,6 +5,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Loader2, Plus, Receipt, Trash2 } from "lucide-react";
 import {
+  addCustomLaborLineAction,
   addDiversLineAction,
   addLaborLineAction,
   addMaterialLineAction,
@@ -109,6 +110,12 @@ export function JobBillingDialog({
 
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [laborHours, setLaborHours] = useState("1");
+
+  const [customLaborOpen, setCustomLaborOpen] = useState(false);
+  const [customLaborDesc, setCustomLaborDesc] = useState("");
+  const [customLaborHours, setCustomLaborHours] = useState("1");
+  const [customLaborWorkers, setCustomLaborWorkers] = useState("1");
+  const [customLaborRate, setCustomLaborRate] = useState("");
 
   const [materialQuery, setMaterialQuery] = useState("");
   const [materialResults, setMaterialResults] = useState<MaterialCatalogItem[]>([]);
@@ -254,6 +261,65 @@ export function JobBillingDialog({
       });
       if (!result.success) setError(result.error);
       else if (result.data) setSheet(result.data);
+    });
+  }
+
+  function handleAddCustomLabor() {
+    const hours = parseFloat(customLaborHours);
+    const workerCount = parseInt(customLaborWorkers, 10);
+    const hourlyRate = showPrices ? parseFloat(customLaborRate) : 0;
+    if (!customLaborDesc.trim() || !hours || hours <= 0) {
+      setError("Description et heures valides requises.");
+      return;
+    }
+    if (showPrices && (!hourlyRate || hourlyRate <= 0)) {
+      setError("Taux horaire requis.");
+      return;
+    }
+    setError("");
+
+    const effectiveRate = hourlyRate * Math.max(1, workerCount || 1);
+
+    if (isDemo) {
+      const line = createDemoBillingLine({
+        billingSheetId: sheet?.id ?? "",
+        lineType: "labor",
+        description: `${customLaborDesc.trim()} (${Math.max(1, workerCount || 1)} travailleur${(workerCount || 1) > 1 ? "s" : ""} × ${hours} h)`,
+        quantity: hours,
+        unitCost: 0,
+        unitSellPrice: effectiveRate,
+        marginPct: 0,
+        lineTotal: hours * effectiveRate,
+        sortOrder: sheet?.lines.length ?? 0,
+      });
+      const updated = recalcDemoSheet([...(sheet?.lines ?? []), line]);
+      setSheet(updated);
+      upsertDemoBillingSheet(updated);
+      setCustomLaborOpen(false);
+      setCustomLaborDesc("");
+      setCustomLaborHours("1");
+      setCustomLaborWorkers("1");
+      setCustomLaborRate("");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await addCustomLaborLineAction({
+        jobId: event.id,
+        description: customLaborDesc.trim(),
+        hours,
+        workerCount: Math.max(1, workerCount || 1),
+        hourlyRate,
+      });
+      if (!result.success) setError(result.error);
+      else if (result.data) {
+        setSheet(result.data);
+        setCustomLaborOpen(false);
+        setCustomLaborDesc("");
+        setCustomLaborHours("1");
+        setCustomLaborWorkers("1");
+        setCustomLaborRate("");
+      }
     });
   }
 
@@ -509,42 +575,107 @@ export function JobBillingDialog({
 
               <TabsContent value="labor" className="space-y-4">
                 {!isLocked && (
-                  <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
-                    <div className="min-w-[200px] flex-1 space-y-1">
-                      <Label>Modèle</Label>
-                      <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir un modèle" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {laborTemplates.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.name}
-                              {showPrices && ` — ${formatLaborBillRate(t.billRate)}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <>
+                    <div className="flex flex-wrap items-end gap-2 rounded-lg border p-3">
+                      <div className="min-w-[200px] flex-1 space-y-1">
+                        <Label>Modèle</Label>
+                        <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choisir un modèle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {laborTemplates.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.name}
+                                {showPrices && ` — ${formatLaborBillRate(t.billRate)}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-24 space-y-1">
+                        <Label>Heures</Label>
+                        <Input
+                          type="number"
+                          min="0.25"
+                          step="0.25"
+                          value={laborHours}
+                          onChange={(e) => setLaborHours(e.target.value)}
+                        />
+                      </div>
+                      <Button onClick={handleAddLabor} disabled={isPending}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Ajouter
+                      </Button>
                     </div>
-                    <div className="w-24 space-y-1">
-                      <Label>Heures</Label>
-                      <Input
-                        type="number"
-                        min="0.25"
-                        step="0.25"
-                        value={laborHours}
-                        onChange={(e) => setLaborHours(e.target.value)}
-                      />
-                    </div>
-                    <Button onClick={handleAddLabor} disabled={isPending}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Ajouter
-                    </Button>
-                  </div>
+
+                    {!customLaborOpen ? (
+                      <Button variant="outline" size="sm" onClick={() => setCustomLaborOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Main-d&apos;œuvre personnalisée
+                      </Button>
+                    ) : (
+                      <div className="space-y-3 rounded-md border border-dashed p-3">
+                        <p className="text-sm font-medium">Main-d&apos;œuvre personnalisée</p>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          <div className="space-y-1 sm:col-span-2 lg:col-span-4">
+                            <Label>Description</Label>
+                            <Input
+                              value={customLaborDesc}
+                              onChange={(e) => setCustomLaborDesc(e.target.value)}
+                              placeholder="Ex: Technicien spécialisé, Équipe de nuit"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Heures</Label>
+                            <Input
+                              type="number"
+                              min="0.25"
+                              step="0.25"
+                              value={customLaborHours}
+                              onChange={(e) => setCustomLaborHours(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label>Travailleurs</Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={customLaborWorkers}
+                              onChange={(e) => setCustomLaborWorkers(e.target.value)}
+                            />
+                          </div>
+                          {showPrices && (
+                            <div className="space-y-1">
+                              <Label>Taux ($/h)</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={customLaborRate}
+                                onChange={(e) => setCustomLaborRate(e.target.value)}
+                                placeholder="185.00"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleAddCustomLabor} disabled={isPending} size="sm">
+                            Ajouter
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setCustomLaborOpen(false)}>
+                            Annuler
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
                 <BillingLinesTable
                   lines={laborLines}
                   onRemove={handleRemoveLine}
+                  onUpdatePrice={showPrices ? handleUpdateLinePrice : undefined}
                   disabled={isLocked}
                   showPrices={showPrices}
                 />
@@ -864,7 +995,30 @@ function BillingLinesTable({
               {showPrices && !materialOnly && (
                 <>
                   <td className="p-2 text-right">{formatCurrency(line.unitCost)}</td>
-                  <td className="p-2 text-right">{formatCurrency(line.unitSellPrice)}</td>
+                  <td className="p-2 text-right">
+                    {!disabled && onUpdatePrice ? (
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="ml-auto h-8 w-24 text-right"
+                        value={editingPrice[line.id] ?? String(line.unitSellPrice)}
+                        onChange={(e) =>
+                          setEditingPrice((prev) => ({ ...prev, [line.id]: e.target.value }))
+                        }
+                        onBlur={() => {
+                          const val = parseFloat(
+                            editingPrice[line.id] ?? String(line.unitSellPrice)
+                          );
+                          if (!Number.isNaN(val) && val >= 0 && val !== line.unitSellPrice) {
+                            onUpdatePrice(line.id, val);
+                          }
+                        }}
+                      />
+                    ) : (
+                      formatCurrency(line.unitSellPrice)
+                    )}
+                  </td>
                 </>
               )}
               {showPrices && (

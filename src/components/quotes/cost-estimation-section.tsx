@@ -5,11 +5,13 @@ import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { searchQuoteMaterialsAction } from "@/lib/actions/quotes";
 import {
   calculateCostEstimationSummary,
+  createCustomLaborLine,
   createDefaultFeeLine,
   createDefaultLaborLine,
   createDefaultMaterialLine,
   FEE_TYPE_LABELS,
   hasCostEstimationLines,
+  isCustomLaborLine,
   LABOR_CATEGORY_LABELS,
   normalizeCostEstimation,
   recalculateCostEstimation,
@@ -232,103 +234,146 @@ export function CostEstimationSection({
       </div>
 
       <CollapsibleBlock title="Main-d'œuvre">
-        {normalized.labor.map((line, index) => (
-          <div key={line.id} className="space-y-2 rounded-md border p-3">
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label>Catégorie</Label>
-                <Select
-                  value={line.category}
-                  onValueChange={(value) =>
-                    updateLaborLine(index, { category: value as QuoteLaborCategory })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(LABOR_CATEGORY_LABELS) as QuoteLaborCategory[]).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {LABOR_CATEGORY_LABELS[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Employé / catégorie (optionnel)</Label>
-                <Input
-                  value={line.employeeCategory ?? ""}
-                  onChange={(e) => updateLaborLine(index, { employeeCategory: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Heures</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  value={line.hours}
-                  onChange={(e) => updateLaborLine(index, { hours: Number(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Taux horaire ($)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.hourlyRate}
-                  onChange={(e) =>
-                    updateLaborLine(index, { hourlyRate: Number(e.target.value) || 0 })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Nombre de travailleurs</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={line.workerCount}
-                  onChange={(e) =>
-                    updateLaborLine(index, { workerCount: Number(e.target.value) || 1 })
-                  }
-                />
-              </div>
-              <div className="flex items-end justify-between gap-2">
-                <p className="text-sm font-medium">Total: {formatCurrency(line.total)}</p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() =>
-                    updateEstimation({
-                      ...normalized,
-                      labor: normalized.labor.filter((_, i) => i !== index),
-                    })
-                  }
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+        {normalized.labor.length > 0 && (
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50 text-left">
+                  <th className="p-2">Type</th>
+                  <th className="p-2 text-right">Heures</th>
+                  <th className="p-2 text-right">Travailleurs</th>
+                  <th className="p-2 text-right">Taux ($/h)</th>
+                  <th className="p-2 text-right">Total</th>
+                  <th className="p-2 w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {normalized.labor.map((line, index) => (
+                  <tr key={line.id} className="border-b last:border-b-0">
+                    <td className="p-2 align-top">
+                      {isCustomLaborLine(line) ? (
+                        <Input
+                          value={line.employeeCategory ?? ""}
+                          onChange={(e) =>
+                            updateLaborLine(index, { employeeCategory: e.target.value })
+                          }
+                          placeholder="Ex: Technicien spécialisé"
+                          className="min-w-[160px]"
+                        />
+                      ) : (
+                        <Select
+                            value={line.category}
+                            onValueChange={(value) =>
+                              updateLaborLine(index, { category: value as QuoteLaborCategory })
+                            }
+                          >
+                            <SelectTrigger className="min-w-[160px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(
+                                Object.keys(LABOR_CATEGORY_LABELS) as QuoteLaborCategory[]
+                              )
+                                .filter((key) => key !== "autre")
+                                .map((key) => (
+                                  <SelectItem key={key} value={key}>
+                                    {LABOR_CATEGORY_LABELS[key]}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                      )}
+                    </td>
+                    <td className="p-2 align-top">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.25"
+                        className="ml-auto w-20 text-right"
+                        value={line.hours}
+                        onChange={(e) =>
+                          updateLaborLine(index, { hours: Number(e.target.value) || 0 })
+                        }
+                      />
+                    </td>
+                    <td className="p-2 align-top">
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        className="ml-auto w-16 text-right"
+                        value={line.workerCount}
+                        onChange={(e) =>
+                          updateLaborLine(index, { workerCount: Number(e.target.value) || 1 })
+                        }
+                      />
+                    </td>
+                    <td className="p-2 align-top">
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="ml-auto w-24 text-right"
+                        value={line.hourlyRate}
+                        onChange={(e) =>
+                          updateLaborLine(index, { hourlyRate: Number(e.target.value) || 0 })
+                        }
+                      />
+                    </td>
+                    <td className="p-2 align-top text-right font-medium">
+                      {formatCurrency(line.total)}
+                    </td>
+                    <td className="p-2 align-top">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          updateEstimation({
+                            ...normalized,
+                            labor: normalized.labor.filter((_, i) => i !== index),
+                          })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            updateEstimation({
-              ...normalized,
-              labor: [...normalized.labor, createDefaultLaborLine(laborTemplates)],
-            })
-          }
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          Ajouter du temps
-        </Button>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              updateEstimation({
+                ...normalized,
+                labor: [...normalized.labor, createDefaultLaborLine(laborTemplates)],
+              })
+            }
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Ajouter du temps
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              updateEstimation({
+                ...normalized,
+                labor: [...normalized.labor, createCustomLaborLine(laborTemplates)],
+              })
+            }
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            Main-d&apos;œuvre personnalisée
+          </Button>
+        </div>
       </CollapsibleBlock>
 
       <CollapsibleBlock title="Matériaux">
