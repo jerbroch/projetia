@@ -23,19 +23,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Company, Employee, User } from "@/types";
+import type { Company, Employee, ProfileRole, ToolListItem, User } from "@/types";
 
 interface EmployeesPageClientProps {
   initialEmployees: Employee[];
+  tools: ToolListItem[];
   company: Company;
   user: User;
+  membershipRole: ProfileRole;
   isDemo?: boolean;
 }
 
 export function EmployeesPageClient({
   initialEmployees,
+  tools,
   company,
   user,
+  membershipRole,
   isDemo,
 }: EmployeesPageClientProps) {
   const router = useRouter();
@@ -237,6 +241,11 @@ export function EmployeesPageClient({
         open={profileOpen}
         onOpenChange={setProfileOpen}
         employee={profileEmployee}
+        tools={tools}
+        employees={employeeList}
+        company={company}
+        membershipRole={membershipRole}
+        isDemo={isDemo}
         onEdit={openEditForm}
         onDeactivate={handleDeactivate}
       />

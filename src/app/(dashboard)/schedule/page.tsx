@@ -4,6 +4,7 @@ import {
   getEmployees,
   getScheduleEvents,
 } from "@/lib/data/tenant-data";
+import { getToolsWithDetails } from "@/lib/data/tools-data";
 import { requireTenantContext } from "@/lib/session";
 
 interface SchedulePageProps {
@@ -18,12 +19,14 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     getCustomers(ctx.company.id, ctx.isDemo),
     getEmployees(ctx.company.id, ctx.isDemo),
   ]);
+  const tools = await getToolsWithDetails(ctx.company.id, ctx.isDemo, employees);
 
   return (
     <SchedulePageClient
       initialEvents={events}
       initialCustomers={customers}
       initialEmployees={employees}
+      tools={tools}
       company={ctx.company}
       user={ctx.user}
       membershipRole={ctx.membershipRole}

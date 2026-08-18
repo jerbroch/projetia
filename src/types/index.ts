@@ -458,3 +458,87 @@ export interface QuoteRequest {
   status: "new" | "reviewed" | "quoted" | "declined";
   createdAt: string;
 }
+
+export type ToolBaseStatus = "available" | "in_repair" | "out_of_service";
+export type ToolEffectiveStatus =
+  | "available"
+  | "reserved"
+  | "in_use"
+  | "overdue"
+  | "in_repair"
+  | "out_of_service";
+export type ToolCondition = "good" | "damaged" | "needs_repair" | "missing_part" | "other";
+export type ToolAssignmentStatus = "active" | "reserved" | "returned";
+export type ToolReturnCondition = "good" | "damaged" | "needs_repair" | "missing_part" | "other";
+export type ToolSmsStatus = "sent" | "failed" | "pending";
+
+export interface Tool {
+  id: string;
+  companyId: string;
+  name: string;
+  category: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  internalNumber: string;
+  description: string;
+  condition: ToolCondition;
+  baseStatus: ToolBaseStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ToolAssignment {
+  id: string;
+  toolId: string;
+  employeeId: string;
+  companyId: string;
+  startDate: string;
+  expectedReturnDate: string;
+  actualReturnDate?: string;
+  status: ToolAssignmentStatus;
+  notes?: string;
+  returnCondition?: ToolReturnCondition;
+  createdAt: string;
+  updatedAt: string;
+  createdByUserId?: string;
+}
+
+export interface ToolSmsReminder {
+  id: string;
+  companyId: string;
+  toolId: string;
+  employeeId: string;
+  phone: string;
+  message: string;
+  sentAt: string;
+  sentByUserId: string;
+  sentByUserName?: string;
+  status: ToolSmsStatus;
+  providerId?: string;
+  provider: "twilio" | "console";
+}
+
+export interface ToolListItem extends Tool {
+  effectiveStatus: ToolEffectiveStatus;
+  currentEmployeeId?: string;
+  currentEmployeeName?: string;
+  checkoutDate?: string;
+  expectedReturnDate?: string;
+  daysOverdue?: number;
+  lastSmsReminder?: ToolSmsReminder;
+}
+
+export interface ToolWithDetails extends Tool {
+  effectiveStatus: ToolEffectiveStatus;
+  currentAssignment?: ToolAssignment & { employeeName: string; employeePhone: string };
+  futureReservations: Array<ToolAssignment & { employeeName: string; employeePhone: string }>;
+  assignmentHistory: Array<ToolAssignment & { employeeName: string; employeePhone: string }>;
+  lastSmsReminder?: ToolSmsReminder;
+}
+
+export interface EmployeeToolSummary {
+  current: Array<ToolListItem & { expectedReturnDate: string }>;
+  reservations: Array<ToolListItem & { startDate: string; expectedReturnDate: string }>;
+  history: Array<ToolAssignment & { toolName: string; internalNumber: string }>;
+}

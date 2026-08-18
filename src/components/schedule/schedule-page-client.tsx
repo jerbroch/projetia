@@ -40,12 +40,13 @@ import {
 } from "@/lib/schedule-utils";
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { CloseWorkDialog } from "@/components/workflow/close-work-dialog";
-import type { Company, Customer, Employee, ProfileRole, ScheduleEvent, User } from "@/types";
+import type { Company, Customer, Employee, ProfileRole, ScheduleEvent, ToolListItem, User } from "@/types";
 
 interface SchedulePageClientProps {
   initialEvents: ScheduleEvent[];
   initialCustomers: Customer[];
   initialEmployees: Employee[];
+  tools: ToolListItem[];
   company: Company;
   user: User;
   membershipRole: ProfileRole;
@@ -84,6 +85,7 @@ export function SchedulePageClient({
   initialEvents,
   initialCustomers,
   initialEmployees,
+  tools,
   company,
   user,
   membershipRole,
@@ -469,6 +471,11 @@ export function SchedulePageClient({
         open={profileOpen}
         onOpenChange={setProfileOpen}
         employee={profileEmployee}
+        tools={tools}
+        employees={employeeList}
+        company={company}
+        membershipRole={membershipRole}
+        isDemo={isDemo}
         onEdit={() => profileEmployee && setProfileOpen(false)}
         onDeactivate={() => profileEmployee && setProfileOpen(false)}
       />
