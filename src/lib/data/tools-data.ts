@@ -7,6 +7,8 @@ import {
   daysOverdue,
   findOverlappingAssignment,
   isAssignmentOpen,
+  normalizeEmployeeToolSummary,
+  normalizeToolWithDetails,
   resolveAssignmentStatus,
   todayDateString,
 } from "@/lib/tool-utils";
@@ -191,7 +193,7 @@ export async function getToolById(
     const open = assignments.filter(isAssignmentOpen);
     const current = open.find((a) => a.startDate <= today);
 
-    return {
+    return normalizeToolWithDetails({
       ...tool,
       effectiveStatus: computeEffectiveStatus(tool.baseStatus, assignments, today),
       currentAssignment: current ? enrichAssignment(current) : undefined,
@@ -204,7 +206,7 @@ export async function getToolById(
         .sort((a, b) => (b.actualReturnDate ?? b.updatedAt).localeCompare(a.actualReturnDate ?? a.updatedAt))
         .map(enrichAssignment),
       lastSmsReminder: sms[0],
-    };
+    })!;
   }
 
   if (!isSupabaseConfigured()) return null;
@@ -236,7 +238,7 @@ export async function getToolById(
   const open = assignments.filter(isAssignmentOpen);
   const current = open.find((a) => a.startDate <= today);
 
-  return {
+  return normalizeToolWithDetails({
     ...tool,
     effectiveStatus: computeEffectiveStatus(tool.baseStatus, assignments, today),
     currentAssignment: current ? enrichAssignment(current) : undefined,
@@ -251,7 +253,7 @@ export async function getToolById(
     lastSmsReminder: smsRes.data?.[0]
       ? mapToolSmsReminderRow(smsRes.data[0] as Record<string, unknown>)
       : undefined,
-  };
+  })!;
 }
 
 export async function getEmployeeToolSummary(
@@ -308,7 +310,7 @@ export async function getEmployeeToolSummary(
     }))
     .sort((a, b) => (b.actualReturnDate ?? b.updatedAt).localeCompare(a.actualReturnDate ?? a.updatedAt));
 
-  return { current, reservations, history };
+  return normalizeEmployeeToolSummary({ current, reservations, history });
 }
 
 export async function createToolForCompany(

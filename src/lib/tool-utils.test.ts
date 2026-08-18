@@ -4,10 +4,13 @@ import {
   computeEffectiveStatus,
   computeExpectedReturnDate,
   daysOverdue,
+  ensureArray,
   findOverlappingAssignment,
+  normalizeEmployeeToolSummary,
+  normalizeToolWithDetails,
   resolveAssignmentStatus,
 } from "@/lib/tool-utils";
-import type { ToolAssignment } from "@/types";
+import type { ToolAssignment, ToolListItem, ToolWithDetails } from "@/types";
 
 function assignment(
   overrides: Partial<ToolAssignment> & Pick<ToolAssignment, "id" | "startDate" | "expectedReturnDate">,
@@ -126,5 +129,90 @@ describe("daysOverdue", () => {
 
   it("returns zero when not overdue", () => {
     expect(daysOverdue("2025-08-20", "2025-08-18")).toBe(0);
+  });
+});
+
+describe("ensureArray", () => {
+  it("returns empty array for null and undefined", () => {
+    expect(ensureArray(null)).toEqual([]);
+    expect(ensureArray(undefined)).toEqual([]);
+  });
+
+  it("returns the same array when already an array", () => {
+    const arr = [1, 2];
+    expect(ensureArray(arr)).toBe(arr);
+  });
+});
+
+describe("normalizeToolWithDetails", () => {
+  const baseListItem: ToolListItem = {
+    id: "tool-1",
+    companyId: "co-1",
+    name: "Perceuse",
+    category: "Perceuse",
+    brand: "Makita",
+    model: "X",
+    serialNumber: "",
+    internalNumber: "T-001",
+    description: "",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "",
+    updatedAt: "",
+    effectiveStatus: "available",
+  };
+
+  it("defaults missing list fields from ToolListItem", () => {
+    const normalized = normalizeToolWithDetails(baseListItem);
+    expect(normalized?.futureReservations).toEqual([]);
+    expect(normalized?.assignmentHistory).toEqual([]);
+  });
+
+  it("preserves existing reservations and history", () => {
+    const reservation = {
+      id: "res-1",
+      toolId: "tool-1",
+      employeeId: "emp-1",
+      companyId: "co-1",
+      startDate: "2025-08-21",
+      expectedReturnDate: "2025-08-25",
+      status: "reserved" as const,
+      createdAt: "",
+      updatedAt: "",
+      employeeName: "Jean Dupont",
+      employeePhone: "5145551234",
+    };
+    const normalized = normalizeToolWithDetails({
+      ...baseListItem,
+      effectiveStatus: "reserved",
+      futureReservations: [reservation],
+    } as unknown as ToolWithDetails);
+    expect(normalized?.futureReservations).toHaveLength(1);
+    expect(normalized?.assignmentHistory).toEqual([]);
+  });
+
+  it("returns null for null input", () => {
+    expect(normalizeToolWithDetails(null)).toBeNull();
+  });
+});
+
+describe("normalizeEmployeeToolSummary", () => {
+  it("defaults missing arrays", () => {
+    expect(normalizeEmployeeToolSummary(undefined)).toEqual({
+      current: [],
+      reservations: [],
+      history: [],
+    });
+  });
+
+  it("preserves populated summary", () => {
+    const summary = {
+      current: [{ ...({} as ToolListItem), expectedReturnDate: "2025-08-20" }],
+      reservations: [],
+      history: [],
+    };
+    const normalized = normalizeEmployeeToolSummary(summary);
+    expect(normalized.current).toHaveLength(1);
+    expect(normalized.reservations).toEqual([]);
   });
 });

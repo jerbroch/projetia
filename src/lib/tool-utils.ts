@@ -5,8 +5,43 @@ import type {
   ToolBaseStatus,
   ToolEffectiveStatus,
   ToolListItem,
+  ToolWithDetails,
   EmployeeToolSummary,
 } from "@/types";
+
+/** Ensures a value is always a usable array (never null/undefined). */
+export function ensureArray<T>(value: T[] | null | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+/** Normalizes tool detail payloads so list fields are always arrays. */
+export function normalizeToolWithDetails(
+  tool: ToolWithDetails | ToolListItem | null | undefined,
+): ToolWithDetails | null {
+  if (!tool) return null;
+
+  const detailed = tool as ToolWithDetails;
+
+  return {
+    ...tool,
+    effectiveStatus: tool.effectiveStatus,
+    currentAssignment: detailed.currentAssignment,
+    futureReservations: ensureArray(detailed.futureReservations),
+    assignmentHistory: ensureArray(detailed.assignmentHistory),
+    lastSmsReminder: detailed.lastSmsReminder,
+  };
+}
+
+/** Normalizes employee tool summary so list fields are always arrays. */
+export function normalizeEmployeeToolSummary(
+  summary: EmployeeToolSummary | null | undefined,
+): EmployeeToolSummary {
+  return {
+    current: ensureArray(summary?.current),
+    reservations: ensureArray(summary?.reservations),
+    history: ensureArray(summary?.history),
+  };
+}
 
 export const TOOL_CATEGORIES = [
   "Perceuse",
@@ -161,7 +196,7 @@ export function computeEmployeeToolSummary(
       expectedReturnDate: t.expectedReturnDate ?? today,
     }));
 
-  return { current, reservations, history };
+  return normalizeEmployeeToolSummary({ current, reservations, history });
 }
 
 export function buildOverdueSmsTemplate(input: {

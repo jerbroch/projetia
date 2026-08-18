@@ -2,6 +2,7 @@
 
 import { Wrench } from "lucide-react";
 import { getEmployeeFullName } from "@/lib/employee-utils";
+import { normalizeEmployeeToolSummary } from "@/lib/tool-utils";
 import { ToolStatusBadge } from "@/components/outillage/tool-status-badge";
 import type { Employee, EmployeeToolSummary } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -20,10 +21,12 @@ export function EmployeeToolsSection({
   canManage,
   onAssign,
 }: EmployeeToolsSectionProps) {
+  const safeSummary = normalizeEmployeeToolSummary(summary);
+
   const hasAny =
-    summary.current.length > 0 ||
-    summary.reservations.length > 0 ||
-    summary.history.length > 0;
+    safeSummary.current.length > 0 ||
+    safeSummary.reservations.length > 0 ||
+    safeSummary.history.length > 0;
 
   return (
     <div className="space-y-4">
@@ -45,11 +48,11 @@ export function EmployeeToolsSection({
         </p>
       ) : (
         <div className="space-y-4 text-sm">
-          {summary.current.length > 0 && (
+          {safeSummary.current.length > 0 && (
             <div>
               <p className="mb-2 font-medium text-muted-foreground">En cours</p>
               <ul className="space-y-2">
-                {summary.current.map((tool) => (
+                {safeSummary.current.map((tool) => (
                   <li key={tool.id} className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <p className="font-medium">{tool.name}</p>
@@ -64,11 +67,11 @@ export function EmployeeToolsSection({
             </div>
           )}
 
-          {summary.reservations.length > 0 && (
+          {safeSummary.reservations.length > 0 && (
             <div>
               <p className="mb-2 font-medium text-muted-foreground">Réservations</p>
               <ul className="space-y-2">
-                {summary.reservations.map((tool) => (
+                {safeSummary.reservations.map((tool) => (
                   <li key={`${tool.id}-${tool.startDate}`} className="rounded-lg border p-3">
                     <p className="font-medium">{tool.name}</p>
                     <p className="text-muted-foreground">
@@ -80,11 +83,11 @@ export function EmployeeToolsSection({
             </div>
           )}
 
-          {summary.history.length > 0 && (
+          {safeSummary.history.length > 0 && (
             <div>
               <p className="mb-2 font-medium text-muted-foreground">Historique</p>
               <ul className="max-h-32 space-y-1 overflow-y-auto text-muted-foreground">
-                {summary.history.slice(0, 5).map((h) => (
+                {safeSummary.history.slice(0, 5).map((h) => (
                   <li key={h.id}>
                     {h.toolName} ({h.internalNumber}) — retour le{" "}
                     {h.actualReturnDate ? formatDate(h.actualReturnDate) : "—"}

@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { MessageSquare, RotateCcw, UserPlus } from "lucide-react";
 import { getToolDetailAction } from "@/lib/actions/tools";
-import { formatLastSmsReminder, TOOL_CONDITION_LABELS } from "@/lib/tool-utils";
+import {
+  formatLastSmsReminder,
+  normalizeToolWithDetails,
+  TOOL_CONDITION_LABELS,
+} from "@/lib/tool-utils";
 import { ToolStatusBadge } from "@/components/outillage/tool-status-badge";
 import { AssignToolDialog } from "@/components/outillage/assign-tool-dialog";
 import { ReturnToolDialog } from "@/components/outillage/return-tool-dialog";
@@ -56,39 +60,39 @@ export function ToolDetailDialog({
     }
 
     if (isDemo && listItem) {
-      setTool({
-        ...listItem,
-        currentAssignment: listItem.currentEmployeeId
-          ? {
-              id: "demo-assignment",
-              toolId: listItem.id,
-              employeeId: listItem.currentEmployeeId,
-              companyId: listItem.companyId,
-              startDate: listItem.checkoutDate ?? "",
-              expectedReturnDate: listItem.expectedReturnDate ?? "",
-              status: listItem.effectiveStatus === "overdue" ? "active" : "active",
-              createdAt: "",
-              updatedAt: "",
-              employeeName: listItem.currentEmployeeName ?? "",
-              employeePhone:
-                employees.find((e) => e.id === listItem.currentEmployeeId)?.mobilePhone ?? "",
-            }
-          : undefined,
-        futureReservations: [],
-        assignmentHistory: [],
-        lastSmsReminder: listItem.lastSmsReminder,
-      });
+      setTool(
+        normalizeToolWithDetails({
+          ...listItem,
+          currentAssignment: listItem.currentEmployeeId
+            ? {
+                id: "demo-assignment",
+                toolId: listItem.id,
+                employeeId: listItem.currentEmployeeId,
+                companyId: listItem.companyId,
+                startDate: listItem.checkoutDate ?? "",
+                expectedReturnDate: listItem.expectedReturnDate ?? "",
+                status: listItem.effectiveStatus === "overdue" ? "active" : "active",
+                createdAt: "",
+                updatedAt: "",
+                employeeName: listItem.currentEmployeeName ?? "",
+                employeePhone:
+                  employees.find((e) => e.id === listItem.currentEmployeeId)?.mobilePhone ?? "",
+              }
+            : undefined,
+          lastSmsReminder: listItem.lastSmsReminder,
+        }),
+      );
       return;
     }
 
     setLoading(true);
     getToolDetailAction(toolId).then((result) => {
       setLoading(false);
-      if (result.success) setTool(result.tool);
+      if (result.success) setTool(normalizeToolWithDetails(result.tool));
     });
   }, [open, toolId, isDemo, listItem, employees]);
 
-  const display = tool ?? (listItem as ToolWithDetails | null);
+  const display = normalizeToolWithDetails(tool ?? listItem);
 
   return (
     <>
