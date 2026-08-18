@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { assignToolAction } from "@/lib/actions/tools";
 import { getEmployeeFullName } from "@/lib/employee-utils";
 import {
@@ -10,6 +10,7 @@ import {
   computeExpectedReturnDate,
   resolveAssignmentStatus,
   todayDateString,
+  type ToolCheckoutMode,
 } from "@/lib/tool-utils";
 import type { Employee, ToolListItem, ToolWithDetails } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,16 @@ interface AssignToolDialogProps {
   employees: Employee[];
   isDemo?: boolean;
   defaultEmployeeId?: string;
+  mode?: ToolCheckoutMode;
   onAssigned: (tool: ToolWithDetails) => void;
+}
+
+function defaultStartDate(mode: ToolCheckoutMode): string {
+  const today = parseISO(todayDateString());
+  if (mode === "reserve") {
+    return format(addDays(today, 7), "yyyy-MM-dd");
+  }
+  return format(today, "yyyy-MM-dd");
 }
 
 function buildDemoAssignedTool(
@@ -94,24 +104,30 @@ export function AssignToolDialog({
   employees,
   isDemo,
   defaultEmployeeId,
+  mode = "assign",
   onAssigned,
 }: AssignToolDialogProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
   const [employeeId, setEmployeeId] = useState("");
-  const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(defaultStartDate(mode));
   const [durationDays, setDurationDays] = useState("7");
   const [expectedReturnDate, setExpectedReturnDate] = useState("");
+
+  const isReserve = mode === "reserve";
+  const today = todayDateString();
+  const minStartDate = isReserve ? format(addDays(parseISO(today), 1), "yyyy-MM-dd") : undefined;
+  const maxStartDate = isReserve ? undefined : today;
 
   useEffect(() => {
     if (!open) return;
     setError("");
-    const start = format(new Date(), "yyyy-MM-dd");
+    const start = defaultStartDate(mode);
     setStartDate(start);
     setDurationDays("7");
     setExpectedReturnDate(computeExpectedReturnDate(start, 7));
     setEmployeeId(defaultEmployeeId ?? "");
-  }, [open, defaultEmployeeId]);
+  }, [open, defaultEmployeeId, mode]);
 
   useEffect(() => {
     const days = Number(durationDays) || 1;
@@ -127,6 +143,7 @@ export function AssignToolDialog({
     formData.set("startDate", startDate);
     formData.set("durationDays", durationDays);
     formData.set("expectedReturnDate", expectedReturnDate);
+    formData.set("mode", mode);
 
     startTransition(async () => {
       if (isDemo) {
@@ -158,12 +175,19 @@ export function AssignToolDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Assigner à un employé</DialogTitle>
+          <DialogTitle>
+            {isReserve ? "Réserver pour un employé" : "Assigner à un employé"}
+          </DialogTitle>
           <DialogDescription>
-            {tool ? `${tool.name} (${tool.internalNumber || "sans no."})` : "Sélectionnez les dates"}
+            {tool
+              ? `${tool.name} (${tool.internalNumber || "sans no."})`
+              : isReserve
+                ? "Planifier une période future"
+                : "Assignation immédiate"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <input type="hidden" name="mode" value={mode} />
           <div className="space-y-2">
             <Label>Employé *</Label>
             <Select value={employeeId} onValueChange={setEmployeeId} required>
@@ -187,6 +211,8 @@ export function AssignToolDialog({
                 name="startDate"
                 type="date"
                 value={startDate}
+                min={minStartDate}
+                max={maxStartDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
               />
@@ -226,7 +252,7 @@ export function AssignToolDialog({
             </Button>
             <Button type="submit" disabled={pending || !employeeId}>
               {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Assigner
+              {isReserve ? "Réserver" : "Assigner"}
             </Button>
           </DialogFooter>
         </form>

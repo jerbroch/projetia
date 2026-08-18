@@ -20,6 +20,7 @@ export const toolAssignSchema = z.object({
   durationDays: z.coerce.number().int().min(1, "La durée doit être d'au moins 1 jour"),
   expectedReturnDate: z.string().trim().min(1, "La date de retour est requise"),
   notes: z.string().trim().optional(),
+  mode: z.enum(["assign", "reserve"]).default("assign"),
 });
 
 export const toolReturnSchema = z.object({

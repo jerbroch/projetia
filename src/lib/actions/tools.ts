@@ -18,6 +18,7 @@ import { getEmployees } from "@/lib/data/tenant-data";
 import { sendSms } from "@/lib/sms/send-sms";
 import { hasAdminAccess, requireAdminContext, requireTenantContext } from "@/lib/session";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
+import { validateCheckoutStartDate } from "@/lib/tool-utils";
 import {
   resolveToolCategory,
   toolAssignSchema,
@@ -152,20 +153,32 @@ export async function assignToolAction(
     durationDays: formData.get("durationDays"),
     expectedReturnDate: formData.get("expectedReturnDate"),
     notes: formData.get("notes") || undefined,
+    mode: formData.get("mode") || "assign",
   });
 
   if (!parsed.success) {
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
   }
 
+  const modeError = validateCheckoutStartDate(parsed.data.mode, parsed.data.startDate);
+  if (modeError) return safeError(modeError);
+
   const employees = await getEmployees(ctx.company.id, false);
   const existingTool = await getToolById(ctx.company.id, toolId, false, employees);
   if (!existingTool) return safeError("Outil introuvable.");
   if (existingTool.baseStatus === "in_repair" || existingTool.baseStatus === "out_of_service") {
-    return safeError("Cet outil ne peut pas être assigné dans son état actuel.");
+    return safeError(
+      parsed.data.mode === "reserve"
+        ? "Cet outil ne peut pas être réservé dans son état actuel."
+        : "Cet outil ne peut pas être assigné dans son état actuel.",
+    );
   }
   if (existingTool.currentAssignment) {
-    return safeError("Cet outil est déjà assigné.");
+    return safeError(
+      parsed.data.mode === "reserve"
+        ? "Cet outil est déjà en utilisation."
+        : "Cet outil est déjà assigné.",
+    );
   }
 
   const { data: existingRows } = await getToolAssignmentsForTool(ctx.company.id, toolId);

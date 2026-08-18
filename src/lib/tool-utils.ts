@@ -150,14 +150,80 @@ export function computeEffectiveStatus(
   return "available";
 }
 
+function isToolActivelyAssigned(
+  tool: Pick<ToolListItem, "effectiveStatus" | "currentEmployeeId"> & {
+    currentAssignment?: unknown;
+  },
+): boolean {
+  return (
+    !!tool.currentEmployeeId ||
+    !!tool.currentAssignment ||
+    tool.effectiveStatus === "in_use" ||
+    tool.effectiveStatus === "overdue"
+  );
+}
+
 export function canAssignTool(
   tool: Pick<ToolListItem, "baseStatus" | "effectiveStatus" | "currentEmployeeId"> & {
     currentAssignment?: unknown;
   },
 ): boolean {
   if (tool.baseStatus === "out_of_service" || tool.baseStatus === "in_repair") return false;
-  if (tool.currentEmployeeId || tool.currentAssignment) return false;
+  if (isToolActivelyAssigned(tool)) return false;
   return true;
+}
+
+export function canReserveTool(
+  tool: Pick<ToolListItem, "baseStatus" | "effectiveStatus" | "currentEmployeeId"> & {
+    currentAssignment?: unknown;
+  },
+): boolean {
+  return canAssignTool(tool);
+}
+
+export type ToolCheckoutMode = "assign" | "reserve";
+
+export function validateCheckoutStartDate(
+  mode: ToolCheckoutMode,
+  startDate: string,
+  today: string = todayDateString(),
+): string | null {
+  if (mode === "reserve" && startDate <= today) {
+    return "La réservation doit commencer dans le futur.";
+  }
+  if (mode === "assign" && startDate > today) {
+    return "Pour une assignation immédiate, la date de début doit être aujourd'hui ou antérieure.";
+  }
+  return null;
+}
+
+/** Keeps optimistic list updates when server refresh is briefly stale. */
+export function syncToolListFromServer(
+  local: ToolListItem[],
+  server: ToolListItem[],
+): ToolListItem[] {
+  const localMap = new Map(local.map((t) => [t.id, t]));
+  const merged = server.map((serverTool) => {
+    const localTool = localMap.get(serverTool.id);
+    if (!localTool) return serverTool;
+
+    const localActive = isToolActivelyAssigned(localTool);
+    const serverActive = isToolActivelyAssigned(serverTool);
+    if (localActive && !serverActive) return localTool;
+
+    const localReserved = localTool.hasFutureReservation && !serverTool.hasFutureReservation;
+    if (localReserved) return localTool;
+
+    return serverTool;
+  });
+
+  for (const tool of local) {
+    if (!server.some((s) => s.id === tool.id)) {
+      merged.unshift(tool);
+    }
+  }
+
+  return merged;
 }
 
 export function buildToolListItemFromDetails(tool: ToolWithDetails): ToolListItem {

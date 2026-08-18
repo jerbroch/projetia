@@ -8,6 +8,7 @@ import {
   canManageTools,
   findEmployeeByUserEmail,
   mergeToolIntoList,
+  syncToolListFromServer,
 } from "@/lib/tool-utils";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -84,7 +85,7 @@ export function OutillagePageClient({
   const [selectedTool, setSelectedTool] = useState<ToolListItem | undefined>();
 
   useEffect(() => {
-    setToolList(initialTools);
+    setToolList((prev) => syncToolListFromServer(prev, initialTools));
   }, [initialTools]);
 
   const canManage = canManageTools(membershipRole);
@@ -203,6 +204,7 @@ export function OutillagePageClient({
           {STATUS_COUNTERS.map(({ key, label }) => (
             <Card
               key={key}
+              data-testid={`outillage-count-${key}`}
               className={`cursor-pointer transition-colors ${statusFilter === key ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"}`}
               onClick={() => setStatusFilter(key)}
             >
@@ -278,6 +280,7 @@ export function OutillagePageClient({
             {filteredTools.map((tool) => (
               <Card
                 key={tool.id}
+                data-testid={`tool-row-${tool.internalNumber || tool.id}`}
                 className="cursor-pointer"
                 onClick={() => openDetail(tool)}
               >
@@ -326,6 +329,7 @@ export function OutillagePageClient({
                   {filteredTools.map((tool) => (
                     <TableRow
                       key={tool.id}
+                      data-testid={`tool-row-${tool.internalNumber || tool.id}`}
                       className="cursor-pointer"
                       onClick={() => openDetail(tool)}
                     >

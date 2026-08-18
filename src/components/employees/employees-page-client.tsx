@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { deactivateEmployeeAction } from "@/lib/actions/employees";
-import { buildToolListItemFromDetails, mergeToolIntoList } from "@/lib/tool-utils";
+import { buildToolListItemFromDetails, mergeToolIntoList, syncToolListFromServer } from "@/lib/tool-utils";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -55,7 +55,7 @@ export function EmployeesPageClient({
   const [actionError, setActionError] = useState("");
 
   useEffect(() => {
-    setToolList(tools);
+    setToolList((prev) => syncToolListFromServer(prev, tools));
   }, [tools]);
 
   function handleToolUpdated(tool: ToolWithDetails) {

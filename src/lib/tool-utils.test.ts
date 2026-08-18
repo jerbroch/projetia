@@ -3,6 +3,7 @@ import {
   assignmentsOverlap,
   buildToolListItemFromDetails,
   canAssignTool,
+  canReserveTool,
   computeEffectiveStatus,
   computeExpectedReturnDate,
   daysOverdue,
@@ -12,6 +13,8 @@ import {
   normalizeEmployeeToolSummary,
   normalizeToolWithDetails,
   resolveAssignmentStatus,
+  syncToolListFromServer,
+  validateCheckoutStartDate,
 } from "@/lib/tool-utils";
 import type { ToolAssignment, ToolListItem, ToolWithDetails } from "@/types";
 
@@ -319,6 +322,89 @@ describe("canAssignTool", () => {
 
   it("allows available tools", () => {
     expect(canAssignTool({ baseStatus: "available", effectiveStatus: "available" })).toBe(true);
+  });
+
+  it("allows tools with only future reservations (scenario D)", () => {
+    expect(
+      canAssignTool({
+        baseStatus: "available",
+        effectiveStatus: "available",
+        hasFutureReservation: true,
+      } as ToolListItem),
+    ).toBe(true);
+  });
+});
+
+describe("canReserveTool", () => {
+  it("mirrors assign eligibility for checkout", () => {
+    expect(canReserveTool({ baseStatus: "available", effectiveStatus: "available" })).toBe(true);
+    expect(
+      canReserveTool({
+        baseStatus: "available",
+        effectiveStatus: "in_use",
+        currentEmployeeId: "emp-1",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("validateCheckoutStartDate", () => {
+  it("requires future start for reserve mode", () => {
+    expect(validateCheckoutStartDate("reserve", "2025-08-18", "2025-08-18")).toMatch(/futur/i);
+    expect(validateCheckoutStartDate("reserve", "2025-08-21", "2025-08-18")).toBeNull();
+  });
+
+  it("requires today or past for assign mode", () => {
+    expect(validateCheckoutStartDate("assign", "2025-08-21", "2025-08-18")).toMatch(/immédiate/i);
+    expect(validateCheckoutStartDate("assign", "2025-08-18", "2025-08-18")).toBeNull();
+  });
+});
+
+describe("syncToolListFromServer", () => {
+  const base: ToolListItem = {
+    id: "tool-1",
+    companyId: "co-1",
+    name: "A",
+    category: "Perceuse",
+    brand: "",
+    model: "",
+    serialNumber: "",
+    internalNumber: "T-001",
+    description: "",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "",
+    updatedAt: "",
+    effectiveStatus: "available",
+  };
+
+  it("keeps local in_use state when server refresh is stale", () => {
+    const local = [{ ...base, effectiveStatus: "in_use" as const, currentEmployeeId: "emp-1" }];
+    const server = [{ ...base, effectiveStatus: "available" as const }];
+    const merged = syncToolListFromServer(local, server);
+    expect(merged[0].effectiveStatus).toBe("in_use");
+    expect(merged[0].currentEmployeeId).toBe("emp-1");
+  });
+
+  it("prefers server when both have assignment data", () => {
+    const local = [{ ...base, effectiveStatus: "in_use" as const, currentEmployeeId: "emp-1" }];
+    const server = [
+      {
+        ...base,
+        effectiveStatus: "in_use" as const,
+        currentEmployeeId: "emp-2",
+        currentEmployeeName: "Marie",
+      },
+    ];
+    const merged = syncToolListFromServer(local, server);
+    expect(merged[0].currentEmployeeId).toBe("emp-2");
+  });
+
+  it("preserves local-only tools until server catches up", () => {
+    const localOnly = { ...base, id: "tool-new", internalNumber: "T-NEW" };
+    const merged = syncToolListFromServer([localOnly], [base]);
+    expect(merged).toHaveLength(2);
+    expect(merged.some((t) => t.id === "tool-new")).toBe(true);
   });
 });
 

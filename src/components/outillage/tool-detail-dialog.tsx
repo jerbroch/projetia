@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageSquare, RotateCcw, UserPlus } from "lucide-react";
+import { CalendarPlus, MessageSquare, RotateCcw, UserPlus } from "lucide-react";
 import { getToolDetailAction } from "@/lib/actions/tools";
 import {
   canAssignTool,
+  canReserveTool,
   formatLastSmsReminder,
   normalizeToolWithDetails,
   TOOL_CONDITION_LABELS,
@@ -51,6 +52,7 @@ export function ToolDetailDialog({
   const [tool, setTool] = useState<ToolWithDetails | null>(null);
   const [loading, setLoading] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [reserveOpen, setReserveOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
 
@@ -72,7 +74,7 @@ export function ToolDetailDialog({
                 companyId: listItem.companyId,
                 startDate: listItem.checkoutDate ?? "",
                 expectedReturnDate: listItem.expectedReturnDate ?? "",
-                status: listItem.effectiveStatus === "overdue" ? "active" : "active",
+                status: "active",
                 createdAt: "",
                 updatedAt: "",
                 employeeName: listItem.currentEmployeeName ?? "",
@@ -80,6 +82,29 @@ export function ToolDetailDialog({
                   employees.find((e) => e.id === listItem.currentEmployeeId)?.mobilePhone ?? "",
               }
             : undefined,
+          futureReservations:
+            listItem.hasFutureReservation && listItem.nextReservationStart
+              ? [
+                  {
+                    id: "demo-reservation",
+                    toolId: listItem.id,
+                    employeeId: listItem.nextReservationEmployeeId ?? "",
+                    companyId: listItem.companyId,
+                    startDate: listItem.nextReservationStart,
+                    expectedReturnDate:
+                      listItem.nextReservationExpectedReturn ?? listItem.nextReservationStart,
+                    status: "reserved" as const,
+                    createdAt: "",
+                    updatedAt: "",
+                    employeeName:
+                      employees.find((e) => e.id === listItem.nextReservationEmployeeId)
+                        ?.firstName ?? "Employé",
+                    employeePhone:
+                      employees.find((e) => e.id === listItem.nextReservationEmployeeId)
+                        ?.mobilePhone ?? "",
+                  },
+                ]
+              : [],
           lastSmsReminder: listItem.lastSmsReminder,
         }),
       );
@@ -101,6 +126,7 @@ export function ToolDetailDialog({
 
   const display = normalizeToolWithDetails(tool ?? listItem);
   const assignable = display ? canAssignTool(display) : false;
+  const reservable = display ? canReserveTool(display) : false;
 
   return (
     <>
@@ -199,10 +225,18 @@ export function ToolDetailDialog({
               {canManage && (
                 <div className="flex flex-wrap gap-2 pt-2">
                   {assignable && !display.currentAssignment && (
-                    <Button size="sm" onClick={() => setAssignOpen(true)}>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Assigner
-                    </Button>
+                    <>
+                      <Button size="sm" onClick={() => setAssignOpen(true)}>
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Assigner
+                      </Button>
+                      {reservable && (
+                        <Button size="sm" variant="outline" onClick={() => setReserveOpen(true)}>
+                          <CalendarPlus className="mr-2 h-4 w-4" />
+                          Réserver
+                        </Button>
+                      )}
+                    </>
                   )}
                   {display.currentAssignment && (
                     <>
@@ -231,6 +265,16 @@ export function ToolDetailDialog({
         tool={listItem}
         employees={employees}
         isDemo={isDemo}
+        mode="assign"
+        onAssigned={handleToolUpdated}
+      />
+      <AssignToolDialog
+        open={reserveOpen}
+        onOpenChange={setReserveOpen}
+        tool={listItem}
+        employees={employees}
+        isDemo={isDemo}
+        mode="reserve"
         onAssigned={handleToolUpdated}
       />
       <ReturnToolDialog
