@@ -25,7 +25,7 @@ interface SendSmsDialogProps {
   tool?: ToolWithDetails;
   company: Company;
   isDemo?: boolean;
-  onSent: () => void;
+  onSent: (tool: ToolWithDetails) => void;
 }
 
 export function SendSmsDialog({
@@ -68,7 +68,7 @@ export function SendSmsDialog({
 
     startTransition(async () => {
       if (isDemo) {
-        onSent();
+        if (tool) onSent(tool);
         onOpenChange(false);
         return;
       }
@@ -78,7 +78,7 @@ export function SendSmsDialog({
         setError(result.error);
         return;
       }
-      onSent();
+      onSent(result.tool);
       onOpenChange(false);
     });
   }

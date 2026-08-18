@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   assignmentsOverlap,
+  buildToolListItemFromDetails,
+  canAssignTool,
   computeEffectiveStatus,
   computeExpectedReturnDate,
   daysOverdue,
   ensureArray,
   findOverlappingAssignment,
+  mergeToolIntoList,
   normalizeEmployeeToolSummary,
   normalizeToolWithDetails,
   resolveAssignmentStatus,
@@ -81,6 +84,10 @@ describe("computeEffectiveStatus", () => {
     expect(computeEffectiveStatus("out_of_service", [], "2025-08-18")).toBe("out_of_service");
   });
 
+  it("returns in_repair from base status", () => {
+    expect(computeEffectiveStatus("in_repair", [], "2025-08-18")).toBe("in_repair");
+  });
+
   it("returns in_use for active assignment", () => {
     const assignments = [
       assignment({ id: "a", startDate: "2025-08-15", expectedReturnDate: "2025-08-25" }),
@@ -95,7 +102,7 @@ describe("computeEffectiveStatus", () => {
     expect(computeEffectiveStatus("available", assignments, "2025-08-18")).toBe("overdue");
   });
 
-  it("returns reserved for future assignment only", () => {
+  it("returns available for future assignment only (scenario D)", () => {
     const assignments = [
       assignment({
         id: "a",
@@ -104,11 +111,18 @@ describe("computeEffectiveStatus", () => {
         status: "reserved",
       }),
     ];
-    expect(computeEffectiveStatus("available", assignments, "2025-08-18")).toBe("reserved");
+    expect(computeEffectiveStatus("available", assignments, "2025-08-18")).toBe("available");
   });
 
   it("returns available when no open assignments", () => {
     expect(computeEffectiveStatus("available", [], "2025-08-18")).toBe("available");
+  });
+
+  it("returns in_use even when base_status is available", () => {
+    const assignments = [
+      assignment({ id: "a", startDate: "2025-08-18", expectedReturnDate: "2025-08-23" }),
+    ];
+    expect(computeEffectiveStatus("available", assignments, "2025-08-18")).toBe("in_use");
   });
 });
 
@@ -214,5 +228,129 @@ describe("normalizeEmployeeToolSummary", () => {
     const normalized = normalizeEmployeeToolSummary(summary);
     expect(normalized.current).toHaveLength(1);
     expect(normalized.reservations).toEqual([]);
+  });
+});
+
+describe("buildToolListItemFromDetails", () => {
+  const details: ToolWithDetails = {
+    id: "tool-1",
+    companyId: "co-1",
+    name: "Perceuse",
+    category: "Perceuse",
+    brand: "Makita",
+    model: "X",
+    serialNumber: "",
+    internalNumber: "T-001",
+    description: "",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "",
+    updatedAt: "",
+    effectiveStatus: "in_use",
+    currentAssignment: {
+      id: "a-1",
+      toolId: "tool-1",
+      employeeId: "emp-1",
+      companyId: "co-1",
+      startDate: "2025-08-18",
+      expectedReturnDate: "2025-08-23",
+      status: "active",
+      createdAt: "",
+      updatedAt: "",
+      employeeName: "Jean Dupont",
+      employeePhone: "5145551234",
+    },
+    futureReservations: [],
+    assignmentHistory: [],
+  };
+
+  it("maps assignment fields to list item", () => {
+    const item = buildToolListItemFromDetails(details);
+    expect(item.effectiveStatus).toBe("in_use");
+    expect(item.currentEmployeeId).toBe("emp-1");
+    expect(item.currentEmployeeName).toBe("Jean Dupont");
+    expect(item.checkoutDate).toBe("2025-08-18");
+    expect(item.expectedReturnDate).toBe("2025-08-23");
+  });
+
+  it("tracks future reservations separately", () => {
+    const withFuture = buildToolListItemFromDetails({
+      ...details,
+      effectiveStatus: "available",
+      currentAssignment: undefined,
+      futureReservations: [
+        {
+          id: "r-1",
+          toolId: "tool-1",
+          employeeId: "emp-2",
+          companyId: "co-1",
+          startDate: "2025-08-25",
+          expectedReturnDate: "2025-08-30",
+          status: "reserved",
+          createdAt: "",
+          updatedAt: "",
+          employeeName: "Marie",
+          employeePhone: "",
+        },
+      ],
+    });
+    expect(withFuture.hasFutureReservation).toBe(true);
+    expect(withFuture.nextReservationEmployeeId).toBe("emp-2");
+  });
+});
+
+describe("canAssignTool", () => {
+  it("blocks in_repair and out_of_service tools", () => {
+    expect(canAssignTool({ baseStatus: "in_repair", effectiveStatus: "in_repair" })).toBe(false);
+    expect(canAssignTool({ baseStatus: "out_of_service", effectiveStatus: "out_of_service" })).toBe(
+      false,
+    );
+  });
+
+  it("blocks currently assigned tools", () => {
+    expect(
+      canAssignTool({
+        baseStatus: "available",
+        effectiveStatus: "in_use",
+        currentEmployeeId: "emp-1",
+      }),
+    ).toBe(false);
+  });
+
+  it("allows available tools", () => {
+    expect(canAssignTool({ baseStatus: "available", effectiveStatus: "available" })).toBe(true);
+  });
+});
+
+describe("mergeToolIntoList", () => {
+  const base: ToolListItem = {
+    id: "tool-1",
+    companyId: "co-1",
+    name: "A",
+    category: "Perceuse",
+    brand: "",
+    model: "",
+    serialNumber: "",
+    internalNumber: "",
+    description: "",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "",
+    updatedAt: "",
+    effectiveStatus: "available",
+  };
+
+  it("updates existing tool in list", () => {
+    const updated = { ...base, effectiveStatus: "in_use" as const, currentEmployeeId: "emp-1" };
+    const result = mergeToolIntoList([base], updated);
+    expect(result).toHaveLength(1);
+    expect(result[0].effectiveStatus).toBe("in_use");
+  });
+
+  it("prepends new tool", () => {
+    const other = { ...base, id: "tool-2", name: "B" };
+    const result = mergeToolIntoList([base], other);
+    expect(result).toHaveLength(2);
+    expect(result[0].id).toBe("tool-2");
   });
 });

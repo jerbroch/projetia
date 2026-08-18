@@ -146,10 +146,61 @@ export function computeEffectiveStatus(
     return "in_use";
   }
 
-  const hasFuture = open.some((a) => a.startDate > today);
-  if (hasFuture) return "reserved";
-
+  // Future-only reservations: tool remains available today (shown in detail).
   return "available";
+}
+
+export function canAssignTool(
+  tool: Pick<ToolListItem, "baseStatus" | "effectiveStatus" | "currentEmployeeId"> & {
+    currentAssignment?: unknown;
+  },
+): boolean {
+  if (tool.baseStatus === "out_of_service" || tool.baseStatus === "in_repair") return false;
+  if (tool.currentEmployeeId || tool.currentAssignment) return false;
+  return true;
+}
+
+export function buildToolListItemFromDetails(tool: ToolWithDetails): ToolListItem {
+  const current = tool.currentAssignment;
+  const today = todayDateString();
+  const future = tool.futureReservations;
+  const nextReservation = future[0];
+
+  return {
+    id: tool.id,
+    companyId: tool.companyId,
+    name: tool.name,
+    category: tool.category,
+    brand: tool.brand,
+    model: tool.model,
+    serialNumber: tool.serialNumber,
+    internalNumber: tool.internalNumber,
+    description: tool.description,
+    condition: tool.condition,
+    baseStatus: tool.baseStatus,
+    createdAt: tool.createdAt,
+    updatedAt: tool.updatedAt,
+    effectiveStatus: tool.effectiveStatus,
+    currentEmployeeId: current?.employeeId,
+    currentEmployeeName: current?.employeeName,
+    checkoutDate: current?.startDate,
+    expectedReturnDate: current?.expectedReturnDate,
+    daysOverdue:
+      current && current.expectedReturnDate < today
+        ? daysOverdue(current.expectedReturnDate, today)
+        : undefined,
+    hasFutureReservation: future.length > 0,
+    nextReservationStart: nextReservation?.startDate,
+    nextReservationExpectedReturn: nextReservation?.expectedReturnDate,
+    nextReservationEmployeeId: nextReservation?.employeeId,
+    lastSmsReminder: tool.lastSmsReminder,
+  };
+}
+
+export function mergeToolIntoList(tools: ToolListItem[], updated: ToolListItem): ToolListItem[] {
+  const exists = tools.some((t) => t.id === updated.id);
+  if (exists) return tools.map((t) => (t.id === updated.id ? updated : t));
+  return [updated, ...tools];
 }
 
 export function daysOverdue(expectedReturnDate: string, today: string = todayDateString()): number {
@@ -173,8 +224,6 @@ export function computeEmployeeToolSummary(
   tools: ToolListItem[],
   history: Array<ToolAssignment & { toolName: string; internalNumber: string }> = [],
 ): EmployeeToolSummary {
-  const today = todayDateString();
-
   const current = tools
     .filter(
       (t) =>
@@ -187,13 +236,14 @@ export function computeEmployeeToolSummary(
   const reservations = tools
     .filter(
       (t) =>
-        t.effectiveStatus === "reserved" &&
-        t.currentEmployeeId === employeeId,
+        t.hasFutureReservation &&
+        t.nextReservationEmployeeId === employeeId &&
+        t.nextReservationStart,
     )
     .map((t) => ({
       ...t,
-      startDate: t.checkoutDate ?? today,
-      expectedReturnDate: t.expectedReturnDate ?? today,
+      startDate: t.nextReservationStart!,
+      expectedReturnDate: t.nextReservationExpectedReturn ?? t.nextReservationStart!,
     }));
 
   return normalizeEmployeeToolSummary({ current, reservations, history });

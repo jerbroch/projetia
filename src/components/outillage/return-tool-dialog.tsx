@@ -32,7 +32,7 @@ interface ReturnToolDialogProps {
   onOpenChange: (open: boolean) => void;
   tool?: ToolWithDetails;
   isDemo?: boolean;
-  onReturned: () => void;
+  onReturned: (tool: ToolWithDetails) => void;
 }
 
 export function ReturnToolDialog({
@@ -64,7 +64,13 @@ export function ReturnToolDialog({
 
     startTransition(async () => {
       if (isDemo) {
-        onReturned();
+        if (!tool) return;
+        onReturned({
+          ...tool,
+          effectiveStatus: tool.baseStatus === "in_repair" ? "in_repair" : "available",
+          currentAssignment: undefined,
+          futureReservations: tool.futureReservations ?? [],
+        });
         onOpenChange(false);
         return;
       }
@@ -78,7 +84,7 @@ export function ReturnToolDialog({
         setError(result.error);
         return;
       }
-      onReturned();
+      onReturned(result.tool);
       onOpenChange(false);
     });
   }

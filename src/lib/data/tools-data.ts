@@ -94,6 +94,10 @@ function enrichToolListItem(
   const effectiveStatus = computeEffectiveStatus(tool.baseStatus, toolAssignments, today);
   const open = toolAssignments.filter(isAssignmentOpen);
   const current = open.find((a) => a.startDate <= today);
+  const futureReservations = open
+    .filter((a) => a.startDate > today)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const nextReservation = futureReservations[0];
   const employeeMap = new Map(employees.map((e) => [e.id, e]));
   const lastSms = smsReminders
     .filter((s) => s.toolId === tool.id)
@@ -127,6 +131,10 @@ function enrichToolListItem(
       current && current.expectedReturnDate < today
         ? daysOverdue(current.expectedReturnDate, today)
         : undefined,
+    hasFutureReservation: futureReservations.length > 0,
+    nextReservationStart: nextReservation?.startDate,
+    nextReservationExpectedReturn: nextReservation?.expectedReturnDate,
+    nextReservationEmployeeId: nextReservation?.employeeId,
     lastSmsReminder: lastSms,
   };
 }

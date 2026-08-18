@@ -1,22 +1,27 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
-import { canManageTools } from "@/lib/tool-utils";
+import {
+  buildToolListItemFromDetails,
+  canManageTools,
+  findEmployeeByUserEmail,
+  mergeToolIntoList,
+} from "@/lib/tool-utils";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ToolStatusBadge } from "@/components/outillage/tool-status-badge";
 import { ToolFormDialog } from "@/components/outillage/tool-form-dialog";
 import { ToolDetailDialog } from "@/components/outillage/tool-detail-dialog";
-import { findEmployeeByUserEmail } from "@/lib/tool-utils";
 import type {
   Company,
   Employee,
   ProfileRole,
   ToolEffectiveStatus,
   ToolListItem,
+  ToolWithDetails,
   User,
 } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -78,6 +83,10 @@ export function OutillagePageClient({
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedTool, setSelectedTool] = useState<ToolListItem | undefined>();
 
+  useEffect(() => {
+    setToolList(initialTools);
+  }, [initialTools]);
+
   const canManage = canManageTools(membershipRole);
   const selfEmployee = findEmployeeByUserEmail(employees, user.email);
   const isEmployeeView = !canManage;
@@ -90,7 +99,7 @@ export function OutillagePageClient({
       all: base.length,
       available: base.filter((t) => t.effectiveStatus === "available").length,
       in_use: base.filter((t) => t.effectiveStatus === "in_use").length,
-      reserved: base.filter((t) => t.effectiveStatus === "reserved").length,
+      reserved: base.filter((t) => t.hasFutureReservation).length,
       overdue: base.filter((t) => t.effectiveStatus === "overdue").length,
       in_repair: base.filter((t) => t.effectiveStatus === "in_repair").length,
       out_of_service: base.filter((t) => t.effectiveStatus === "out_of_service").length,
@@ -103,7 +112,10 @@ export function OutillagePageClient({
       : [...toolList];
 
     if (statusFilter !== "all") {
-      list = list.filter((t) => t.effectiveStatus === statusFilter);
+      list =
+        statusFilter === "reserved"
+          ? list.filter((t) => t.hasFutureReservation)
+          : list.filter((t) => t.effectiveStatus === statusFilter);
     }
     if (categoryFilter !== "all") {
       list = list.filter((t) => t.category === categoryFilter);
@@ -138,11 +150,13 @@ export function OutillagePageClient({
     setDetailOpen(true);
   }
 
-  function handleRefresh() {
+  function handleToolUpdated(tool: ToolWithDetails) {
+    const listItem = buildToolListItemFromDetails(tool);
+    setToolList((prev) => mergeToolIntoList(prev, listItem));
+    setSelectedTool((prev) => (prev?.id === listItem.id ? listItem : prev));
     startTransition(() => {
       router.refresh();
     });
-    setDetailOpen(false);
   }
 
   function handleSaveTool(tool: ToolListItem) {
@@ -364,7 +378,7 @@ export function OutillagePageClient({
         company={company}
         isDemo={isDemo}
         canManage={canManage}
-        onRefresh={handleRefresh}
+        onToolUpdated={handleToolUpdated}
       />
     </DashboardLayout>
   );

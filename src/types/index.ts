@@ -526,6 +526,10 @@ export interface ToolListItem extends Tool {
   checkoutDate?: string;
   expectedReturnDate?: string;
   daysOverdue?: number;
+  hasFutureReservation?: boolean;
+  nextReservationStart?: string;
+  nextReservationExpectedReturn?: string;
+  nextReservationEmployeeId?: string;
   lastSmsReminder?: ToolSmsReminder;
 }
 

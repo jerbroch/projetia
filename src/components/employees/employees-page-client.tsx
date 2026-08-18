@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { deactivateEmployeeAction } from "@/lib/actions/employees";
+import { buildToolListItemFromDetails, mergeToolIntoList } from "@/lib/tool-utils";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -23,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Company, Employee, ProfileRole, ToolListItem, User } from "@/types";
+import type { Company, Employee, ProfileRole, ToolListItem, ToolWithDetails, User } from "@/types";
 
 interface EmployeesPageClientProps {
   initialEmployees: Employee[];
@@ -45,12 +46,23 @@ export function EmployeesPageClient({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [employeeList, setEmployeeList] = useState<Employee[]>(initialEmployees);
+  const [toolList, setToolList] = useState<ToolListItem[]>(tools);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingEmployee, setEditingEmployee] = useState<Employee | undefined>();
   const [profileEmployee, setProfileEmployee] = useState<Employee | undefined>();
   const [profileOpen, setProfileOpen] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  useEffect(() => {
+    setToolList(tools);
+  }, [tools]);
+
+  function handleToolUpdated(tool: ToolWithDetails) {
+    const listItem = buildToolListItemFromDetails(tool);
+    setToolList((prev) => mergeToolIntoList(prev, listItem));
+    startTransition(() => router.refresh());
+  }
 
   const activeCount = employeeList.filter((e) => e.status === "active").length;
 
@@ -241,13 +253,14 @@ export function EmployeesPageClient({
         open={profileOpen}
         onOpenChange={setProfileOpen}
         employee={profileEmployee}
-        tools={tools}
+        tools={toolList}
         employees={employeeList}
         company={company}
         membershipRole={membershipRole}
         isDemo={isDemo}
         onEdit={openEditForm}
         onDeactivate={handleDeactivate}
+        onToolUpdated={handleToolUpdated}
       />
     </DashboardLayout>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { MessageSquare, RotateCcw, UserPlus } from "lucide-react";
 import { getToolDetailAction } from "@/lib/actions/tools";
 import {
+  canAssignTool,
   formatLastSmsReminder,
   normalizeToolWithDetails,
   TOOL_CONDITION_LABELS,
@@ -33,7 +34,7 @@ interface ToolDetailDialogProps {
   company: Company;
   isDemo?: boolean;
   canManage: boolean;
-  onRefresh: () => void;
+  onToolUpdated: (tool: ToolWithDetails) => void;
 }
 
 export function ToolDetailDialog({
@@ -45,7 +46,7 @@ export function ToolDetailDialog({
   company,
   isDemo,
   canManage,
-  onRefresh,
+  onToolUpdated,
 }: ToolDetailDialogProps) {
   const [tool, setTool] = useState<ToolWithDetails | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,7 +93,14 @@ export function ToolDetailDialog({
     });
   }, [open, toolId, isDemo, listItem, employees]);
 
+  function handleToolUpdated(tool: ToolWithDetails) {
+    const normalized = normalizeToolWithDetails(tool);
+    if (normalized) setTool(normalized);
+    onToolUpdated(tool);
+  }
+
   const display = normalizeToolWithDetails(tool ?? listItem);
+  const assignable = display ? canAssignTool(display) : false;
 
   return (
     <>
@@ -190,7 +198,7 @@ export function ToolDetailDialog({
 
               {canManage && (
                 <div className="flex flex-wrap gap-2 pt-2">
-                  {!display.currentAssignment && display.baseStatus !== "out_of_service" && (
+                  {assignable && !display.currentAssignment && (
                     <Button size="sm" onClick={() => setAssignOpen(true)}>
                       <UserPlus className="mr-2 h-4 w-4" />
                       Assigner
@@ -210,14 +218,6 @@ export function ToolDetailDialog({
                       )}
                     </>
                   )}
-                  {!display.currentAssignment &&
-                    display.effectiveStatus === "available" &&
-                    display.futureReservations.length === 0 && (
-                      <Button size="sm" variant="outline" onClick={() => setAssignOpen(true)}>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Réserver
-                      </Button>
-                    )}
                 </div>
               )}
             </div>
@@ -231,14 +231,14 @@ export function ToolDetailDialog({
         tool={listItem}
         employees={employees}
         isDemo={isDemo}
-        onAssigned={onRefresh}
+        onAssigned={handleToolUpdated}
       />
       <ReturnToolDialog
         open={returnOpen}
         onOpenChange={setReturnOpen}
         tool={tool ?? undefined}
         isDemo={isDemo}
-        onReturned={onRefresh}
+        onReturned={handleToolUpdated}
       />
       <SendSmsDialog
         open={smsOpen}
@@ -246,7 +246,7 @@ export function ToolDetailDialog({
         tool={tool ?? undefined}
         company={company}
         isDemo={isDemo}
-        onSent={onRefresh}
+        onSent={handleToolUpdated}
       />
     </>
   );

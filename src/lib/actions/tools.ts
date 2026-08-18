@@ -158,6 +158,16 @@ export async function assignToolAction(
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
   }
 
+  const employees = await getEmployees(ctx.company.id, false);
+  const existingTool = await getToolById(ctx.company.id, toolId, false, employees);
+  if (!existingTool) return safeError("Outil introuvable.");
+  if (existingTool.baseStatus === "in_repair" || existingTool.baseStatus === "out_of_service") {
+    return safeError("Cet outil ne peut pas être assigné dans son état actuel.");
+  }
+  if (existingTool.currentAssignment) {
+    return safeError("Cet outil est déjà assigné.");
+  }
+
   const { data: existingRows } = await getToolAssignmentsForTool(ctx.company.id, toolId);
   const assignments = (existingRows ?? []).map(mapToolAssignmentRow);
   const overlapError = checkAssignmentOverlap(
@@ -181,7 +191,6 @@ export async function assignToolAction(
   }
 
   revalidateOutillage();
-  const employees = await getEmployees(ctx.company.id, false);
   const tool = await getToolById(ctx.company.id, toolId, false, employees);
   if (!tool) return safeError("Outil introuvable.");
   return { success: true, tool };

@@ -2,10 +2,16 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
+import { format } from "date-fns";
 import { assignToolAction } from "@/lib/actions/tools";
 import { getEmployeeFullName } from "@/lib/employee-utils";
-import { computeExpectedReturnDate } from "@/lib/tool-utils";
-import type { Employee, ToolListItem } from "@/types";
+import {
+  computeEffectiveStatus,
+  computeExpectedReturnDate,
+  resolveAssignmentStatus,
+  todayDateString,
+} from "@/lib/tool-utils";
+import type { Employee, ToolListItem, ToolWithDetails } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,9 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 const textareaClassName =
   "flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
-import { format } from "date-fns";
 
 interface AssignToolDialogProps {
   open: boolean;
@@ -35,7 +41,50 @@ interface AssignToolDialogProps {
   employees: Employee[];
   isDemo?: boolean;
   defaultEmployeeId?: string;
-  onAssigned: () => void;
+  onAssigned: (tool: ToolWithDetails) => void;
+}
+
+function buildDemoAssignedTool(
+  tool: ToolListItem,
+  employees: Employee[],
+  input: {
+    employeeId: string;
+    startDate: string;
+    expectedReturnDate: string;
+    notes?: string;
+  },
+): ToolWithDetails {
+  const employee = employees.find((e) => e.id === input.employeeId);
+  const status = resolveAssignmentStatus(input.startDate);
+  const assignment = {
+    id: `demo-${Date.now()}`,
+    toolId: tool.id,
+    employeeId: input.employeeId,
+    companyId: tool.companyId,
+    startDate: input.startDate,
+    expectedReturnDate: input.expectedReturnDate,
+    status,
+    notes: input.notes,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    employeeName: employee ? getEmployeeFullName(employee) : "Employé",
+    employeePhone: employee?.mobilePhone ?? "",
+  };
+
+  const isFuture = status === "reserved";
+  const effectiveStatus = computeEffectiveStatus(
+    tool.baseStatus,
+    [assignment],
+    todayDateString(),
+  );
+
+  return {
+    ...tool,
+    effectiveStatus,
+    currentAssignment: isFuture ? undefined : assignment,
+    futureReservations: isFuture ? [assignment] : [],
+    assignmentHistory: [],
+  };
 }
 
 export function AssignToolDialog({
@@ -81,7 +130,14 @@ export function AssignToolDialog({
 
     startTransition(async () => {
       if (isDemo) {
-        onAssigned();
+        onAssigned(
+          buildDemoAssignedTool(tool, employees, {
+            employeeId,
+            startDate,
+            expectedReturnDate,
+            notes: formData.get("notes")?.toString() || undefined,
+          }),
+        );
         onOpenChange(false);
         return;
       }
@@ -91,7 +147,7 @@ export function AssignToolDialog({
         setError(result.error);
         return;
       }
-      onAssigned();
+      onAssigned(result.tool);
       onOpenChange(false);
     });
   }

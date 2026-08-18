@@ -2,9 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { Mail, Phone, Truck, User } from "lucide-react";
-import type { Company, Employee, ProfileRole, ToolListItem } from "@/types";
+import type { Company, Employee, ProfileRole, ToolListItem, ToolWithDetails } from "@/types";
 import { getEmployeeFullName, getEmployeeInitials } from "@/lib/employee-utils";
-import { canManageTools, computeEmployeeToolSummary } from "@/lib/tool-utils";
+import {
+  canAssignTool,
+  canManageTools,
+  computeEmployeeToolSummary,
+} from "@/lib/tool-utils";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmployeeToolsSection } from "@/components/outillage/employee-tools-section";
@@ -38,6 +42,7 @@ interface EmployeeProfilePanelProps {
   isDemo?: boolean;
   onEdit: (employee: Employee) => void;
   onDeactivate: (employeeId: string) => void;
+  onToolUpdated?: (tool: ToolWithDetails) => void;
 }
 
 export function EmployeeProfilePanel({
@@ -50,6 +55,7 @@ export function EmployeeProfilePanel({
   isDemo,
   onEdit,
   onDeactivate,
+  onToolUpdated,
 }: EmployeeProfilePanelProps) {
   const [assignOpen, setAssignOpen] = useState(false);
   const [pickToolOpen, setPickToolOpen] = useState(false);
@@ -62,15 +68,7 @@ export function EmployeeProfilePanel({
     [employee, tools],
   );
 
-  const availableTools = useMemo(
-    () =>
-      tools.filter(
-        (t) =>
-          t.effectiveStatus === "available" ||
-          (t.effectiveStatus === "reserved" && !t.currentEmployeeId),
-      ),
-    [tools],
-  );
+  const availableTools = useMemo(() => tools.filter((t) => canAssignTool(t)), [tools]);
 
   const selectedTool = tools.find((t) => t.id === selectedToolId);
 
@@ -217,7 +215,10 @@ export function EmployeeProfilePanel({
         employees={employees}
         isDemo={isDemo}
         defaultEmployeeId={employee.id}
-        onAssigned={() => setAssignOpen(false)}
+        onAssigned={(tool) => {
+          onToolUpdated?.(tool);
+          setAssignOpen(false);
+        }}
       />
     </>
   );
