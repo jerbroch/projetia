@@ -8,13 +8,13 @@ import {
   mapFieldHourRow,
   mapFieldMaterialRow,
   searchFieldCatalogItems,
+  updateScheduledJobFieldFieldsAdmin,
 } from "@/lib/data/field-data";
 import {
   getScheduledJobById,
   mapScheduleRow,
-  updateScheduledJobForCompany,
 } from "@/lib/data/tenant-data";
-import { isSupabaseConfigured } from "@/lib/supabase/admin";
+import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/admin";
 import {
   buildFieldCompletionSummary,
   canCompleteFieldWork,
@@ -25,7 +25,6 @@ import {
   canViewJobAsEmployee,
 } from "@/lib/field-permissions";
 import type { JobWorkflowStatus } from "@/lib/job-workflow";
-import { mergeScheduleJobForUpdate } from "@/lib/schedule-utils";
 import { requireFieldContext, requireTenantContext } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import type { FieldHour, FieldMaterial, ScheduleEvent } from "@/types";
@@ -96,15 +95,24 @@ export async function updateFieldJobStatusAction(
     return { success: false, error: "Changement de statut non autorisé." };
   }
 
-  const now = new Date().toISOString();
-  const updates: Partial<ScheduleEvent> = { status: newStatus };
-  if (newStatus === "completed") {
-    updates.workCompletedAt = now;
-    updates.fieldReadyForReview = true;
+  if (!isSupabaseAdminConfigured()) {
+    return { success: false, error: "Supabase n'est pas configuré." };
   }
 
-  const event = mergeScheduleJobForUpdate(job, { ...job, ...updates });
-  const { data, error } = await updateScheduledJobForCompany(ctx.company.id, jobId, event);
+  const now = new Date().toISOString();
+  const fieldUpdates: Parameters<typeof updateScheduledJobFieldFieldsAdmin>[2] = {
+    status: newStatus,
+  };
+  if (newStatus === "completed") {
+    fieldUpdates.workCompletedAt = now;
+    fieldUpdates.fieldReadyForReview = true;
+  }
+
+  const { data, error } = await updateScheduledJobFieldFieldsAdmin(
+    ctx.company.id,
+    jobId,
+    fieldUpdates
+  );
   if (error || !data) {
     console.error("[updateFieldJobStatusAction]", error?.message);
     return { success: false, error: "Impossible de mettre à jour le statut." };
@@ -268,8 +276,13 @@ export async function updateFieldNotesAction(
     return { success: false, error: "Modification des notes non autorisée." };
   }
 
-  const event = mergeScheduleJobForUpdate(job, { ...job, fieldNotes });
-  const { data, error } = await updateScheduledJobForCompany(ctx.company.id, jobId, event);
+  if (!isSupabaseAdminConfigured()) {
+    return { success: false, error: "Supabase n'est pas configuré." };
+  }
+
+  const { data, error } = await updateScheduledJobFieldFieldsAdmin(ctx.company.id, jobId, {
+    fieldNotes,
+  });
   if (error || !data) {
     return { success: false, error: "Impossible de mettre à jour les notes." };
   }

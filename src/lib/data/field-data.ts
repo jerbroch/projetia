@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/admin";
+import type { JobWorkflowStatus } from "@/lib/job-workflow";
 import { filterJobsForEmployee } from "@/lib/field-permissions";
 import { getScheduleEvents, getEmployees, mapScheduleRow } from "@/lib/data/tenant-data";
 import { getToolsWithDetails } from "@/lib/data/tools-data";
@@ -179,6 +180,39 @@ export async function getFieldJobsForEmployeeScoped(
   }
   const jobs = await fetchAssignedJobsFromDb(companyId);
   return filterJobsForEmployee(jobs, employeeId);
+}
+
+/** Server-only: narrow scheduled_jobs update for field workers (bypasses RLS). */
+export async function updateScheduledJobFieldFieldsAdmin(
+  companyId: string,
+  jobId: string,
+  updates: {
+    status?: JobWorkflowStatus;
+    workCompletedAt?: string | null;
+    fieldReadyForReview?: boolean;
+    fieldNotes?: string | null;
+  }
+) {
+  if (!isSupabaseAdminConfigured()) {
+    return { data: null, error: { message: "Supabase admin client is not configured." } };
+  }
+
+  const payload: Record<string, unknown> = {};
+  if (updates.status !== undefined) payload.status = updates.status;
+  if (updates.workCompletedAt !== undefined) payload.work_completed_at = updates.workCompletedAt;
+  if (updates.fieldReadyForReview !== undefined) {
+    payload.field_ready_for_review = updates.fieldReadyForReview;
+  }
+  if (updates.fieldNotes !== undefined) payload.field_notes = updates.fieldNotes;
+
+  const admin = createAdminClient();
+  return admin
+    .from("scheduled_jobs")
+    .update(payload)
+    .eq("id", jobId)
+    .eq("company_id", companyId)
+    .select("*")
+    .single();
 }
 
 export async function countOpenToolsForEmployee(

@@ -91,18 +91,25 @@ RETURNS UUID AS $$
   SELECT employee_id FROM profiles WHERE id = auth.uid()
 $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
-CREATE OR REPLACE FUNCTION auth_user_has_office_role()
+-- Office role check scoped to a single company (multi-tenant safe).
+-- A user who is admin in Company A but employee in Company B must NOT get
+-- office permissions when accessing Company B rows.
+DROP FUNCTION IF EXISTS auth_user_has_office_role();
+
+CREATE OR REPLACE FUNCTION auth_user_has_office_role(p_company_id UUID)
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1
     FROM company_members cm
     WHERE cm.user_id = auth.uid()
+      AND cm.company_id = p_company_id
       AND cm.role IN ('owner', 'admin', 'dispatcher', 'estimator', 'accountant')
   )
   OR EXISTS (
     SELECT 1
     FROM profiles p
     WHERE p.id = auth.uid()
+      AND p.company_id = p_company_id
       AND p.role IN ('owner', 'admin', 'dispatcher', 'estimator', 'accountant')
   )
 $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
@@ -123,34 +130,27 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 -- =============================================================================
 
 DROP POLICY IF EXISTS scheduled_jobs_company_isolation ON scheduled_jobs;
+DROP POLICY IF EXISTS scheduled_jobs_office_access ON scheduled_jobs;
+DROP POLICY IF EXISTS scheduled_jobs_employee_select ON scheduled_jobs;
+DROP POLICY IF EXISTS scheduled_jobs_employee_update ON scheduled_jobs;
 
 CREATE POLICY scheduled_jobs_office_access ON scheduled_jobs
   FOR ALL TO authenticated
   USING (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   )
   WITH CHECK (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   );
 
+-- Field employees: SELECT only on assigned jobs (employee_id in employee_ids).
+-- No UPDATE policy — status/notes writes go through server actions (service role)
+-- with server-side transition validation. RLS cannot restrict columns on UPDATE.
 CREATE POLICY scheduled_jobs_employee_select ON scheduled_jobs
   FOR SELECT TO authenticated
   USING (
-    company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_employee_id() IS NOT NULL
-    AND auth_user_employee_id() = ANY (employee_ids)
-  );
-
-CREATE POLICY scheduled_jobs_employee_update ON scheduled_jobs
-  FOR UPDATE TO authenticated
-  USING (
-    company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_employee_id() IS NOT NULL
-    AND auth_user_employee_id() = ANY (employee_ids)
-  )
-  WITH CHECK (
     company_id IN (SELECT auth_user_company_ids())
     AND auth_user_employee_id() IS NOT NULL
     AND auth_user_employee_id() = ANY (employee_ids)
@@ -168,11 +168,11 @@ CREATE POLICY field_hours_office ON field_hours
   FOR ALL TO authenticated
   USING (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   )
   WITH CHECK (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   );
 
 DROP POLICY IF EXISTS field_hours_employee ON field_hours;
@@ -194,11 +194,11 @@ CREATE POLICY field_materials_office ON field_materials
   FOR ALL TO authenticated
   USING (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   )
   WITH CHECK (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   );
 
 DROP POLICY IF EXISTS field_materials_employee ON field_materials;
@@ -220,25 +220,27 @@ CREATE POLICY field_materials_employee ON field_materials
 -- =============================================================================
 
 DROP POLICY IF EXISTS job_billing_lines_company_isolation ON job_billing_lines;
+DROP POLICY IF EXISTS job_billing_lines_office_only ON job_billing_lines;
 CREATE POLICY job_billing_lines_office_only ON job_billing_lines
   FOR ALL TO authenticated
   USING (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   )
   WITH CHECK (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   );
 
 DROP POLICY IF EXISTS job_billing_sheets_company_isolation ON job_billing_sheets;
+DROP POLICY IF EXISTS job_billing_sheets_office_only ON job_billing_sheets;
 CREATE POLICY job_billing_sheets_office_only ON job_billing_sheets
   FOR ALL TO authenticated
   USING (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   )
   WITH CHECK (
     company_id IN (SELECT auth_user_company_ids())
-    AND auth_user_has_office_role()
+    AND auth_user_has_office_role(company_id)
   );
