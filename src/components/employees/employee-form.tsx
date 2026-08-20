@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Employee } from "@/types";
+import type { Employee, ProfileRole } from "@/types";
 
 interface EmployeeFormProps {
   open: boolean;
@@ -35,6 +35,7 @@ interface EmployeeFormProps {
   companyId: string;
   isDemo?: boolean;
   employee?: Employee;
+  membershipRole: ProfileRole;
   onSave: (employee: Employee) => void;
 }
 
@@ -52,6 +53,7 @@ function toFormData(form: EmployeeFormValues): FormData {
   formData.set("department", form.department);
   formData.set("hireDate", form.hireDate);
   formData.set("hourlyRate", form.hourlyRate);
+  formData.set("grantAppAccess", form.grantAppAccess ? "true" : "false");
   return formData;
 }
 
@@ -62,8 +64,10 @@ export function EmployeeForm({
   companyId,
   isDemo,
   employee,
+  membershipRole,
   onSave,
 }: EmployeeFormProps) {
+  const canManageAccess = membershipRole === "owner" || membershipRole === "admin";
   const [form, setForm] = useState<EmployeeFormValues>(() => getDefaultEmployeeFormValues(employee));
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -187,6 +191,37 @@ export function EmployeeForm({
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
+            {canManageAccess && (
+              <div className="space-y-2 sm:col-span-2 rounded-lg border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label htmlFor="grantAppAccess">Donner accès à l&apos;application</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Utilise le courriel de l&apos;employé pour créer ou activer son compte.
+                    </p>
+                  </div>
+                  <input
+                    id="grantAppAccess"
+                    type="checkbox"
+                    checked={form.grantAppAccess}
+                    onChange={(e) => updateField("grantAppAccess", e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </div>
+                {employee?.appAccessStatus && employee.appAccessStatus !== "none" && (
+                  <p className="text-sm">
+                    Accès application :{" "}
+                    <strong>
+                      {employee.appAccessStatus === "active"
+                        ? "Actif"
+                        : employee.appAccessStatus === "inactive"
+                          ? "Non activé"
+                          : "Invité"}
+                    </strong>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>

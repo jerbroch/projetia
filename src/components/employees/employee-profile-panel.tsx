@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Mail, Phone, Truck, User } from "lucide-react";
+import { revokeEmployeeAccessAction } from "@/lib/actions/employee-access";
 import type { Company, Employee, ProfileRole, ToolListItem, ToolWithDetails } from "@/types";
 import { getEmployeeFullName, getEmployeeInitials } from "@/lib/employee-utils";
 import {
@@ -60,8 +61,10 @@ export function EmployeeProfilePanel({
   const [assignOpen, setAssignOpen] = useState(false);
   const [pickToolOpen, setPickToolOpen] = useState(false);
   const [selectedToolId, setSelectedToolId] = useState("");
+  const [, startTransition] = useTransition();
 
   const canManage = canManageTools(membershipRole);
+  const canManageAccess = membershipRole === "owner" || membershipRole === "admin";
 
   const toolSummary = useMemo(
     () => (employee ? computeEmployeeToolSummary(employee.id, tools) : { current: [], reservations: [], history: [] }),
@@ -121,6 +124,18 @@ export function EmployeeProfilePanel({
                 </span>
               </div>
               <p className="text-muted-foreground">Embauché le {formatDate(employee.hireDate)}</p>
+              {canManageAccess && (
+                <p>
+                  Accès application :{" "}
+                  <strong>
+                    {employee.appAccessStatus === "active"
+                      ? "Actif"
+                      : employee.appAccessStatus === "inactive"
+                        ? "Non activé"
+                        : "Non configuré"}
+                  </strong>
+                </p>
+              )}
             </div>
 
             {employee.notes && (
@@ -151,6 +166,19 @@ export function EmployeeProfilePanel({
               )}
             </div>
             <div className="flex gap-2">
+              {canManageAccess && employee.appAccessStatus === "active" && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    startTransition(async () => {
+                      const result = await revokeEmployeeAccessAction(employee.id);
+                      if (result.success) onOpenChange(false);
+                    });
+                  }}
+                >
+                  Désactiver l&apos;accès
+                </Button>
+              )}
               {employee.status !== "inactive" && canManage && (
                 <Button variant="outline" onClick={() => onDeactivate(employee.id)}>
                   Désactiver

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   resolvePostLoginPath,
   shouldBlockTenantRoute,
+  shouldRedirectFieldEmployeeFromAdmin,
 } from "@/lib/middleware-access";
 
 const TENANT_PREFIXES = [
@@ -16,6 +17,8 @@ const TENANT_PREFIXES = [
   "/employees",
   "/payments",
   "/settings",
+  "/outillage",
+  "/terrain",
 ];
 
 const PROTECTED_PREFIXES = [...TENANT_PREFIXES, "/onboarding", "/admin"];
@@ -133,6 +136,18 @@ export async function middleware(request: NextRequest) {
         chooseUrl.pathname = "/choose-plan";
         return NextResponse.redirect(chooseUrl);
       }
+
+      const fieldRedirect = await shouldRedirectFieldEmployeeFromAdmin(
+        supabase,
+        userId,
+        pathname,
+        isDemo,
+      );
+      if (fieldRedirect) {
+        const terrainUrl = request.nextUrl.clone();
+        terrainUrl.pathname = "/terrain";
+        return NextResponse.redirect(terrainUrl);
+      }
     }
   }
 
@@ -167,6 +182,8 @@ export const config = {
     "/employees/:path*",
     "/payments/:path*",
     "/settings/:path*",
+    "/outillage/:path*",
+    "/terrain/:path*",
     "/onboarding/:path*",
     "/choose-plan",
     "/admin",

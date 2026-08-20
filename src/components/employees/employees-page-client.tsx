@@ -246,6 +246,7 @@ export function EmployeesPageClient({
         companyId={company.id}
         isDemo={isDemo}
         employee={editingEmployee}
+        membershipRole={membershipRole}
         onSave={handleSave}
       />
 

@@ -66,6 +66,7 @@ export interface Profile {
   phone?: string | null;
   role: ProfileRole;
   status: "active" | "invited" | "inactive";
+  employeeId?: string | null;
 }
 
 export interface TenantContext {
@@ -73,6 +74,7 @@ export interface TenantContext {
   profile: Profile | null;
   company: Company;
   membershipRole: ProfileRole;
+  employeeId: string | null;
   isDemo: boolean;
 }
 
@@ -371,6 +373,9 @@ export interface Employee {
   department: string;
   hireDate: string;
   hourlyRate: number;
+  userId?: string | null;
+  appAccessEnabled?: boolean;
+  appAccessStatus?: "active" | "invited" | "inactive" | "none";
 }
 
 export type JobNumberType = "contract" | "service_call";
@@ -413,6 +418,9 @@ export interface ScheduleEvent {
   clientPoNumber?: string;
   /** Plumber field report — travaux effectués */
   workDescription?: string;
+  /** Notes saisies sur le terrain (visible employé) */
+  fieldNotes?: string;
+  fieldReadyForReview?: boolean;
   closureNotes?: string;
   submittedForReviewAt?: string;
   workCompletedAt?: string;
@@ -545,4 +553,46 @@ export interface EmployeeToolSummary {
   current: Array<ToolListItem & { expectedReturnDate: string }>;
   reservations: Array<ToolListItem & { startDate: string; expectedReturnDate: string }>;
   history: Array<ToolAssignment & { toolName: string; internalNumber: string }>;
+}
+
+/** Real hours entered by field employees (separate from quote estimation). */
+export interface FieldHour {
+  id: string;
+  companyId: string;
+  scheduledJobId: string;
+  employeeId: string;
+  workDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  hours: number;
+  laborType?: string | null;
+  notes?: string | null;
+  timerStartedAt?: string | null;
+  timerStoppedAt?: string | null;
+  createdByUserId?: string | null;
+  createdAt: string;
+}
+
+/** Real materials used on site (no financial columns). */
+export interface FieldMaterial {
+  id: string;
+  companyId: string;
+  scheduledJobId: string;
+  employeeId: string;
+  catalogItemId?: string | null;
+  name: string;
+  description?: string | null;
+  quantity: number;
+  unit: string;
+  notes?: string | null;
+  isCustom: boolean;
+  createdByUserId?: string | null;
+  createdAt: string;
+}
+
+export interface FieldCatalogItem {
+  id: string;
+  name: string;
+  unit: string;
+  category?: string | null;
 }
