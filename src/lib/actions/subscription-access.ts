@@ -3,7 +3,14 @@
 import { redirect } from "next/navigation";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { companyHasAppAccess } from "@/lib/access-control";
-import { isStripeConfigured } from "@/lib/stripe";
+import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import {
+  createBillingPortalSession,
+  createSubscriptionCheckoutSession,
+  type CompanyBillingIdentity,
+} from "@/lib/billing/checkout";
+import { syncSubscriptionById } from "@/lib/billing/sync";
+import { getPricingConfig, priceIdForPlan } from "@/lib/pricing-config";
 import { logAdminActivity } from "@/lib/data/platform-data";
 import {
   normalizePromoCode,
@@ -19,6 +26,17 @@ export type AccessActionResult =
 
 function safeError(message: string): AccessActionResult {
   return { success: false, error: message };
+}
+
+function billingIdentity(ctx: {
+  company: { id: string; name: string };
+  user: { email: string };
+}): CompanyBillingIdentity {
+  return {
+    companyId: ctx.company.id,
+    companyName: ctx.company.name,
+    email: ctx.user.email,
+  };
 }
 
 function isSchemaNotReady(message: string | undefined): boolean {
@@ -135,29 +153,128 @@ export async function selectSubscriptionPlanAction(
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
 
+  if (plan !== "monthly" && plan !== "annual") {
+    return safeError("Plan invalide.");
+  }
+
   if (!isSupabaseConfigured()) {
     return safeError("Service indisponible.");
   }
 
+  const admin = createAdminClient();
+
+  // Le choix est enregistré même si le paiement échoue ensuite : il sert de
+  // relance commerciale et pré-remplit la page d'abonnement au retour.
+  await admin.from("companies").update({ pending_plan: plan }).eq("id", ctx.company.id);
+
   if (!isStripeConfigured()) {
-    const admin = createAdminClient();
-    await admin
-      .from("companies")
-      .update({ pending_plan: plan })
-      .eq("id", ctx.company.id);
     return safeError("Paiement bientôt disponible. Votre choix a été enregistré.");
   }
 
-  // Stripe checkout — price IDs not configured yet; do not fake success
-  const admin = createAdminClient();
-  await admin
-    .from("companies")
-    .update({ pending_plan: plan })
-    .eq("id", ctx.company.id);
+  if (!priceIdForPlan(getPricingConfig(), plan)) {
+    return safeError(
+      "Paiement bientôt disponible — le tarif Stripe de ce plan n'est pas encore configuré.",
+    );
+  }
 
-  return safeError(
-    "Paiement bientôt disponible. La configuration Stripe Checkout sera activée prochainement.",
-  );
+  try {
+    const { url } = await createSubscriptionCheckoutSession(
+      billingIdentity(ctx),
+      plan,
+    );
+    return { success: true, redirectTo: url };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isSchemaNotReady(message)) {
+      return safeError(
+        "La migration de facturation (022_subscription_billing.sql) n'est pas encore appliquée.",
+      );
+    }
+    console.error("Stripe checkout failed:", message);
+    return safeError("Impossible d'ouvrir le paiement. Réessayez dans un instant.");
+  }
+}
+
+/** Portail Stripe : carte, factures, annulation — géré par Stripe. */
+export async function openBillingPortalAction(
+  returnPath = "/settings",
+): Promise<AccessActionResult> {
+  const ctx = await requireTenantContext();
+  if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
+
+  if (!isStripeConfigured() || !isSupabaseConfigured()) {
+    return safeError("Gestion de l'abonnement indisponible — Stripe n'est pas configuré.");
+  }
+
+  const safePath = returnPath.startsWith("/") ? returnPath : "/settings";
+
+  try {
+    const url = await createBillingPortalSession(billingIdentity(ctx), safePath);
+    return { success: true, redirectTo: url };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isSchemaNotReady(message)) {
+      return safeError(
+        "La migration de facturation (022_subscription_billing.sql) n'est pas encore appliquée.",
+      );
+    }
+    console.error("Stripe billing portal failed:", message);
+    return safeError("Impossible d'ouvrir la gestion de l'abonnement. Réessayez.");
+  }
+}
+
+/**
+ * Retour de Checkout : on lit l'abonnement chez Stripe et on l'applique tout de
+ * suite, sans attendre le webhook (qui reste la source de vérité ensuite).
+ */
+export async function confirmCheckoutSessionAction(
+  sessionId: string,
+): Promise<AccessActionResult> {
+  const ctx = await requireTenantContext();
+  if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
+  if (!isStripeConfigured()) return safeError("Stripe n'est pas configuré.");
+  if (!sessionId.startsWith("cs_")) return safeError("Session de paiement invalide.");
+
+  try {
+    const session = await getStripe().checkout.sessions.retrieve(sessionId);
+
+    // Un identifiant de session est devinable : on refuse toute session qui
+    // n'appartient pas à l'entreprise connectée.
+    if (session.client_reference_id !== ctx.company.id) {
+      return safeError("Session de paiement invalide.");
+    }
+
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id;
+
+    if (!subscriptionId) {
+      return safeError("Paiement en cours de traitement. Actualisez dans quelques secondes.");
+    }
+
+    const result = await syncSubscriptionById(subscriptionId, ctx.company.id);
+    if (!result) {
+      return safeError("Paiement en cours de traitement. Actualisez dans quelques secondes.");
+    }
+
+    try {
+      await logAdminActivity(
+        "subscription_activated",
+        `Abonnement ${result.plan ?? "?"} activé — ${ctx.company.name}`,
+        ctx.company.id,
+        { plan: result.plan, stripe_status: result.status },
+      );
+    } catch {
+      // Non-blocking if platform tables missing
+    }
+
+    return { success: true, redirectTo: "/dashboard" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Stripe checkout confirmation failed:", message);
+    return safeError("Impossible de confirmer le paiement. Réessayez.");
+  }
 }
 
 export async function getCompanyAccessStatusAction(): Promise<{

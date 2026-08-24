@@ -13,6 +13,8 @@ export const AUTH_ACTIONS = [
   "resendVerificationAction",
   "applyPromoCodeAction",
   "selectSubscriptionPlanAction",
+  "confirmCheckoutSessionAction",
+  "openBillingPortalAction",
 ];
 
 export const SCHEDULE_ACTIONS = [

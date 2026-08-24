@@ -6,7 +6,12 @@ import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isSuperAdminUser } from "@/lib/platform/super-admin";
 import { requireVerifiedUser, getTenantContext } from "@/lib/session";
 
-export default async function ChoosePlanPage() {
+interface ChoosePlanPageProps {
+  searchParams: Promise<{ checkout?: string; session_id?: string }>;
+}
+
+export default async function ChoosePlanPage({ searchParams }: ChoosePlanPageProps) {
+  const { checkout, session_id: sessionId } = await searchParams;
   await requireVerifiedUser();
   const ctx = await getTenantContext();
   if (!ctx) redirect("/login");
@@ -47,7 +52,9 @@ export default async function ChoosePlanPage() {
         { isPlatformAdmin },
       );
 
-      if (hasAccess) redirect("/dashboard");
+      // Au retour de Stripe on laisse la page confirmer la session avant de
+      // rediriger : le webhook peut ne pas encore être arrivé.
+      if (hasAccess && checkout !== "success") redirect("/dashboard");
     }
   }
 
@@ -58,6 +65,8 @@ export default async function ChoosePlanPage() {
       pricing={pricing}
       companyName={ctx.company.name}
       pendingPlan={pendingPlan}
+      checkoutStatus={checkout === "success" || checkout === "cancel" ? checkout : null}
+      checkoutSessionId={sessionId ?? null}
     />
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Check, CreditCard, Gift, Loader2, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ConstructionIosLogo } from "@/components/brand/construction-ios-logo";
 import {
   applyPromoCodeAction,
+  confirmCheckoutSessionAction,
   selectSubscriptionPlanAction,
 } from "@/lib/actions/subscription-access";
 import {
@@ -21,25 +22,70 @@ interface ChoosePlanClientProps {
   pricing: PricingConfig;
   companyName: string;
   pendingPlan?: string | null;
+  /** Retour de Stripe Checkout */
+  checkoutStatus?: "success" | "cancel" | null;
+  checkoutSessionId?: string | null;
 }
 
-export function ChoosePlanClient({ pricing, companyName, pendingPlan }: ChoosePlanClientProps) {
-  const [error, setError] = useState("");
-  const [info, setInfo] = useState(
-    pendingPlan
-      ? `Votre choix (${pendingPlan === "monthly" ? "mensuel" : "annuel"}) est enregistré. Le paiement sera disponible sous peu.`
-      : "",
+export function ChoosePlanClient({
+  pricing,
+  companyName,
+  pendingPlan,
+  checkoutStatus = null,
+  checkoutSessionId = null,
+}: ChoosePlanClientProps) {
+  const [error, setError] = useState(
+    checkoutStatus === "cancel" ? "Paiement annulé. Aucun montant n'a été prélevé." : "",
   );
+  const [info, setInfo] = useState(() => {
+    if (checkoutStatus === "success") return "Confirmation du paiement en cours…";
+    if (pendingPlan) {
+      return `Votre choix (${pendingPlan === "monthly" ? "mensuel" : "annuel"}) est enregistré.`;
+    }
+    return "";
+  });
   const [showPromo, setShowPromo] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isConfirming, setIsConfirming] = useState(checkoutStatus === "success");
+  const confirmedRef = useRef(false);
 
   const savings = annualSavingsLabel(pricing);
+  const busy = isPending || isConfirming;
+
+  const confirmCheckout = useCallback(async (sessionId: string) => {
+    const result = await confirmCheckoutSessionAction(sessionId);
+    if (result.success) {
+      window.location.assign(result.redirectTo ?? "/dashboard");
+      return;
+    }
+    setIsConfirming(false);
+    setInfo("");
+    setError(result.error);
+  }, []);
+
+  useEffect(() => {
+    if (checkoutStatus !== "success") return;
+    if (!checkoutSessionId) {
+      setIsConfirming(false);
+      setInfo("");
+      setError("Session de paiement introuvable. Réessayez ou contactez le support.");
+      return;
+    }
+    if (confirmedRef.current) return;
+    confirmedRef.current = true;
+    void confirmCheckout(checkoutSessionId);
+  }, [checkoutStatus, checkoutSessionId, confirmCheckout]);
 
   function handlePlan(plan: "monthly" | "annual") {
     setError("");
     setInfo("");
     startTransition(async () => {
       const result = await selectSubscriptionPlanAction(plan);
+      if (result.success && result.redirectTo) {
+        // Checkout est hébergé par Stripe : navigation pleine page.
+        window.location.assign(result.redirectTo);
+        return;
+      }
       if (!result.success) {
         setInfo(result.error);
       }
@@ -90,6 +136,11 @@ export function ChoosePlanClient({ pricing, companyName, pendingPlan }: ChoosePl
           <CardContent className="flex flex-1 flex-col">
             <p className="text-3xl font-bold">{formatPrice(pricing.monthlyPriceCents, pricing.currency)}</p>
             <p className="text-sm text-muted-foreground">par mois</p>
+            {pricing.trialDays > 0 && (
+              <p className="mt-1 text-sm font-medium text-primary">
+                {pricing.trialDays} jours d&apos;essai gratuit
+              </p>
+            )}
             <ul className="my-4 space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-primary" />
@@ -103,9 +154,9 @@ export function ChoosePlanClient({ pricing, companyName, pendingPlan }: ChoosePl
             <Button
               className="mt-auto w-full"
               onClick={() => handlePlan("monthly")}
-              disabled={isPending}
+              disabled={busy}
             >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Choisir le plan mensuel
             </Button>
           </CardContent>
@@ -127,6 +178,11 @@ export function ChoosePlanClient({ pricing, companyName, pendingPlan }: ChoosePl
           <CardContent className="flex flex-1 flex-col">
             <p className="text-3xl font-bold">{formatPrice(pricing.annualPriceCents, pricing.currency)}</p>
             <p className="text-sm text-muted-foreground">par année</p>
+            {pricing.trialDays > 0 && (
+              <p className="mt-1 text-sm font-medium text-primary">
+                {pricing.trialDays} jours d&apos;essai gratuit
+              </p>
+            )}
             <ul className="my-4 space-y-2 text-sm">
               <li className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-primary" />
@@ -140,9 +196,9 @@ export function ChoosePlanClient({ pricing, companyName, pendingPlan }: ChoosePl
             <Button
               className="mt-auto w-full"
               onClick={() => handlePlan("annual")}
-              disabled={isPending}
+              disabled={busy}
             >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Choisir le plan annuel
             </Button>
           </CardContent>
@@ -176,11 +232,11 @@ export function ChoosePlanClient({ pricing, companyName, pendingPlan }: ChoosePl
                   name="code"
                   placeholder="ex. ios123"
                   autoComplete="off"
-                  disabled={isPending}
+                  disabled={busy}
                 />
               </div>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={busy}>
+                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Valider
               </Button>
             </form>
