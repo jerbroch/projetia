@@ -10,7 +10,13 @@ import {
   type CompanyBillingIdentity,
 } from "@/lib/billing/checkout";
 import { syncSubscriptionById } from "@/lib/billing/sync";
-import { getPricingConfig, priceIdForPlan } from "@/lib/pricing-config";
+import {
+  isBillingCycle,
+  isSubscriptionTier,
+  priceIdForTier,
+  type BillingCycle,
+  type SubscriptionTier,
+} from "@/lib/billing/tiers";
 import { logAdminActivity } from "@/lib/data/platform-data";
 import {
   normalizePromoCode,
@@ -148,12 +154,13 @@ export async function applyPromoCodeAction(formData: FormData): Promise<AccessAc
 }
 
 export async function selectSubscriptionPlanAction(
-  plan: "monthly" | "annual",
+  tier: SubscriptionTier,
+  cycle: BillingCycle,
 ): Promise<AccessActionResult> {
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
 
-  if (plan !== "monthly" && plan !== "annual") {
+  if (!isSubscriptionTier(tier) || !isBillingCycle(cycle)) {
     return safeError("Plan invalide.");
   }
 
@@ -165,29 +172,30 @@ export async function selectSubscriptionPlanAction(
 
   // Le choix est enregistré même si le paiement échoue ensuite : il sert de
   // relance commerciale et pré-remplit la page d'abonnement au retour.
-  await admin.from("companies").update({ pending_plan: plan }).eq("id", ctx.company.id);
+  await admin.from("companies").update({ pending_plan: cycle }).eq("id", ctx.company.id);
 
   if (!isStripeConfigured()) {
     return safeError("Paiement bientôt disponible. Votre choix a été enregistré.");
   }
 
-  if (!priceIdForPlan(getPricingConfig(), plan)) {
+  if (!priceIdForTier(tier, cycle)) {
     return safeError(
-      "Paiement bientôt disponible — le tarif Stripe de ce plan n'est pas encore configuré.",
+      "Paiement bientôt disponible — le tarif Stripe de ce palier n'est pas encore configuré.",
     );
   }
 
   try {
     const { url } = await createSubscriptionCheckoutSession(
       billingIdentity(ctx),
-      plan,
+      tier,
+      cycle,
     );
     return { success: true, redirectTo: url };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (isSchemaNotReady(message)) {
       return safeError(
-        "La migration de facturation (022_subscription_billing.sql) n'est pas encore appliquée.",
+        "La migration de facturation (022 / 023) n'est pas encore appliquée.",
       );
     }
     console.error("Stripe checkout failed:", message);
@@ -215,7 +223,7 @@ export async function openBillingPortalAction(
     const message = err instanceof Error ? err.message : String(err);
     if (isSchemaNotReady(message)) {
       return safeError(
-        "La migration de facturation (022_subscription_billing.sql) n'est pas encore appliquée.",
+        "La migration de facturation (022 / 023) n'est pas encore appliquée.",
       );
     }
     console.error("Stripe billing portal failed:", message);
@@ -261,9 +269,9 @@ export async function confirmCheckoutSessionAction(
     try {
       await logAdminActivity(
         "subscription_activated",
-        `Abonnement ${result.plan ?? "?"} activé — ${ctx.company.name}`,
+        `Abonnement ${result.tier ?? "?"} (${result.cycle ?? "?"}) activé — ${ctx.company.name}`,
         ctx.company.id,
-        { plan: result.plan, stripe_status: result.status },
+        { tier: result.tier, cycle: result.cycle, stripe_status: result.status },
       );
     } catch {
       // Non-blocking if platform tables missing

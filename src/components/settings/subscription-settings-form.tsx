@@ -6,12 +6,11 @@ import { CreditCard, Loader2 } from "lucide-react";
 import { openBillingPortalAction } from "@/lib/actions/subscription-access";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatPrice, type PricingConfig } from "@/lib/pricing-config";
+import { formatPrice } from "@/lib/billing/tiers";
 import type { CompanySubscriptionSummary } from "@/lib/billing/company-subscription";
 
 interface SubscriptionSettingsFormProps {
   subscription: CompanySubscriptionSummary;
-  pricing: PricingConfig;
   isDemo: boolean;
 }
 
@@ -31,7 +30,6 @@ function formatDate(iso: string | null): string | null {
 
 export function SubscriptionSettingsForm({
   subscription,
-  pricing,
   isDemo,
 }: SubscriptionSettingsFormProps) {
   const [error, setError] = useState("");
@@ -42,11 +40,7 @@ export function SubscriptionSettingsForm({
     : "—";
   const renewalDate = formatDate(subscription.currentPeriodEnd);
   const price =
-    subscription.plan === "annual"
-      ? formatPrice(pricing.annualPriceCents, pricing.currency)
-      : subscription.plan === "monthly"
-        ? formatPrice(pricing.monthlyPriceCents, pricing.currency)
-        : null;
+    subscription.priceCents != null ? formatPrice(subscription.priceCents) : null;
 
   function handlePortal() {
     setError("");
@@ -87,10 +81,14 @@ export function SubscriptionSettingsForm({
           </div>
         )}
 
-        <dl className="grid gap-3 sm:grid-cols-3">
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-sm text-muted-foreground">Accès</dt>
-            <dd className="font-medium">{subscription.accessTypeLabel}</dd>
+            <dt className="text-sm text-muted-foreground">Forfait</dt>
+            <dd className="font-medium">{subscription.tierLabel}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-muted-foreground">Utilisateurs inclus</dt>
+            <dd className="font-medium">{subscription.userLimitLabel}</dd>
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Statut</dt>
@@ -106,8 +104,11 @@ export function SubscriptionSettingsForm({
 
         {price && (
           <p className="text-sm text-muted-foreground">
-            Plan {subscription.planLabel.toLowerCase()} — {price}
-            {subscription.plan === "annual" ? " par année" : " par mois"}
+            Facturation {subscription.cycleLabel.toLowerCase()} — {price}
+            {subscription.cycle === "annual" ? " par année" : " par mois"}
+            {subscription.accessType && subscription.accessTypeLabel !== "—"
+              ? ` · accès ${subscription.accessTypeLabel.toLowerCase()}`
+              : ""}
           </p>
         )}
 

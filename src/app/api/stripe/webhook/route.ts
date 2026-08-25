@@ -128,9 +128,9 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
       if (result) {
         await safeLog(
           "subscription_activated",
-          `Abonnement ${result.plan ?? "?"} payé via Stripe Checkout`,
+          `Abonnement ${result.tier ?? "?"} (${result.cycle ?? "?"}) payé via Stripe Checkout`,
           result.companyId,
-          { plan: result.plan, stripe_status: result.status },
+          { tier: result.tier, cycle: result.cycle, stripe_status: result.status },
         );
       }
       return result?.companyId ?? companyId;

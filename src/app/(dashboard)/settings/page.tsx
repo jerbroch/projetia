@@ -6,7 +6,6 @@ import { SubscriptionSettingsForm } from "@/components/settings/subscription-set
 import { InteracSettingsForm } from "@/components/settings/interac-settings-form";
 import { requireTenantContext, hasAdminAccess } from "@/lib/session";
 import { getCompanySubscriptionSummary } from "@/lib/billing/company-subscription";
-import { getPricingConfig } from "@/lib/pricing-config";
 
 export default async function SettingsPage() {
   const ctx = await requireTenantContext();
@@ -26,11 +25,7 @@ export default async function SettingsPage() {
       <div className="space-y-6">
         <CompanySettingsForm company={ctx.company} />
         {isCompanyAdmin && subscription && (
-          <SubscriptionSettingsForm
-            subscription={subscription}
-            pricing={getPricingConfig()}
-            isDemo={ctx.isDemo}
-          />
+          <SubscriptionSettingsForm subscription={subscription} isDemo={ctx.isDemo} />
         )}
         {isCompanyAdmin && <InteracSettingsForm company={ctx.company} />}
         <BillingSettingsForm company={ctx.company} isDemo={ctx.isDemo} />

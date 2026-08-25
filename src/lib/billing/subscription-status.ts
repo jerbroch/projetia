@@ -5,7 +5,7 @@
  * ('trial', 'active', 'past_due', 'cancelled') — tout statut Stripe doit donc
  * être normalisé avant écriture. Module pur : aucun appel réseau, testable.
  */
-import type { SubscriptionPlan } from "@/lib/pricing-config";
+import type { BillingCycle, SubscriptionTier } from "@/lib/billing/tiers";
 
 export type StripeSubscriptionStatus =
   | "incomplete"
@@ -49,7 +49,10 @@ export function normalizeSubscriptionStatus(
 
 export interface SubscriptionSnapshot {
   status: string | null | undefined;
-  plan: SubscriptionPlan | null;
+  /** Cycle de facturation — persisté dans companies.subscription_plan */
+  cycle: BillingCycle | null;
+  /** Palier — persisté dans companies.subscription_tier */
+  tier: SubscriptionTier | null;
   priceId: string | null;
   subscriptionId: string | null;
   customerId: string | null;
@@ -98,8 +101,12 @@ export function buildCompanySubscriptionUpdate(
     update.stripe_customer_id = snapshot.customerId;
   }
 
-  if (snapshot.plan) {
-    update.subscription_plan = snapshot.plan;
+  if (snapshot.cycle) {
+    update.subscription_plan = snapshot.cycle;
+  }
+
+  if (snapshot.tier) {
+    update.subscription_tier = snapshot.tier;
   }
 
   if (trialEnd) {
@@ -108,8 +115,10 @@ export function buildCompanySubscriptionUpdate(
 
   if (hasAccess) {
     // L'accès devient payant : on quitte l'état « pending » et le choix est fait.
-    if (snapshot.plan) {
-      update.access_type = snapshot.plan;
+    // access_type porte le CYCLE (monthly | annual) — vocabulaire déjà en place
+    // dans access-control ; le palier vit dans subscription_tier.
+    if (snapshot.cycle) {
+      update.access_type = snapshot.cycle;
     }
     update.requires_access_choice = false;
     // Ces deux dates marquent le premier accès payant : on ne les réécrit pas.
@@ -118,7 +127,7 @@ export function buildCompanySubscriptionUpdate(
     update.pending_plan = null;
   } else {
     update.requires_access_choice = true;
-    update.pending_plan = snapshot.plan ?? null;
+    update.pending_plan = snapshot.cycle ?? null;
   }
 
   return update;

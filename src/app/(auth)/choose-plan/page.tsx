@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { ChoosePlanClient } from "@/components/auth/choose-plan-client";
-import { getPricingConfig } from "@/lib/pricing-config";
 import { companyHasAppAccess } from "@/lib/access-control";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isSuperAdminUser } from "@/lib/platform/super-admin";
@@ -58,11 +57,8 @@ export default async function ChoosePlanPage({ searchParams }: ChoosePlanPagePro
     }
   }
 
-  const pricing = getPricingConfig();
-
   return (
     <ChoosePlanClient
-      pricing={pricing}
       companyName={ctx.company.name}
       pendingPlan={pendingPlan}
       checkoutStatus={checkout === "success" || checkout === "cancel" ? checkout : null}

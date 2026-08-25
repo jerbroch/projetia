@@ -5,21 +5,10 @@ import {
   subscriptionGrantsAccess,
 } from "./subscription-status";
 import { companyHasAppAccess } from "@/lib/access-control";
-import { planForPriceId, priceIdForPlan, type PricingConfig } from "@/lib/pricing-config";
 
 const NOW = "2026-08-24T12:00:00.000Z";
 // 2026-09-24T12:00:00Z
 const PERIOD_END = 1790251200;
-
-const pricing: PricingConfig = {
-  monthlyPriceCents: 8900,
-  annualPriceCents: 89000,
-  annualDiscountPercent: 17,
-  currency: "cad",
-  monthlyPriceId: "price_monthly",
-  annualPriceId: "price_annual",
-  trialDays: 14,
-};
 
 describe("subscriptionGrantsAccess", () => {
   it("ouvre l'accès pendant l'essai, l'abonnement actif et le délai de grâce", () => {
@@ -52,7 +41,8 @@ describe("buildCompanySubscriptionUpdate", () => {
     const update = buildCompanySubscriptionUpdate(
       {
         status: "active",
-        plan: "monthly",
+        cycle: "monthly",
+        tier: "entreprise",
         priceId: "price_monthly",
         subscriptionId: "sub_123",
         customerId: "cus_123",
@@ -70,6 +60,7 @@ describe("buildCompanySubscriptionUpdate", () => {
       stripe_customer_id: "cus_123",
       stripe_subscription_id: "sub_123",
       subscription_plan: "monthly",
+      subscription_tier: "entreprise",
       subscription_cancel_at_period_end: false,
       access_granted_at: NOW,
       subscription_started_at: NOW,
@@ -81,7 +72,8 @@ describe("buildCompanySubscriptionUpdate", () => {
     const update = buildCompanySubscriptionUpdate(
       {
         status: "active",
-        plan: "annual",
+        cycle: "annual",
+        tier: "croissance",
         priceId: "price_annual",
         subscriptionId: "sub_123",
         customerId: "cus_123",
@@ -99,7 +91,8 @@ describe("buildCompanySubscriptionUpdate", () => {
     const update = buildCompanySubscriptionUpdate(
       {
         status: "canceled",
-        plan: "monthly",
+        cycle: "monthly",
+        tier: "entreprise",
         priceId: "price_monthly",
         subscriptionId: "sub_123",
         customerId: "cus_123",
@@ -118,7 +111,8 @@ describe("buildCompanySubscriptionUpdate", () => {
     const update = buildCompanySubscriptionUpdate(
       {
         status: "trialing",
-        plan: "monthly",
+        cycle: "monthly",
+        tier: "entreprise",
         priceId: "price_monthly",
         subscriptionId: "sub_123",
         customerId: "cus_123",
@@ -145,7 +139,8 @@ describe("buildCompanySubscriptionUpdate", () => {
       const update = buildCompanySubscriptionUpdate(
         {
           status: stripeStatus,
-          plan: "monthly",
+          cycle: "monthly",
+        tier: "entreprise",
           priceId: "price_monthly",
           subscriptionId: "sub_123",
           customerId: "cus_123",
@@ -166,21 +161,5 @@ describe("buildCompanySubscriptionUpdate", () => {
 
       expect(hasAccess, `statut ${stripeStatus}`).toBe(expected);
     }
-  });
-});
-
-describe("résolution des Price IDs", () => {
-  it("mappe le plan vers le prix Stripe et inversement", () => {
-    expect(priceIdForPlan(pricing, "monthly")).toBe("price_monthly");
-    expect(priceIdForPlan(pricing, "annual")).toBe("price_annual");
-    expect(planForPriceId(pricing, "price_annual")).toBe("annual");
-    expect(planForPriceId(pricing, "price_inconnu")).toBeNull();
-    expect(planForPriceId(pricing, null)).toBeNull();
-  });
-
-  it("retourne null quand le prix n'est pas configuré", () => {
-    const notConfigured: PricingConfig = { ...pricing, annualPriceId: null };
-    expect(priceIdForPlan(notConfigured, "annual")).toBeNull();
-    expect(planForPriceId(notConfigured, "price_annual")).toBeNull();
   });
 });

@@ -28,51 +28,42 @@ Trois constats :
 3. **Le trou dans le marché est entre 60 $ et 180 $ CA** pour un produit
    français, complet, sans frais d'implantation.
 
-### Recommandation
+### Tarification retenue
 
-| | Prix | Correspondance Stripe |
-|---|---|---|
-| **Mensuel** | **89 $ CA / mois** | `STRIPE_PRICE_ID_MONTHLY` |
-| **Annuel** | **890 $ CA / an** (2 mois offerts, −17 %) | `STRIPE_PRICE_ID_ANNUAL` |
-| **Essai** | **14 jours gratuits**, sans carte bloquante | `SUBSCRIPTION_TRIAL_DAYS=14` |
+Quatre paliers, tous en **CAD**, **projets et chantiers illimités partout**.
+Le palier détermine le nombre d'utilisateurs, rien d'autre.
 
-**Par entreprise, utilisateurs illimités.** C'est le positionnement le plus
-lisible face à Jobber : à 6 employés, ConstructionIOS coûte 89 $ CA contre
-~165 $ US chez Jobber Connect, et l'entrepreneur n'a pas à arbitrer qui a un
-compte.
+| Palier | Mensuel | Annuel | Utilisateurs |
+|---|---|---|---|
+| Solo | 39,99 $ | 399,90 $ | 1 |
+| **Entreprise** | **89,99 $** | **899,90 $** | **5** |
+| Entrepreneur | 149,99 $ | 1 499,90 $ | 15 |
+| Croissance | 249,99 $ | 2 499,90 $ | illimité |
 
-Pourquoi 89 $ et pas moins :
+**L'annuel facture 10 mois pour 12 mois d'accès** — 2 mois offerts, soit −16,7 %.
 
-- **Sous 49 $, le produit ne se croit pas.** Un entrepreneur général qui
-  facture 90 $/h de main-d'œuvre juge un outil à 29 $/mois comme un gadget.
-- **89 $ = moins d'une heure facturable par mois.** C'est l'argument de vente à
-  mettre sur la page : le logiciel se rembourse avec une seule soumission
-  envoyée plus vite.
-- **Ça laisse de la marge pour descendre**, jamais l'inverse. Un prix de
-  lancement bas est presque impossible à remonter chez les clients existants.
+Positionnement face au marché : Entreprise à 89,99 $ CA couvre 5 utilisateurs,
+là où Jobber Connect en couvre 5 pour ~165 $ CA et BillDr démarre à 180 $ CA.
+Solo à 39,99 $ reste au-dessus de la ligne « trop bon marché pour être
+crédible » tout en étant sous Jobber Core (~55 $ CA) — qui, lui, ne donne
+qu'un seul utilisateur également.
 
-### Ce qu'il faut faire avec les codes promo (déjà en place)
+### Où vivent ces valeurs
 
-Le mécanisme `promo_codes` existe déjà. Utilisez-le plutôt que de baisser le
-prix affiché :
+**`src/lib/billing/tiers.ts` est la source unique.** Montants, limites
+d'utilisateurs, fonctionnalités affichées et noms des variables d'environnement
+portant les Price IDs y sont réunis. Aucun prix n'est écrit en dur ailleurs.
 
-- **Bêta / fondateurs** : accès gratuit, en échange de retours d'usage.
-- **Premiers clients payants** : code Stripe `−50 % pendant 6 mois`
-  (`allow_promotion_codes` est activé sur le Checkout).
-- **Référencement** : un mois offert par client référé.
+⚠️ Les montants du fichier servent **à l'affichage seulement**. C'est le Stripe
+Price ID qui détermine ce qui est réellement facturé. Si les deux divergent, la
+page annonce un prix et le client en paie un autre — les garder alignés à chaque
+changement de tarif.
 
 ### Quand passer à des paliers
 
-Restez sur un plan unique tant que vous n'avez pas ~30 clients payants. Un
-tarif unique convertit mieux et évite les questions. Ensuite seulement,
-découpez :
-
-- **Solo** 49 $ — 1 utilisateur, soumissions et factures
-- **Équipe** 89 $ — utilisateurs illimités, horaire, feuilles de facturation
-- **Entreprise** 199 $ — multi-succursale, rapports, accès API
-
-Le code lit les prix depuis l'environnement : passer à des paliers demandera
-d'ajouter des Price IDs, pas de réécrire le flux de paiement.
+Pour ajouter ou retirer un palier : une entrée dans `SUBSCRIPTION_TIERS`, deux
+Price IDs Stripe, deux variables d'environnement. Ni la page de tarification, ni
+le Checkout, ni le webhook ne sont à toucher — tous itèrent sur la config.
 
 ---
 
@@ -80,11 +71,19 @@ d'ajouter des Price IDs, pas de réécrire le flux de paiement.
 
 ### a. Migration base de données
 
-Exécuter `supabase/migrations/022_subscription_billing.sql` dans le SQL Editor
-Supabase. Elle ajoute sur `companies` : `stripe_customer_id`,
+Exécuter `supabase/migrations/022_subscription_billing.sql` **puis**
+`023_subscription_tiers.sql` dans le SQL Editor Supabase.
+
+022 ajoute sur `companies` : `stripe_customer_id`,
 `stripe_subscription_id`, `subscription_plan`, `subscription_price_id`,
 `subscription_current_period_end`, `subscription_cancel_at_period_end`, et crée
-la table `stripe_events` (idempotence des webhooks).
+la table `stripe_events` (idempotence des webhooks). 023 ajoute
+`subscription_tier`.
+
+Deux colonnes distinctes portent l'abonnement : `subscription_plan` contient le
+**cycle** (`monthly` | `annual`), `subscription_tier` contient le **palier**
+(`solo` | `entreprise` | `entrepreneur` | `croissance`). `access_type` reflète
+le cycle, pour rester compatible avec la logique d'accès déjà en place.
 
 `subscription_status` reste l'ENUM existant. Les statuts Stripe y sont
 normalisés :
@@ -98,9 +97,10 @@ normalisés :
 
 ### b. Configuration Stripe
 
-1. **Products → Add product** : « ConstructionIOS », deux prix récurrents en
-   **CAD** — 89,00 $/mois et 890,00 $/an. Copier les deux `price_...` dans
-   `STRIPE_PRICE_ID_MONTHLY` et `STRIPE_PRICE_ID_ANNUAL`.
+1. **Products** : un produit par palier, chacun avec **deux prix récurrents en
+   CAD** (mensuel et annuel), selon le tableau de tarification ci-dessus.
+   Copier les 8 `price_...` dans les variables listées par `tiers.ts`
+   (`STRIPE_PRICE_SOLO_MONTHLY`, `STRIPE_PRICE_SOLO_ANNUAL`, etc.).
 2. **Settings → Tax** : activer Stripe Tax et enregistrer les immatriculations
    TPS/TVQ. Le Checkout est créé avec `automatic_tax: { enabled: true }`.
 3. **Settings → Billing → Customer portal** : activer l'annulation, le
@@ -114,14 +114,18 @@ normalisés :
 
 ### c. Variables d'environnement
 
-Voir `.env.example`, section Stripe. Sans `STRIPE_PRICE_ID_*`, la page
-`/choose-plan` enregistre le plan choisi et affiche « Paiement bientôt
-disponible » — aucun faux succès n'est jamais renvoyé.
+Voir `.env.example`, section Stripe. Sans les `STRIPE_PRICE_*` d'un palier, la
+page `/choose-plan` enregistre le choix et affiche « Paiement bientôt
+disponible » pour ce palier — aucun faux succès n'est jamais renvoyé.
+
+Les paiements et le portail passent par des **Server Actions**, pas par des
+routes `/api/`. Seul le webhook est une route, parce que Stripe doit pouvoir
+l'appeler de l'extérieur.
 
 ### d. Parcours
 
 ```
-/choose-plan  →  selectSubscriptionPlanAction(plan)
+/choose-plan  →  selectSubscriptionPlanAction(tier, cycle)
               →  Stripe Checkout (hébergé, fr-CA, taxes auto)
               →  /choose-plan?checkout=success&session_id=cs_...
               →  confirmCheckoutSessionAction : lit l'abonnement chez Stripe,

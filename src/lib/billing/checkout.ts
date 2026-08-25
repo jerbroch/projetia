@@ -6,10 +6,11 @@ import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppUrl, getStripe } from "@/lib/stripe";
 import {
-  getPricingConfig,
-  priceIdForPlan,
-  type SubscriptionPlan,
-} from "@/lib/pricing-config";
+  getTrialDays,
+  priceIdForTier,
+  type BillingCycle,
+  type SubscriptionTier,
+} from "@/lib/billing/tiers";
 
 export interface CompanyBillingIdentity {
   companyId: string;
@@ -21,10 +22,6 @@ export interface CompanyBillingIdentity {
 export interface CompanyBillingRow {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
-}
-
-export function isPlanPurchasable(plan: SubscriptionPlan): boolean {
-  return Boolean(priceIdForPlan(getPricingConfig(), plan));
 }
 
 async function readBillingRow(companyId: string): Promise<CompanyBillingRow | null> {
@@ -82,23 +79,26 @@ export interface CheckoutSessionResult {
 /** Crée la session Checkout d'abonnement et retourne l'URL hébergée par Stripe. */
 export async function createSubscriptionCheckoutSession(
   identity: CompanyBillingIdentity,
-  plan: SubscriptionPlan,
+  tier: SubscriptionTier,
+  cycle: BillingCycle,
 ): Promise<CheckoutSessionResult> {
-  const pricing = getPricingConfig();
-  const priceId = priceIdForPlan(pricing, plan);
+  const priceId = priceIdForTier(tier, cycle);
   if (!priceId) {
-    throw new Error(`Aucun Stripe Price ID configuré pour le plan « ${plan} »`);
+    throw new Error(
+      `Aucun Stripe Price ID configuré pour le palier « ${tier} » en ${cycle}`,
+    );
   }
 
   const customerId = await ensureStripeCustomer(identity);
   const stripe = getStripe();
   const appUrl = getAppUrl();
+  const trialDays = getTrialDays();
 
   const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
-    metadata: { companyId: identity.companyId, plan },
+    metadata: { companyId: identity.companyId, tier, cycle },
   };
-  if (pricing.trialDays > 0) {
-    subscriptionData.trial_period_days = pricing.trialDays;
+  if (trialDays > 0) {
+    subscriptionData.trial_period_days = trialDays;
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -112,7 +112,7 @@ export async function createSubscriptionCheckoutSession(
     allow_promotion_codes: true,
     locale: "fr-CA",
     client_reference_id: identity.companyId,
-    metadata: { companyId: identity.companyId, plan },
+    metadata: { companyId: identity.companyId, tier, cycle },
     subscription_data: subscriptionData,
     success_url: `${appUrl}/choose-plan?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/choose-plan?checkout=cancel`,
@@ -125,7 +125,7 @@ export async function createSubscriptionCheckoutSession(
   return { url: session.url, sessionId: session.id };
 }
 
-/** Portail Stripe : changer de carte, voir les factures, annuler. */
+/** Portail Stripe : changer de palier, changer de carte, voir les factures, annuler. */
 export async function createBillingPortalSession(
   identity: CompanyBillingIdentity,
   returnPath = "/settings",

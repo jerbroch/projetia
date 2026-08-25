@@ -6,7 +6,13 @@
 import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { getPricingConfig, planForPriceId, type SubscriptionPlan } from "@/lib/pricing-config";
+import {
+  isBillingCycle,
+  isSubscriptionTier,
+  tierForPriceId,
+  type BillingCycle,
+  type SubscriptionTier,
+} from "@/lib/billing/tiers";
 import {
   buildCompanySubscriptionUpdate,
   type ExistingSubscriptionRow,
@@ -17,8 +23,16 @@ function asId(value: string | { id: string } | null | undefined): string | null 
   return typeof value === "string" ? value : value.id;
 }
 
-function readPlanMetadata(value: unknown): SubscriptionPlan | null {
-  return value === "monthly" || value === "annual" ? value : null;
+/**
+ * Repli sur les métadonnées posées au Checkout quand le Price ID n'est plus
+ * reconnu (prix archivé chez Stripe, variable d'environnement changée).
+ */
+function readTierMetadata(value: unknown): SubscriptionTier | null {
+  return isSubscriptionTier(value) ? value : null;
+}
+
+function readCycleMetadata(value: unknown): BillingCycle | null {
+  return isBillingCycle(value) ? value : null;
 }
 
 /** Retrouve l'entreprise visée par un abonnement Stripe. */
@@ -68,7 +82,8 @@ async function readExistingRow(companyId: string): Promise<ExistingSubscriptionR
 export interface SyncResult {
   companyId: string;
   status: string;
-  plan: SubscriptionPlan | null;
+  tier: SubscriptionTier | null;
+  cycle: BillingCycle | null;
 }
 
 /** Applique l'état d'un abonnement Stripe sur la ligne `companies`. */
@@ -84,15 +99,22 @@ export async function syncSubscriptionToCompany(
 
   const item = subscription.items?.data?.[0];
   const priceId = item?.price?.id ?? null;
-  const pricing = getPricingConfig();
-  const plan =
-    planForPriceId(pricing, priceId) ?? readPlanMetadata(subscription.metadata?.plan);
+  const matched = tierForPriceId(priceId);
+  const tier = matched?.tier ?? readTierMetadata(subscription.metadata?.tier);
+  const cycle = matched?.cycle ?? readCycleMetadata(subscription.metadata?.cycle);
+
+  if (!matched && (tier || cycle)) {
+    console.warn(
+      `Stripe: prix ${priceId} inconnu de la configuration — repli sur les métadonnées de l'abonnement ${subscription.id}`,
+    );
+  }
 
   const existing = await readExistingRow(companyId);
   const update = buildCompanySubscriptionUpdate(
     {
       status: subscription.status,
-      plan,
+      cycle,
+      tier,
       priceId,
       subscriptionId: subscription.id,
       customerId: asId(subscription.customer),
@@ -108,7 +130,7 @@ export async function syncSubscriptionToCompany(
   const { error } = await admin.from("companies").update(update).eq("id", companyId);
   if (error) throw error;
 
-  return { companyId, status: subscription.status, plan };
+  return { companyId, status: subscription.status, tier, cycle };
 }
 
 /** Recharge l'abonnement depuis Stripe puis synchronise (retour de Checkout). */
