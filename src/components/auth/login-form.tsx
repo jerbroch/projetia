@@ -56,6 +56,10 @@ export function LoginForm() {
     ? "Mot de passe mis à jour. Vous pouvez vous connecter."
     : null;
 
+  // Destination posée par le middleware quand l'utilisateur a été intercepté.
+  // Revalidée côté serveur dans loginAction — jamais suivie telle quelle.
+  const nextPath = searchParams.get("next");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <Card className="w-full max-w-md">
@@ -67,6 +71,7 @@ export function LoginForm() {
           <CardDescription>Connectez-vous pour gérer votre entreprise de construction</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
+          {nextPath && <input type="hidden" name="next" value={nextPath} />}
           <CardContent className="space-y-4">
             {successMessage && (
               <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">{successMessage}</div>

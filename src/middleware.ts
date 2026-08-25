@@ -44,6 +44,30 @@ function isAccessGatePage(pathname: string): boolean {
   return matchesPrefix(pathname, ACCESS_GATE_PAGES);
 }
 
+/**
+ * Redirige vers /login en conservant la destination COMPLÈTE (chemin + query)
+ * dans `next`. Sans cela, `nextUrl.clone()` laisse la query d'origine collée à
+ * /login (ex. /login?upgrade=1&next=/choose-plan) et le paramètre est perdu au
+ * retour — on retomberait sur /choose-plan sans ?upgrade=1, donc au tableau
+ * de bord.
+ */
+function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
+  const loginUrl = request.nextUrl.clone();
+  const destination = `${pathname}${request.nextUrl.search}`;
+  loginUrl.pathname = "/login";
+  loginUrl.search = "";
+  loginUrl.searchParams.set("next", destination);
+  return NextResponse.redirect(loginUrl);
+}
+
+/** Redirection interne simple : on ne traîne pas la query de la page d'origine. */
+function redirectTo(request: NextRequest, pathname: string): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 function isPublicRoute(pathname: string): boolean {
   return pathname === "/soumission" || pathname.startsWith("/soumission/");
 }
@@ -99,39 +123,27 @@ export async function middleware(request: NextRequest) {
 
   if (isAccessGatePage(pathname)) {
     if (!isLoggedIn) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(request, pathname);
     }
     if (!emailVerified && !isDemo) {
-      const verifyUrl = request.nextUrl.clone();
-      verifyUrl.pathname = "/verify-email";
-      return NextResponse.redirect(verifyUrl);
+      return redirectTo(request, "/verify-email");
     }
     return supabaseResponse;
   }
 
   if (isProtected(pathname)) {
     if (!isLoggedIn) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(request, pathname);
     }
 
     if (!emailVerified && pathname !== "/verify-email" && !isDemo) {
-      const verifyUrl = request.nextUrl.clone();
-      verifyUrl.pathname = "/verify-email";
-      return NextResponse.redirect(verifyUrl);
+      return redirectTo(request, "/verify-email");
     }
 
     if (isTenantRoute(pathname) && supabase && userId && !isDemo) {
       const blocked = await shouldBlockTenantRoute(supabase, userId, isDemo);
       if (blocked) {
-        const chooseUrl = request.nextUrl.clone();
-        chooseUrl.pathname = "/choose-plan";
-        return NextResponse.redirect(chooseUrl);
+        return redirectTo(request, "/choose-plan");
       }
     }
   }
