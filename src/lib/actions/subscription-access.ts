@@ -10,6 +10,7 @@ import {
   type CompanyBillingIdentity,
 } from "@/lib/billing/checkout";
 import { syncSubscriptionById } from "@/lib/billing/sync";
+import { hasModifiableSubscription } from "@/lib/billing/subscription-status";
 import {
   isBillingCycle,
   isSubscriptionTier,
@@ -169,6 +170,33 @@ export async function selectSubscriptionPlanAction(
   }
 
   const admin = createAdminClient();
+
+  // Un abonnement Stripe encore vivant se MODIFIE, il ne se rachète pas :
+  // ouvrir un second Checkout créerait un deuxième abonnement sur le même
+  // client, donc une double facturation. Le portail gère le changement de
+  // palier et la proration. Garde côté serveur : vaut même si l'interface
+  // est contournée.
+  if (isStripeConfigured()) {
+    const { data: existing } = await admin
+      .from("companies")
+      .select("stripe_subscription_id, subscription_status")
+      .eq("id", ctx.company.id)
+      .maybeSingle();
+
+    if (
+      existing &&
+      hasModifiableSubscription({
+        stripeSubscriptionId: existing.stripe_subscription_id
+          ? String(existing.stripe_subscription_id)
+          : null,
+        status: existing.subscription_status
+          ? String(existing.subscription_status)
+          : null,
+      })
+    ) {
+      return openBillingPortalAction("/settings");
+    }
+  }
 
   // Le choix est enregistré même si le paiement échoue ensuite : il sert de
   // relance commerciale et pré-remplit la page d'abonnement au retour.

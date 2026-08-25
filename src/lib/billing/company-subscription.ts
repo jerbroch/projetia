@@ -5,6 +5,7 @@
  */
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { accessTypeLabel } from "@/lib/access-control";
+import { hasModifiableSubscription } from "@/lib/billing/subscription-status";
 import {
   cycleLabel,
   isBillingCycle,
@@ -35,6 +36,11 @@ export interface CompanySubscriptionSummary {
   cancelAtPeriodEnd: boolean;
   hasStripeCustomer: boolean;
   hasStripeSubscription: boolean;
+  /**
+   * true quand un abonnement Stripe est encore vivant : un changement de palier
+   * doit passer par le portail, pas par un nouveau Checkout.
+   */
+  canSwitchTierInPortal: boolean;
   /** true quand les colonnes de facturation ne sont pas encore migrées */
   schemaMissing: boolean;
 }
@@ -54,6 +60,7 @@ const EMPTY: CompanySubscriptionSummary = {
   cancelAtPeriodEnd: false,
   hasStripeCustomer: false,
   hasStripeSubscription: false,
+  canSwitchTierInPortal: false,
   schemaMissing: false,
 };
 
@@ -106,6 +113,12 @@ export async function getCompanySubscriptionSummary(
     cancelAtPeriodEnd: Boolean(data.subscription_cancel_at_period_end),
     hasStripeCustomer: Boolean(data.stripe_customer_id),
     hasStripeSubscription: Boolean(data.stripe_subscription_id),
+    canSwitchTierInPortal: hasModifiableSubscription({
+      stripeSubscriptionId: data.stripe_subscription_id
+        ? String(data.stripe_subscription_id)
+        : null,
+      status: data.subscription_status ? String(data.subscription_status) : null,
+    }),
     schemaMissing: false,
   };
 }

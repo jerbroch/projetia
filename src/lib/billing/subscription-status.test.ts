@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCompanySubscriptionUpdate,
+  hasModifiableSubscription,
   normalizeSubscriptionStatus,
   subscriptionGrantsAccess,
 } from "./subscription-status";
@@ -161,5 +162,32 @@ describe("buildCompanySubscriptionUpdate", () => {
 
       expect(hasAccess, `statut ${stripeStatus}`).toBe(expected);
     }
+  });
+});
+
+describe("hasModifiableSubscription", () => {
+  it("est faux sans abonnement Stripe — le palier s'achète par Checkout", () => {
+    expect(hasModifiableSubscription({ stripeSubscriptionId: null, status: "active" })).toBe(
+      false,
+    );
+    expect(hasModifiableSubscription({ status: "active" })).toBe(false);
+  });
+
+  it("est vrai tant que l'abonnement Stripe est vivant", () => {
+    for (const status of ["active", "trial", "past_due"]) {
+      expect(
+        hasModifiableSubscription({ stripeSubscriptionId: "sub_123", status }),
+        status,
+      ).toBe(true);
+    }
+  });
+
+  it("est faux sur un abonnement annulé — il se rachète par Checkout", () => {
+    expect(
+      hasModifiableSubscription({ stripeSubscriptionId: "sub_123", status: "cancelled" }),
+    ).toBe(false);
+    expect(
+      hasModifiableSubscription({ stripeSubscriptionId: "sub_123", status: null }),
+    ).toBe(false);
   });
 });

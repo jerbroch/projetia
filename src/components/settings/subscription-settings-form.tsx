@@ -122,15 +122,26 @@ export function SubscriptionSettingsForm({
           <p className="text-sm text-muted-foreground">
             Gestion de l&apos;abonnement non disponible sur le compte de démonstration.
           </p>
-        ) : subscription.hasStripeSubscription || subscription.hasStripeCustomer ? (
-          <Button onClick={handlePortal} disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Gérer mon abonnement
-          </Button>
         ) : (
-          <Button asChild>
-            <Link href="/choose-plan">Choisir un abonnement</Link>
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            {/* ?upgrade=1 : /choose-plan est aussi le portail d'inscription et
+                renvoie au tableau de bord tout compte ayant déjà accès. Le
+                paramètre lui fait afficher les tarifs. */}
+            <Button asChild variant={subscription.hasStripeSubscription ? "outline" : "default"}>
+              <Link href="/choose-plan?upgrade=1">
+                {subscription.hasStripeSubscription
+                  ? "Changer de forfait"
+                  : "Choisir un abonnement"}
+              </Link>
+            </Button>
+
+            {(subscription.hasStripeSubscription || subscription.hasStripeCustomer) && (
+              <Button onClick={handlePortal} disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Gérer mon abonnement
+              </Button>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

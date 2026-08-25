@@ -47,6 +47,27 @@ export function normalizeSubscriptionStatus(
   }
 }
 
+/**
+ * Vrai quand l'entreprise a un abonnement Stripe encore vivant, donc modifiable
+ * (changement de palier) plutôt que rachetable. Ouvrir un nouveau Checkout dans
+ * ce cas créerait un SECOND abonnement sur le même client — double facturation.
+ * Un abonnement annulé, lui, se rachète normalement par Checkout.
+ */
+export function hasModifiableSubscription(company: {
+  stripeSubscriptionId?: string | null;
+  status?: string | null;
+}): boolean {
+  if (!company.stripeSubscriptionId) return false;
+  return MODIFIABLE_STATUSES.has(company.status ?? "");
+}
+
+/** Statuts normalisés pour lesquels l'abonnement Stripe existe encore. */
+const MODIFIABLE_STATUSES: ReadonlySet<string> = new Set([
+  "active",
+  "trial",
+  "past_due",
+]);
+
 export interface SubscriptionSnapshot {
   status: string | null | undefined;
   /** Cycle de facturation — persisté dans companies.subscription_plan */

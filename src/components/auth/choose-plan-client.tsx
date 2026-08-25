@@ -24,6 +24,14 @@ import {
 
 interface ChoosePlanClientProps {
   companyName: string;
+  /** Palier actuellement payé, s'il y en a un */
+  currentTier?: SubscriptionTier | null;
+  currentCycle?: BillingCycle | null;
+  /**
+   * Abonnement Stripe encore vivant : un changement de palier passe par le
+   * portail Stripe (proration gérée), pas par un nouveau Checkout.
+   */
+  canSwitchTierInPortal?: boolean;
   /** Cycle enregistré lors d'un choix précédent */
   pendingPlan?: string | null;
   /** Retour de Stripe Checkout */
@@ -33,12 +41,15 @@ interface ChoosePlanClientProps {
 
 export function ChoosePlanClient({
   companyName,
+  currentTier = null,
+  currentCycle = null,
+  canSwitchTierInPortal = false,
   pendingPlan,
   checkoutStatus = null,
   checkoutSessionId = null,
 }: ChoosePlanClientProps) {
   const [cycle, setCycle] = useState<BillingCycle>(
-    pendingPlan === "annual" ? "annual" : "monthly",
+    currentCycle ?? (pendingPlan === "annual" ? "annual" : "monthly"),
   );
   const [error, setError] = useState(
     checkoutStatus === "cancel" ? "Paiement annulé. Aucun montant n'a été prélevé." : "",
@@ -109,8 +120,17 @@ export function ChoosePlanClient({
         <ConstructionIosLogo size="sm" showName={false} className="mx-auto justify-center" />
         <h1 className="text-2xl font-bold">Choisissez votre forfait</h1>
         <p className="mt-2 text-muted-foreground">
-          Bienvenue, {companyName}. Projets et chantiers illimités sur tous les forfaits.
+          {currentTier
+            ? `${companyName} — projets et chantiers illimités sur tous les forfaits.`
+            : `Bienvenue, ${companyName}. Projets et chantiers illimités sur tous les forfaits.`}
         </p>
+        {canSwitchTierInPortal && (
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            Le changement de forfait se fait dans le portail Stripe : votre
+            abonnement en cours est ajusté au prorata, aucun second abonnement
+            n&apos;est créé.
+          </p>
+        )}
       </div>
 
       <div className="mb-8 flex justify-center">
@@ -167,15 +187,30 @@ export function ChoosePlanClient({
         {SUBSCRIPTION_TIERS.map((tier) => {
           const amount = priceCentsForTier(tier, cycle);
           const isTierBusy = busy && pendingTier === tier.id;
+          // « Forfait actuel » seulement si le palier ET le cycle affiché
+          // correspondent : sur la bascule annuel, un abonné mensuel doit
+          // pouvoir passer à l'annuel de son propre palier.
+          const isCurrent = currentTier === tier.id && currentCycle === cycle;
+          const isCurrentTierOtherCycle =
+            currentTier === tier.id && currentCycle !== cycle;
 
           return (
             <Card
               key={tier.id}
               className={`relative flex flex-col ${
-                tier.highlighted ? "border-primary shadow-md" : ""
+                isCurrent
+                  ? "border-primary ring-2 ring-primary/30"
+                  : tier.highlighted
+                    ? "border-primary shadow-md"
+                    : ""
               }`}
             >
-              {tier.highlighted && (
+              {isCurrent && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+                  Forfait actuel
+                </span>
+              )}
+              {!isCurrent && tier.highlighted && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
                   Le plus populaire
                 </span>
@@ -206,12 +241,18 @@ export function ChoosePlanClient({
 
                 <Button
                   className="mt-auto w-full"
-                  variant={tier.highlighted ? "default" : "outline"}
+                  variant={isCurrent ? "outline" : tier.highlighted ? "default" : "outline"}
                   onClick={() => handleTier(tier.id)}
-                  disabled={busy}
+                  disabled={busy || isCurrent}
                 >
                   {isTierBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Choisir {tier.name}
+                  {isCurrent
+                    ? "Votre forfait"
+                    : isCurrentTierOtherCycle
+                      ? `Passer en ${cycle === "annual" ? "annuel" : "mensuel"}`
+                      : canSwitchTierInPortal
+                        ? `Passer à ${tier.name}`
+                        : `Choisir ${tier.name}`}
                 </Button>
               </CardContent>
             </Card>
