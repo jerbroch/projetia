@@ -56,8 +56,26 @@ portant les Price IDs y sont réunis. Aucun prix n'est écrit en dur ailleurs.
 
 ⚠️ Les montants du fichier servent **à l'affichage seulement**. C'est le Stripe
 Price ID qui détermine ce qui est réellement facturé. Si les deux divergent, la
-page annonce un prix et le client en paie un autre — les garder alignés à chaque
-changement de tarif.
+page annonce un prix et le client en paie un autre.
+
+**C'est `npm run verify:prices` qui garantit l'alignement.** Le script interroge
+les 8 Price IDs chez Stripe et compare montant, devise, cycle, état actif et
+mode (test/live) à ce fichier. Il sort en erreur au moindre écart, et il est
+inclus dans `npm run verify`.
+
+```bash
+npm run verify:prices             # ignore proprement si Stripe n'est pas configuré
+npm run verify:prices -- --strict # exige la configuration (CI, pré-déploiement)
+```
+
+Sans `STRIPE_SECRET_KEY`, le script avertit et sort en succès — il ne bloque pas
+un `npm run verify` local. En CI et avant toute mise en ligne d'un tarif,
+lancez-le avec `--strict` et les vraies clés : c'est le seul moment où l'écart
+entre la page et la facture peut être attrapé avant le client.
+
+Le script détecte notamment le mélange **test / live** : un Price ID Live avec
+une clé Test échoue avec un message explicite, au lieu du `No such price`
+énigmatique renvoyé par Stripe au moment du Checkout.
 
 ### Quand passer à des paliers
 

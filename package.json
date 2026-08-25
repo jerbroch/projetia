@@ -14,12 +14,13 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify:css": "node scripts/verify-css-health.mjs",
-    "verify": "npm run typecheck && npm run test && npm run build && npm run verify:css",
+    "verify": "npm run typecheck && npm run test && npm run build && npm run verify:css && npm run verify:prices",
     "test": "vitest run",
     "supabase:check": "node scripts/test-supabase-admin.mjs",
     "kill-ports": "node scripts/kill-dev-servers.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:report": "node scripts/generate-e2e-report.mjs && playwright show-report e2e/report/html"
+    "test:e2e:report": "node scripts/generate-e2e-report.mjs && playwright show-report e2e/report/html",
+    "verify:prices": "tsx scripts/verify-stripe-prices.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
