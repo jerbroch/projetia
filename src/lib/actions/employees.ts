@@ -6,6 +6,7 @@ import {
   mapEmployeeRow,
   updateEmployeeForCompany,
 } from "@/lib/data/tenant-data";
+import { grantEmployeeAccessAction } from "@/lib/actions/employee-access";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { requireTenantContext } from "@/lib/session";
 import { employeeFormSchema } from "@/lib/validations/employees";
@@ -33,6 +34,7 @@ function parseEmployeeForm(formData: FormData) {
     department: formData.get("department") || undefined,
     hireDate: formData.get("hireDate") || undefined,
     hourlyRate: formData.get("hourlyRate") || undefined,
+    grantAppAccess: formData.get("grantAppAccess") === "true",
   });
 }
 
@@ -70,6 +72,19 @@ export async function createEmployeeAction(formData: FormData): Promise<Employee
     return safeError("Impossible d'ajouter l'employé.");
   }
 
+  const employee = mapEmployeeRow(data as Record<string, unknown>);
+
+  if (parsed.data.grantAppAccess) {
+    const accessResult = await grantEmployeeAccessAction(employee.id);
+    if (!accessResult.success) {
+      return safeError(accessResult.error);
+    }
+    revalidatePath("/employees");
+    revalidatePath("/dashboard");
+    revalidatePath("/schedule");
+    return { success: true, employee: accessResult.employee };
+  }
+
   revalidatePath("/employees");
   revalidatePath("/dashboard");
   revalidatePath("/schedule");
@@ -99,6 +114,16 @@ export async function updateEmployeeAction(
   if (error || !data) {
     console.error("[updateEmployeeAction]", error?.message);
     return safeError("Impossible de mettre à jour l'employé.");
+  }
+
+  let employee = mapEmployeeRow(data as Record<string, unknown>);
+
+  if (parsed.data.grantAppAccess && employee.appAccessStatus !== "active") {
+    const accessResult = await grantEmployeeAccessAction(employeeId);
+    if (!accessResult.success) {
+      return safeError(accessResult.error);
+    }
+    employee = accessResult.employee;
   }
 
   revalidatePath("/employees");

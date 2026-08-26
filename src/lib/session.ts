@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { companyHasAppAccess } from "@/lib/access-control";
+import { isFieldWorkerRole } from "@/lib/field-permissions";
 import { DEMO_COMPANY, DEMO_USER } from "@/lib/demo/constants";
 import { getDemoSession } from "@/lib/demo/session";
 import { isSuperAdminUser } from "@/lib/platform/super-admin";
@@ -140,6 +141,7 @@ async function fetchProfileFromDb(userId: string): Promise<Profile | null> {
     phone: data.phone,
     role: data.role,
     status: data.status,
+    employeeId: data.employee_id ? String(data.employee_id) : null,
   };
 }
 
@@ -158,6 +160,27 @@ async function fetchMembershipRoleFromDb(
     .maybeSingle();
 
   return data?.role ?? null;
+}
+
+async function fetchEmployeeIdForUser(userId: string): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("employee_id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (profile?.employee_id) return String(profile.employee_id);
+
+  const { data: employee } = await supabase
+    .from("employees")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  return employee?.id ? String(employee.id) : null;
 }
 
 function enrichUserFromProfile(user: User, profile: Profile | null, membershipRole: ProfileRole): User {
@@ -199,6 +222,7 @@ export async function getTenantContext(): Promise<TenantContext | null> {
       },
       company: DEMO_COMPANY,
       membershipRole,
+      employeeId: null,
       isDemo: true,
     };
   }
@@ -216,11 +240,15 @@ export async function getTenantContext(): Promise<TenantContext | null> {
   const membershipRole =
     (await fetchMembershipRoleFromDb(user.id, companyId)) ?? profile?.role ?? "employee";
 
+  const employeeId =
+    profile?.employeeId ?? (await fetchEmployeeIdForUser(user.id));
+
   return {
     user: enrichUserFromProfile(user, profile, membershipRole),
     profile,
     company,
     membershipRole,
+    employeeId,
     isDemo: false,
   };
 }
@@ -298,6 +326,20 @@ export async function requireCompanyAccess(): Promise<TenantContext> {
   return ctx;
 }
 
+export async function requireFieldContext(): Promise<TenantContext> {
+  const ctx = await requireCompanyAccess();
+  if (!isFieldWorkerRole(ctx.membershipRole)) {
+    redirect("/dashboard");
+  }
+  if (!ctx.employeeId) {
+    throw new AuthError("Accès terrain refusé — profil employé non lié");
+  }
+  if (ctx.profile?.status === "inactive") {
+    throw new AuthError("Accès application désactivé");
+  }
+  return ctx;
+}
+
 export async function getPostLoginRedirectPath(): Promise<string> {
   const user = await getSessionUser();
   if (!user) return "/login";
@@ -321,7 +363,13 @@ export async function getPostLoginRedirectPath(): Promise<string> {
     { isPlatformAdmin },
   );
 
-  return hasAccess ? "/dashboard" : "/choose-plan";
+  if (!hasAccess) return "/choose-plan";
+
+  if (isFieldWorkerRole(ctx.membershipRole) && ctx.employeeId) {
+    return "/terrain";
+  }
+
+  return "/dashboard";
 }
 
 export function hasAdminAccess(role: ProfileRole): boolean {

@@ -6,6 +6,9 @@ import type {
   Payment,
   Quote,
   ScheduleEvent,
+  Tool,
+  ToolAssignment,
+  ToolSmsReminder,
 } from "@/types";
 import { getEmployeeFullName } from "@/lib/employee-utils";
 import { DEMO_COMPANY_ID } from "@/lib/demo/constants";
@@ -499,6 +502,135 @@ export const scheduleEvents: ScheduleEvent[] = [
     jobOrigin: "direct",
   },
 ];
+
+export const tools: Tool[] = [
+  {
+    id: "tool-1",
+    companyId: CID,
+    name: "Perceuse sans fil DeWalt",
+    category: "Perceuse",
+    brand: "DeWalt",
+    model: "DCD996",
+    serialNumber: "DW-2024-001",
+    internalNumber: "OUT-001",
+    description: "Perceuse 20V avec 2 batteries",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "2024-06-01",
+    updatedAt: "2025-08-01",
+  },
+  {
+    id: "tool-2",
+    companyId: CID,
+    name: "Caméra d'inspection Ridgid",
+    category: "Caméra d'inspection",
+    brand: "Ridgid",
+    model: "SeeSnake micro",
+    serialNumber: "RG-CAM-042",
+    internalNumber: "OUT-002",
+    description: "Caméra 30 m avec écran",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "2024-03-15",
+    updatedAt: "2025-08-10",
+  },
+  {
+    id: "tool-3",
+    companyId: CID,
+    name: "Hilti TE 60",
+    category: "Hilti",
+    brand: "Hilti",
+    model: "TE 60-AVR",
+    serialNumber: "HL-8891",
+    internalNumber: "OUT-003",
+    description: "Perforateur lourd",
+    condition: "needs_repair",
+    baseStatus: "in_repair",
+    createdAt: "2023-11-20",
+    updatedAt: "2025-08-05",
+  },
+  {
+    id: "tool-4",
+    companyId: CID,
+    name: "Détecteur de fils",
+    category: "Détecteur",
+    brand: "Fluke",
+    model: "2042",
+    serialNumber: "FL-2042-77",
+    internalNumber: "OUT-004",
+    description: "",
+    condition: "good",
+    baseStatus: "available",
+    createdAt: "2025-01-10",
+    updatedAt: "2025-08-12",
+  },
+];
+
+const today = new Date();
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+const daysAgo = (n: number) => {
+  const d = new Date(today);
+  d.setDate(d.getDate() - n);
+  return fmt(d);
+};
+const daysFromNow = (n: number) => {
+  const d = new Date(today);
+  d.setDate(d.getDate() + n);
+  return fmt(d);
+};
+
+export const toolAssignments: ToolAssignment[] = [
+  {
+    id: "ta-1",
+    toolId: "tool-1",
+    employeeId: "emp-2",
+    companyId: CID,
+    startDate: daysAgo(5),
+    expectedReturnDate: daysAgo(1),
+    status: "active",
+    notes: "Projet Commerce Blvd",
+    createdAt: daysAgo(5),
+    updatedAt: daysAgo(5),
+  },
+  {
+    id: "ta-2",
+    toolId: "tool-2",
+    employeeId: "emp-3",
+    companyId: CID,
+    startDate: daysAgo(2),
+    expectedReturnDate: daysFromNow(3),
+    status: "active",
+    createdAt: daysAgo(2),
+    updatedAt: daysAgo(2),
+  },
+  {
+    id: "ta-3",
+    toolId: "tool-4",
+    employeeId: "emp-1",
+    companyId: CID,
+    startDate: daysFromNow(5),
+    expectedReturnDate: daysFromNow(10),
+    status: "reserved",
+    notes: "Réservation inspection",
+    createdAt: daysAgo(1),
+    updatedAt: daysAgo(1),
+  },
+  {
+    id: "ta-4",
+    toolId: "tool-1",
+    employeeId: "emp-1",
+    companyId: CID,
+    startDate: daysAgo(30),
+    expectedReturnDate: daysAgo(25),
+    actualReturnDate: daysAgo(26),
+    status: "returned",
+    returnCondition: "good",
+    createdAt: daysAgo(30),
+    updatedAt: daysAgo(26),
+  },
+];
+
+export const toolSmsReminders: ToolSmsReminder[] = [];
 
 export const payments: Payment[] = [
   {

@@ -13,6 +13,7 @@ export const employeeFormSchema = z.object({
   department: z.string().trim().optional(),
   hireDate: z.string().trim().optional(),
   hourlyRate: z.string().trim().optional(),
+  grantAppAccess: z.coerce.boolean().optional(),
 });
 
 export type EmployeeFormInput = z.infer<typeof employeeFormSchema>;

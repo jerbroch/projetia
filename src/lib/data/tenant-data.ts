@@ -781,7 +781,18 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
     hireDate: String(row.hire_date ?? ""),
     hourlyRate: Number(row.hourly_rate ?? 0),
     profilePhoto: row.profile_photo ? String(row.profile_photo) : undefined,
+    userId: row.user_id ? String(row.user_id) : null,
+    appAccessEnabled: row.app_access_enabled != null ? Boolean(row.app_access_enabled) : false,
+    appAccessStatus: resolveEmployeeAppAccessStatus(row),
   };
+}
+
+function resolveEmployeeAppAccessStatus(
+  row: Record<string, unknown>
+): Employee["appAccessStatus"] {
+  if (!row.user_id) return "none";
+  if (row.app_access_enabled === false) return "inactive";
+  return "active";
 }
 
 function parseStringArray(value: unknown): string[] {
@@ -823,6 +834,8 @@ export function mapScheduleRow(row: Record<string, unknown>): ScheduleEvent {
     jobOrigin: row.job_origin as ScheduleEvent["jobOrigin"],
     clientPoNumber: row.client_po_number ? String(row.client_po_number) : undefined,
     workDescription: row.work_description ? String(row.work_description) : undefined,
+    fieldNotes: row.field_notes ? String(row.field_notes) : undefined,
+    fieldReadyForReview: row.field_ready_for_review != null ? Boolean(row.field_ready_for_review) : undefined,
     closureNotes: row.closure_notes ? String(row.closure_notes) : undefined,
     submittedForReviewAt: row.submitted_for_review_at
       ? String(row.submitted_for_review_at)
@@ -929,6 +942,8 @@ function toScheduleRowInput(event: ScheduleEvent) {
     job_origin: event.jobOrigin || null,
     client_po_number: event.clientPoNumber || null,
     work_description: event.workDescription || null,
+    field_notes: event.fieldNotes || null,
+    field_ready_for_review: event.fieldReadyForReview ?? false,
     closure_notes: event.closureNotes || null,
     submitted_for_review_at: event.submittedForReviewAt || null,
     work_completed_at: event.workCompletedAt || null,

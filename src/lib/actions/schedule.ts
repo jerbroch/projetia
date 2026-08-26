@@ -25,6 +25,7 @@ import {
   canQuickChangeToStatus,
   type JobWorkflowStatus,
 } from "@/lib/job-workflow";
+import { canUpdateFieldStatus } from "@/lib/field-permissions";
 import { requireTenantContext } from "@/lib/session";
 import { scheduleFromQuoteSchema, scheduleJobSchema } from "@/lib/validations/schedule";
 import type { ScheduleEvent } from "@/types";
@@ -399,6 +400,13 @@ export async function updateScheduleJobStatusAction(
 
   if (!canQuickChangeToStatus(ctx.membershipRole, existing.status, newStatus)) {
     return { success: false, error: "Changement de statut non autorisé." };
+  }
+
+  if (
+    !canUpdateFieldStatus(ctx.membershipRole, existing, ctx.employeeId, newStatus) &&
+    ctx.membershipRole === "employee"
+  ) {
+    return { success: false, error: "Changement de statut non autorisé pour ce call." };
   }
 
   const now = new Date().toISOString();
