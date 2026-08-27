@@ -28,9 +28,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
-.env
-.env*.local
+# env files — tout est ignoré, sauf les gabarits explicitement réadmis.
+# Le motif `.env*.local` ne couvrait pas `.env.e2e` : sur un dépôt public,
+# une clé service_role serait partie au premier commit.
+.env*
+!.env.example
+!.env.example.e2e
 
 # vercel
 .vercel

@@ -2,8 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 import dotenv from "dotenv";
 import path from "path";
 
-dotenv.config({ path: path.resolve(__dirname, ".env.local") });
+// L'ORDRE COMPTE. dotenv n'écrase jamais une variable déjà définie : le
+// premier fichier chargé l'emporte. `.env.local` était chargé en premier, si
+// bien que `.env.e2e` ne pouvait RIEN rediriger — les tests visaient toujours
+// la base de `.env.local`, la production. C'est ainsi que 151 entreprises de
+// test s'y sont accumulées.
+//
+// `.env.e2e` passe donc devant. `.env.local` ne sert plus qu'à compléter ce
+// qu'il ne définit pas. Les variables déjà présentes dans l'environnement
+// (CI) gardent la priorité sur les deux.
 dotenv.config({ path: path.resolve(__dirname, ".env.e2e") });
+dotenv.config({ path: path.resolve(__dirname, ".env.local") });
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 
