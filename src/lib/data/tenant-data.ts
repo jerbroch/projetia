@@ -1031,6 +1031,9 @@ function mapPaymentRow(row: Record<string, unknown>): Payment {
     method: row.method as Payment["method"],
     status: row.status as Payment["status"],
     stripePaymentId: row.stripe_payment_id ? String(row.stripe_payment_id) : undefined,
+    receivedAt: row.received_at ? String(row.received_at) : undefined,
+    reference: row.reference ? String(row.reference) : undefined,
+    note: row.note ? String(row.note) : undefined,
     createdAt: String(row.created_at),
   };
 }

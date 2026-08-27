@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { paymentMethodLabel } from "@/lib/billing/payment-recording";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Company, Payment, User } from "@/types";
 
@@ -84,7 +85,7 @@ export function PaymentsPageClient({
       {payments.length === 0 ? (
         <EmptyState
           title="Aucun paiement"
-          description="Les paiements encaissés apparaîtront ici."
+          description="Enregistrez un paiement depuis la page Factures — il apparaîtra ici."
         />
       ) : (
         <>
@@ -128,9 +129,10 @@ export function PaymentsPageClient({
                     <TableHead>Facture</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Montant</TableHead>
-                    <TableHead>Méthode</TableHead>
+                    <TableHead>Mode</TableHead>
+                    <TableHead>Référence</TableHead>
                     <TableHead>Statut</TableHead>
-                    <TableHead>Date</TableHead>
+                    <TableHead>Reçu le</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -139,13 +141,16 @@ export function PaymentsPageClient({
                       <TableCell className="font-medium">{payment.invoiceNumber}</TableCell>
                       <TableCell>{payment.customerName}</TableCell>
                       <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={payment.method} />
+                      <TableCell>{paymentMethodLabel(payment.method)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {payment.reference ?? "—"}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={payment.status} />
                       </TableCell>
-                      <TableCell>{formatDate(payment.createdAt)}</TableCell>
+                      <TableCell>
+                        {formatDate(payment.receivedAt ?? payment.createdAt)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

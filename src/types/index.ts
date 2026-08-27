@@ -440,9 +440,16 @@ export interface Payment {
   invoiceNumber: string;
   customerName: string;
   amount: number;
-  method: "card" | "ach" | "check" | "cash";
+  /** Voir PAYMENT_METHODS dans lib/billing/payment-recording. */
+  method: "interac" | "check" | "cash" | "transfer" | "other" | "card";
   status: "pending" | "completed" | "failed" | "refunded";
   stripePaymentId?: string;
+  /** Date de RÉCEPTION de l'argent (AAAA-MM-JJ), distincte de createdAt. */
+  receivedAt?: string;
+  /** N° de chèque, confirmation Interac — sert au rapprochement bancaire. */
+  reference?: string;
+  note?: string;
+  /** Date de SAISIE dans l'application. */
   createdAt: string;
 }
 

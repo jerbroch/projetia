@@ -652,7 +652,7 @@ export const payments: Payment[] = [
     invoiceNumber: "INV-2025-004",
     customerName: "CityBuild Development",
     amount: 61250,
-    method: "ach",
+    method: "transfer",
     status: "completed",
     stripePaymentId: "pi_3Qexample002",
     createdAt: "2025-01-28",
