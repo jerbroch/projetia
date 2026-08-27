@@ -37,7 +37,7 @@ const { expectedPricesFromConfig, auditPrice, summarizeAudit } = await import(
 );
 
 const keyLivemode = secretKey.startsWith("sk_live_") || secretKey.startsWith("rk_live_");
-const stripe = new Stripe(secretKey, { apiVersion: "2025-02-24.acacia" });
+const stripe = new Stripe(secretKey, { apiVersion: "2026-08-26.dahlia" });
 
 console.log("=== Vérification des prix Stripe ===");
 console.log(`Mode de la clé API : ${keyLivemode ? "LIVE" : "TEST"}\n`);

@@ -20,7 +20,8 @@
     "kill-ports": "node scripts/kill-dev-servers.mjs",
     "test:e2e": "playwright test",
     "test:e2e:report": "node scripts/generate-e2e-report.mjs && playwright show-report e2e/report/html",
-    "verify:prices": "tsx scripts/verify-stripe-prices.mjs"
+    "verify:prices": "tsx scripts/verify-stripe-prices.mjs",
+    "stripe:setup": "tsx scripts/setup-stripe-catalog.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
