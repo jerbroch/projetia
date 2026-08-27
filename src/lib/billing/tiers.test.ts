@@ -138,10 +138,20 @@ describe("affichage", () => {
     expect(formatPrice(null)).toBe("Prix à configurer");
   });
 
-  it("décrit la limite d'utilisateurs en clair", () => {
-    expect(userLimitLabel("solo")).toBe("1 utilisateur");
-    expect(userLimitLabel("entreprise")).toBe("Jusqu'à 5 utilisateurs");
-    expect(userLimitLabel("croissance")).toBe("Utilisateurs illimités");
+  it("décrit la limite en comptes connectés, pas en employés", () => {
+    // « utilisateurs » se confondait avec les fiches employés, qui ne sont
+    // jamais limitées : un compte Solo peut suivre toute une équipe.
+    expect(userLimitLabel("solo")).toBe("1 compte connecté");
+    expect(userLimitLabel("entreprise")).toBe("Jusqu'à 5 comptes connectés");
+    expect(userLimitLabel("croissance")).toBe("Comptes connectés illimités");
+  });
+
+  it("annonce les fiches employés illimitées sur les quatre paliers", () => {
+    // Argument central face aux concurrents facturant par personne : il doit
+    // être lisible sur toute la grille, pas seulement sur l'entrée de gamme.
+    for (const tier of SUBSCRIPTION_TIERS) {
+      expect(tier.features).toContain("Fiches employés illimitées");
+    }
   });
 
   it("valide les identifiants de palier et de cycle", () => {

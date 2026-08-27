@@ -40,12 +40,13 @@ export const SUBSCRIPTION_TIERS: readonly TierDefinition[] = [
   {
     id: "solo",
     name: "Solo",
-    tagline: "Pour l'entrepreneur qui travaille seul",
+    tagline: "Pour l'entrepreneur seul à gérer l'administration",
     monthlyPriceCents: 3999,
     annualPriceCents: 39990,
     userLimit: 1,
     features: [
-      "1 utilisateur",
+      "1 compte connecté",
+      "Fiches employés illimitées",
       "Projets et chantiers illimités",
       "Soumissions et facturation illimitées",
       "Paiement en ligne des factures",
@@ -63,7 +64,8 @@ export const SUBSCRIPTION_TIERS: readonly TierDefinition[] = [
     annualPriceCents: 89990,
     userLimit: 5,
     features: [
-      "Jusqu'à 5 utilisateurs",
+      "Jusqu'à 5 comptes connectés",
+      "Fiches employés illimitées",
       "Projets et chantiers illimités",
       "Horaire et planification d'équipe",
       "Feuilles de facturation par chantier",
@@ -82,7 +84,8 @@ export const SUBSCRIPTION_TIERS: readonly TierDefinition[] = [
     annualPriceCents: 149990,
     userLimit: 15,
     features: [
-      "Jusqu'à 15 utilisateurs",
+      "Jusqu'à 15 comptes connectés",
+      "Fiches employés illimitées",
       "Projets et chantiers illimités",
       "Catalogue de prix et taux de main-d'œuvre",
       "Suivi des coûts et estimation",
@@ -95,12 +98,13 @@ export const SUBSCRIPTION_TIERS: readonly TierDefinition[] = [
   {
     id: "croissance",
     name: "Croissance",
-    tagline: "Sans limite d'utilisateurs",
+    tagline: "Sans limite de comptes connectés",
     monthlyPriceCents: 24999,
     annualPriceCents: 249990,
     userLimit: null,
     features: [
-      "Utilisateurs illimités",
+      "Comptes connectés illimités",
+      "Fiches employés illimitées",
       "Projets et chantiers illimités",
       "Toutes les fonctionnalités incluses",
       "Support prioritaire",
@@ -194,8 +198,8 @@ export function cycleLabel(cycle: string | null | undefined): string {
 
 export function userLimitLabel(tier: string | null | undefined): string {
   const limit = userLimitForTier(tier);
-  if (limit == null) return "Utilisateurs illimités";
-  return limit === 1 ? "1 utilisateur" : `Jusqu'à ${limit} utilisateurs`;
+  if (limit == null) return "Comptes connectés illimités";
+  return limit === 1 ? "1 compte connecté" : `Jusqu'à ${limit} comptes connectés`;
 }
 
 export function formatPrice(
