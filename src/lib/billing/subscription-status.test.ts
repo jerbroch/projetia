@@ -4,6 +4,7 @@ import {
   hasModifiableSubscription,
   normalizeSubscriptionStatus,
   subscriptionGrantsAccess,
+  subscriptionMetadataNeedsRealign,
 } from "./subscription-status";
 import { companyHasAppAccess } from "@/lib/access-control";
 
@@ -189,5 +190,46 @@ describe("hasModifiableSubscription", () => {
     expect(
       hasModifiableSubscription({ stripeSubscriptionId: "sub_123", status: null }),
     ).toBe(false);
+  });
+});
+
+describe("subscriptionMetadataNeedsRealign", () => {
+  it("ne réécrit pas des métadonnées déjà exactes", () => {
+    expect(
+      subscriptionMetadataNeedsRealign(
+        { companyId: "c1", tier: "entrepreneur", cycle: "monthly" },
+        "entrepreneur",
+        "monthly",
+      ),
+    ).toBe(false);
+  });
+
+  it("détecte un palier périmé après un changement au portail", () => {
+    expect(
+      subscriptionMetadataNeedsRealign(
+        { companyId: "c1", tier: "entreprise", cycle: "monthly" },
+        "entrepreneur",
+        "monthly",
+      ),
+    ).toBe(true);
+  });
+
+  it("détecte un cycle périmé", () => {
+    expect(
+      subscriptionMetadataNeedsRealign(
+        { companyId: "c1", tier: "solo", cycle: "monthly" },
+        "solo",
+        "annual",
+      ),
+    ).toBe(true);
+  });
+
+  it("traite l'absence de métadonnées comme un réalignement nécessaire", () => {
+    expect(subscriptionMetadataNeedsRealign(undefined, "solo", "monthly")).toBe(true);
+    expect(subscriptionMetadataNeedsRealign(null, "solo", "monthly")).toBe(true);
+    expect(subscriptionMetadataNeedsRealign({}, "solo", "monthly")).toBe(true);
+    expect(
+      subscriptionMetadataNeedsRealign({ companyId: "c1" }, "solo", "monthly"),
+    ).toBe(true);
   });
 });

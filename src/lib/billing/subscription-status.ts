@@ -68,6 +68,23 @@ const MODIFIABLE_STATUSES: ReadonlySet<string> = new Set([
   "past_due",
 ]);
 
+/**
+ * Vrai quand les métadonnées d'un abonnement Stripe ne décrivent plus son
+ * palier réel.
+ *
+ * Elles ne sont posées qu'à la création (subscription_data au Checkout) : un
+ * changement de palier par le portail client les laisse périmées. Comme elles
+ * servent de repli quand le Price ID n'est plus reconnu, une métadonnée périmée
+ * désigne le mauvais palier — pire qu'une métadonnée absente.
+ */
+export function subscriptionMetadataNeedsRealign(
+  metadata: Record<string, string> | null | undefined,
+  tier: SubscriptionTier,
+  cycle: BillingCycle,
+): boolean {
+  return metadata?.tier !== tier || metadata?.cycle !== cycle;
+}
+
 export interface SubscriptionSnapshot {
   status: string | null | undefined;
   /** Cycle de facturation — persisté dans companies.subscription_plan */

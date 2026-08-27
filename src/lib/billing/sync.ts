@@ -15,6 +15,7 @@ import {
 } from "@/lib/billing/tiers";
 import {
   buildCompanySubscriptionUpdate,
+  subscriptionMetadataNeedsRealign,
   type ExistingSubscriptionRow,
 } from "@/lib/billing/subscription-status";
 import { subscriptionPeriodEnd } from "@/lib/billing/stripe-payload";
@@ -87,6 +88,42 @@ export interface SyncResult {
   cycle: BillingCycle | null;
 }
 
+/** Stripe refuse toute mise à jour hors annulation sur ces statuts. */
+const IMMUTABLE_STATUSES: ReadonlySet<string> = new Set([
+  "canceled",
+  "incomplete_expired",
+]);
+
+/**
+ * Réaligne les métadonnées de l'abonnement sur le palier réellement facturé.
+ *
+ * N'est appelée que lorsque le Price ID a permis de résoudre le palier : c'est
+ * la source de vérité, la métadonnée n'en est qu'une copie de secours. Le test
+ * d'écart évite aussi la boucle — l'écriture déclenche un
+ * `customer.subscription.updated`, dont la passe suivante ne réécrit rien.
+ *
+ * Non bloquant : la ligne `companies` est déjà à jour quand on arrive ici, et
+ * un échec ne doit pas faire échouer le traitement du webhook.
+ */
+async function realignSubscriptionMetadata(
+  subscription: Stripe.Subscription,
+  tier: SubscriptionTier,
+  cycle: BillingCycle,
+): Promise<void> {
+  if (IMMUTABLE_STATUSES.has(subscription.status)) return;
+
+  try {
+    await getStripe().subscriptions.update(subscription.id, {
+      metadata: { ...(subscription.metadata ?? {}), tier, cycle },
+    });
+  } catch (err) {
+    console.error(
+      `Stripe: réalignement des métadonnées de ${subscription.id} échoué:`,
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
 /** Applique l'état d'un abonnement Stripe sur la ligne `companies`. */
 export async function syncSubscriptionToCompany(
   subscription: Stripe.Subscription,
@@ -130,6 +167,13 @@ export async function syncSubscriptionToCompany(
   const admin = createAdminClient();
   const { error } = await admin.from("companies").update(update).eq("id", companyId);
   if (error) throw error;
+
+  if (
+    matched &&
+    subscriptionMetadataNeedsRealign(subscription.metadata, matched.tier, matched.cycle)
+  ) {
+    await realignSubscriptionMetadata(subscription, matched.tier, matched.cycle);
+  }
 
   return { companyId, status: subscription.status, tier, cycle };
 }
