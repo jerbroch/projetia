@@ -225,3 +225,89 @@ export function toClientInvoiceLineItems(
     lineTotal: item.lineTotal,
   }));
 }
+
+export interface ReceiptEmailTemplateInput {
+  companyName: string;
+  companyLogoUrl?: string | null;
+  primaryColor?: string | null;
+  customerName?: string | null;
+  invoiceNumber: string;
+  /** Montant de CE paiement, pas le cumul. */
+  amountReceived: number;
+  /** Libellé du mode — « Virement Interac », « Chèque »… */
+  methodLabel: string;
+  /** Date de réception, déjà formatée pour un lecteur québécois. */
+  receivedOn: string;
+  /** Référence saisie par l'entrepreneur : n° de chèque, confirmation. */
+  reference?: string | null;
+  /** Reste à payer après ce paiement — 0 quand la facture est soldée. */
+  remainingBalance: number;
+  /** Coordonnées Interac, rappelées seulement s'il reste un solde. */
+  interacBlock?: string | null;
+}
+
+export function buildReceiptEmailSubject(
+  input: Pick<ReceiptEmailTemplateInput, "invoiceNumber" | "companyName" | "remainingBalance">,
+): string {
+  const etat = input.remainingBalance > 0 ? "Paiement reçu" : "Facture payée";
+  return `${etat} — facture ${input.invoiceNumber} — ${input.companyName}`;
+}
+
+/**
+ * Reçu envoyé au client dès qu'un paiement est enregistré.
+ *
+ * Il confirme ce qui a été reçu et dit surtout ce qui reste dû : sans cette
+ * seconde information, un paiement partiel laisse le client croire qu'il a
+ * soldé sa facture.
+ */
+export function buildReceiptEmailHtml(input: ReceiptEmailTemplateInput): string {
+  const accent = isValidHexColor(input.primaryColor) ? input.primaryColor : DEFAULT_ACCENT;
+  const safeNumber = escapeHtml(input.invoiceNumber);
+  const safeCustomer = input.customerName ? escapeHtml(input.customerName) : "Client";
+  const soldee = input.remainingBalance <= 0;
+
+  const detailRow = (label: string, value: string) =>
+    `<tr><td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#6b7280;">${label}</td>` +
+    `<td style="padding:6px 0;text-align:right;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;">${value}</td></tr>`;
+
+  const details = [
+    detailRow("Montant reçu", `<strong>${formatMoney(input.amountReceived)}</strong>`),
+    detailRow("Mode de paiement", escapeHtml(input.methodLabel)),
+    detailRow("Reçu le", escapeHtml(input.receivedOn)),
+    input.reference ? detailRow("Référence", escapeHtml(input.reference)) : "",
+  ].join("");
+
+  const soldeBlock = soldee
+    ? `<div style="margin:20px 0;padding:16px;border-radius:8px;background:#ecfdf5;border:1px solid #a7f3d0;">
+         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#065f46;">Facture payée en totalité</p>
+         <p style="margin:6px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#047857;">Merci de votre confiance.</p>
+       </div>`
+    : `<div style="margin:20px 0;padding:16px;border-radius:8px;background:#fffbeb;border:1px solid #fde68a;">
+         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#92400e;">Solde restant à payer</p>
+         <p style="margin:4px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:700;color:${accent};">${formatMoney(input.remainingBalance)}</p>
+       </div>`;
+
+  return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8" /><title>Reçu — facture ${safeNumber}</title></head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6;">
+    <tr><td align="center" style="padding:24px 12px;">
+      <table role="presentation" width="100%" style="max-width:600px;background:#fff;border-radius:12px;border:1px solid #e5e7eb;">
+        ${companyBrandingZone(input.companyName, input.companyLogoUrl)}
+        <tr><td style="padding:24px;">
+          <h1 style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:#111827;">${soldee ? "Paiement reçu — merci" : "Paiement reçu"}</h1>
+          <p style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#6b7280;">${safeCustomer} — facture ${safeNumber}</p>
+          <table role="presentation" width="100%">${details}</table>
+          ${soldeBlock}
+          ${soldee ? "" : (input.interacBlock ?? "")}
+        </td></tr>
+        <tr><td align="center" style="padding:16px 24px;border-top:1px solid #e5e7eb;background:#fafafa;">
+          <p style="margin:0;font-size:11px;color:#d1d5db;">Propulsé par ${PLATFORM_NAME}</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+}
