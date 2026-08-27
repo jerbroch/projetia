@@ -1,15 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2 } from "lucide-react";
 import {
   acceptPublicQuoteAction,
-  confirmDepositPaidAction,
   rejectPublicQuoteAction,
 } from "@/lib/actions/public-quote";
 import { calculateQuoteTotals, canClientRespond, getQuoteLineItems, normalizePublicQuote } from "@/lib/quote-utils";
 import { QuoteTemplate } from "@/components/quotes/quote-template";
-import { Button } from "@/components/ui/button";
 import type { Company, Quote } from "@/types";
 
 interface PublicQuoteClientProps {
@@ -91,57 +88,6 @@ export function PublicQuoteClient({
     });
   }
 
-  async function handlePayDeposit() {
-    startTransition(async () => {
-      try {
-        const res = await fetch("/api/payments/deposit-intent", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-
-        const data = await res.json();
-
-        if (res.status === 503) {
-          // Stripe not configured — stub success for demo/dev
-          if (isDemo) {
-            setQuote({ ...quote, status: "deposit_paid", depositStatus: "paid" });
-            setDepositStep(false);
-            setMessage("Dépôt confirmé (mode démo — Stripe non configuré).");
-            return;
-          }
-
-          const confirmResult = await confirmDepositPaidAction(token);
-          if (confirmResult.success) {
-            setQuote(normalizePublicQuote(confirmResult.quote));
-            setDepositStep(false);
-            setMessage("Dépôt confirmé (paiement simulé — configurez Stripe pour les paiements réels).");
-          } else {
-            setError(confirmResult.error);
-          }
-          return;
-        }
-
-        if (!res.ok) {
-          setError(data.error ?? "Échec du paiement.");
-          return;
-        }
-
-        // Real Stripe flow would use clientSecret with Stripe.js — stub confirms on intent creation
-        const confirmResult = await confirmDepositPaidAction(token, data.paymentIntentId);
-        if (confirmResult.success) {
-          setQuote(normalizePublicQuote(confirmResult.quote));
-          setDepositStep(false);
-          setMessage("Dépôt payé avec succès. Merci!");
-        } else {
-          setError(confirmResult.error);
-        }
-      } catch {
-        setError("Erreur de connexion au service de paiement.");
-      }
-    });
-  }
-
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 py-8">
       {error && (
@@ -164,22 +110,57 @@ export function PublicQuoteClient({
       />
 
       {depositStep && quote.status === "deposit_pending" && (
-        <div className="rounded-lg border bg-card p-6 text-center shadow-sm">
-          <h3 className="text-lg font-semibold">Paiement du dépôt</h3>
+        <div className="rounded-lg border bg-card p-6 shadow-sm">
+          <h3 className="text-lg font-semibold">Dépôt à verser</h3>
           <p className="mt-2 text-muted-foreground">
-            Pour finaliser l&apos;acceptation, veuillez payer le dépôt de{" "}
+            Pour finaliser l&apos;acceptation, veuillez verser un dépôt de{" "}
             <strong>
               {quote.depositAmount != null && Number.isFinite(Number(quote.depositAmount))
                 ? `$${Number(quote.depositAmount).toFixed(2)}`
                 : ""}
-            </strong>.
+            </strong>
+            .
           </p>
-          <Button className="mt-4" onClick={handlePayDeposit} disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Payer le dépôt
-          </Button>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Paiement sécurisé par Stripe (si configuré)
+
+          {company.interac?.enabled && company.interac.email ? (
+            <div className="mt-4 space-y-2 rounded-md border bg-muted/40 p-4 text-sm">
+              <p className="font-medium">Virement Interac</p>
+              <dl className="space-y-1">
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">Destinataire :</dt>
+                  <dd className="font-medium">
+                    {company.interac.recipientName ?? company.name}
+                  </dd>
+                </div>
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">Courriel :</dt>
+                  <dd className="font-medium">{company.interac.email}</dd>
+                </div>
+                {company.interac.securityQuestion && (
+                  <div className="flex flex-wrap gap-x-2">
+                    <dt className="text-muted-foreground">Question de sécurité :</dt>
+                    <dd className="font-medium">{company.interac.securityQuestion}</dd>
+                  </div>
+                )}
+              </dl>
+              {company.interac.instructions && (
+                <p className="text-muted-foreground">{company.interac.instructions}</p>
+              )}
+              <p className="text-muted-foreground">
+                Indiquez le numéro de soumission {quote.quoteNumber} dans le message du
+                virement.
+              </p>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              {company.name} vous contactera pour convenir des modalités de paiement du
+              dépôt.
+            </p>
+          )}
+
+          <p className="mt-4 text-xs text-muted-foreground">
+            La soumission sera confirmée dès que {company.name} aura constaté la réception
+            du dépôt.
           </p>
         </div>
       )}

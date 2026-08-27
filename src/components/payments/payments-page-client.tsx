@@ -1,29 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { CreditCard, DollarSign, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { CreditCard, DollarSign } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -33,11 +17,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Company, Invoice, Payment, User } from "@/types";
+import type { Company, Payment, User } from "@/types";
 
 interface PaymentsPageClientProps {
   payments: Payment[];
-  invoices: Invoice[];
   company: Company;
   user: User;
   isDemo?: boolean;
@@ -45,47 +28,14 @@ interface PaymentsPageClientProps {
 
 export function PaymentsPageClient({
   payments,
-  invoices,
   company,
   user,
   isDemo,
 }: PaymentsPageClientProps) {
-  const [selectedInvoice, setSelectedInvoice] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const unpaidInvoices = invoices.filter(
-    (inv) => inv.status !== "paid" && inv.status !== "cancelled"
-  );
 
   const totalCollected = payments
     .filter((p) => p.status === "completed")
     .reduce((sum, p) => sum + p.amount, 0);
-
-  async function handlePayment() {
-    if (!selectedInvoice) return;
-    setProcessing(true);
-
-    try {
-      const response = await fetch("/api/payments/create-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId: selectedInvoice }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        alert(`Intent de paiement créé pour ${formatCurrency(data.amount)}.`);
-        setDialogOpen(false);
-      } else {
-        alert("La configuration Stripe est requise dans votre fichier .env.");
-      }
-    } catch {
-      alert("La configuration Stripe est requise dans votre fichier .env.");
-    } finally {
-      setProcessing(false);
-    }
-  }
 
   return (
     <DashboardLayout
@@ -97,49 +47,39 @@ export function PaymentsPageClient({
     >
       <PageHeader
         title="Paiements"
-        description="Traitez et suivez les paiements en ligne via Stripe"
+        description="Suivi des paiements reçus de vos clients"
         action={
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button disabled={unpaidInvoices.length === 0}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Encaisser un paiement
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Encaisser un paiement</DialogTitle>
-                <DialogDescription>
-                  Sélectionnez une facture pour traiter un paiement en ligne.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <Select value={selectedInvoice} onValueChange={setSelectedInvoice}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une facture" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {unpaidInvoices.map((invoice) => (
-                      <SelectItem key={invoice.id} value={invoice.id}>
-                        {invoice.invoiceNumber} – {invoice.customerName} ({formatCurrency(invoice.amount - invoice.paidAmount)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Annuler
-                </Button>
-                <Button onClick={handlePayment} disabled={!selectedInvoice || processing}>
-                  {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Traiter
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button asChild variant="outline">
+            <Link href="/settings">
+              <CreditCard className="mr-2 h-4 w-4" />
+              Coordonnées Interac
+            </Link>
+          </Button>
         }
       />
+
+      <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+        {company.interac?.enabled && company.interac.email ? (
+          <p>
+            Vos factures affichent vos coordonnées Interac (
+            <span className="font-medium">{company.interac.email}</span>). Quand un
+            virement vous parvient, marquez la facture payée depuis la page{" "}
+            <Link href="/invoices" className="font-medium underline">
+              Factures
+            </Link>
+            .
+          </p>
+        ) : (
+          <p>
+            Le virement Interac n&apos;est pas encore configuré. Renseignez vos
+            coordonnées dans les{" "}
+            <Link href="/settings" className="font-medium underline">
+              Paramètres
+            </Link>{" "}
+            pour qu&apos;elles apparaissent sur vos factures.
+          </p>
+        )}
+      </div>
 
       {payments.length === 0 ? (
         <EmptyState
