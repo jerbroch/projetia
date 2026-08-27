@@ -10,7 +10,7 @@ export function getStripe(): Stripe {
 
   if (!stripeClient) {
     stripeClient = new Stripe(secretKey, {
-      apiVersion: "2025-02-24.acacia",
+      apiVersion: "2026-08-26.dahlia",
       typescript: true,
     });
   }

@@ -1,21 +1,20 @@
 /**
  * Lecture des champs Stripe qui ont changé d'emplacement selon la version d'API.
  *
- * Le SDK épingle `2025-02-24.acacia` pour les appels sortants (voir
- * src/lib/stripe.ts), mais les payloads de webhook arrivent à la version d'API
- * du compte — `2026-07-29.dahlia` aujourd'hui. Deux champs ont bougé :
+ * Deux champs ont changé d'emplacement entre `acacia` et `basil` :
  *
  *   subscription.current_period_end → subscription.items.data[].current_period_end
  *   invoice.subscription            → invoice.parent.subscription_details.subscription
  *
- * Les types du SDK décrivent la forme acacia, donc lire la forme récente
- * compile sans erreur mais renvoie `undefined` à l'exécution : la date de fin
- * de période était écrasée par `null` à chaque `customer.subscription.updated`,
- * et les évènements `invoice.*` ne retrouvaient jamais leur abonnement.
+ * Le SDK est désormais aligné sur la version du compte (`dahlia`), donc ses
+ * types décrivent la forme récente. Ce module reste néanmoins nécessaire : la
+ * version d'un endpoint webhook est indépendante de celle du SDK, elle est
+ * figée à sa création et ne suit pas les montées de version. Un endpoint plus
+ * ancien continue donc de livrer la forme `acacia`.
  *
- * On lit donc les deux emplacements, l'ancien d'abord. Les entrées sont typées
- * `unknown` volontairement : la forme réelle ne correspond pas aux types du SDK,
- * et un cast donnerait une fausse garantie.
+ * On lit les deux emplacements, l'ancien d'abord. Les entrées sont typées
+ * `unknown` volontairement : la forme d'un payload livré ne correspond pas
+ * forcément aux types du SDK, et un cast donnerait une fausse garantie.
  */
 
 /** Un champ Stripe référençant un objet peut être un id ou l'objet étendu. */

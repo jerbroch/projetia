@@ -101,11 +101,10 @@ export async function createSubscriptionCheckoutSession(
     subscriptionData.trial_period_days = trialDays;
   }
 
-  // Managed Payments est activé par défaut sur le compte mais exige l'API
-  // 2025-03-31.basil ou plus récente ; le SDK épingle 2025-02-24.acacia
-  // (voir src/lib/stripe.ts). On le désactive pour rester sur cette version.
-  // Le champ est absent des types de stripe@17, d'où le cast.
-  const params = {
+  // Managed Payments est activé par défaut sur le compte. On le désactive :
+  // l'application calcule elle-même les taxes via automatic_tax, et bascule
+  // dessus changerait le parcours de paiement sans que rien ne le demande.
+  const params: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
@@ -121,7 +120,7 @@ export async function createSubscriptionCheckoutSession(
     subscription_data: subscriptionData,
     success_url: `${appUrl}/choose-plan?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/choose-plan?checkout=cancel`,
-  } as Stripe.Checkout.SessionCreateParams;
+  };
 
   const session = await stripe.checkout.sessions.create(params);
 
