@@ -1,0 +1,92 @@
+name: Tests end-to-end
+
+# La suite complète : ~35 à 45 minutes en CI. Trop long pour chaque push — au
+# bout d'une semaine on cesse d'attendre le vert, et la CI ne sert plus à rien.
+# Elle tourne donc sur les pull requests vers `main`, une fois par nuit, et à
+# la demande.
+#
+# Ces tests créent des entreprises et des comptes : ils exigent la base de
+# DÉVELOPPEMENT. La barrière de e2e/global-setup.ts refuse de démarrer tant que
+# E2E_SUPABASE_REF n'est pas déclarée et ne correspond pas au projet visé, et
+# rejette le projet de production même s'il est déclaré explicitement.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    # 07:00 UTC = 02:00 à Montréal (03:00 à l'heure avancée).
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: Suite Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    # Les pull requests venues d'un fork n'ont pas accès aux secrets : la suite
+    # échouerait sur une base absente plutôt que sur un vrai défaut. On la
+    # saute proprement — la voie rapide (ci.yml), elle, tourne pour tout le monde.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    env:
+      # Base de développement. Ces variables sont lues directement depuis
+      # l'environnement, qui a priorité sur .env.e2e et .env.local — voir
+      # e2e/load-env.ts.
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.DEV_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_ROLE_KEY }}
+      E2E_SUPABASE_REF: ${{ secrets.DEV_SUPABASE_REF }}
+      E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      # Systématique en CI : sans nettoyage, la base de développement
+      # accumulerait comme la production l'a fait — 151 entreprises en 8 jours.
+      E2E_CLEANUP_SEED: "true"
+      CI: "true"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      # Vérification explicite : sans secrets, la barrière échouerait avec un
+      # message sur la cible, ce qui ferait chercher au mauvais endroit.
+      - name: Vérifier que les secrets sont en place
+        run: |
+          manquants=""
+          for v in NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_ANON_KEY \
+                   SUPABASE_SERVICE_ROLE_KEY E2E_SUPABASE_REF E2E_TEST_PASSWORD; do
+            [ -z "${!v}" ] && manquants="$manquants $v"
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error::Secrets absents du dépôt :$manquants"
+            echo "Réglages → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "Cible déclarée : $E2E_SUPABASE_REF"
+
+      - name: Installer Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Suite end-to-end
+        run: npx playwright test
+
+      - name: Conserver le rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            e2e/report/
+            test-results/
+          retention-days: 7
