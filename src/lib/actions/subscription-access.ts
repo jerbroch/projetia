@@ -6,6 +6,7 @@ import { companyHasAppAccess } from "@/lib/access-control";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import {
   createBillingPortalSession,
+  type PortalUpdateTarget,
   createSubscriptionCheckoutSession,
   type CompanyBillingIdentity,
 } from "@/lib/billing/checkout";
@@ -15,6 +16,7 @@ import {
   isBillingCycle,
   isSubscriptionTier,
   priceIdForTier,
+  tierForPriceId,
   type BillingCycle,
   type SubscriptionTier,
 } from "@/lib/billing/tiers";
@@ -179,22 +181,40 @@ export async function selectSubscriptionPlanAction(
   if (isStripeConfigured()) {
     const { data: existing } = await admin
       .from("companies")
-      .select("stripe_subscription_id, subscription_status")
+      .select("stripe_subscription_id, subscription_status, subscription_price_id")
       .eq("id", ctx.company.id)
       .maybeSingle();
+
+    const subscriptionId = existing?.stripe_subscription_id
+      ? String(existing.stripe_subscription_id)
+      : null;
 
     if (
       existing &&
       hasModifiableSubscription({
-        stripeSubscriptionId: existing.stripe_subscription_id
-          ? String(existing.stripe_subscription_id)
-          : null,
+        stripeSubscriptionId: subscriptionId,
         status: existing.subscription_status
           ? String(existing.subscription_status)
           : null,
       })
     ) {
-      return openBillingPortalAction("/settings");
+      // On transmet le palier choisi pour que le portail s'ouvre sur l'écran de
+      // confirmation, plutôt que d'obliger à re-sélectionner le palier. Stripe
+      // refuse un flux « sans changement à confirmer » : si le palier visé est
+      // déjà l'actuel, on ouvre le portail générique. L'interface désactive ce
+      // cas, mais l'action reste appelable directement.
+      const targetPriceId = priceIdForTier(tier, cycle);
+      const currentPriceId = existing.subscription_price_id
+        ? String(existing.subscription_price_id)
+        : null;
+      const isSamePrice = Boolean(targetPriceId) && targetPriceId === currentPriceId;
+
+      return openBillingPortalAction(
+        "/settings",
+        subscriptionId && targetPriceId && !isSamePrice
+          ? { subscriptionId, priceId: targetPriceId }
+          : null,
+      );
     }
   }
 
@@ -231,9 +251,32 @@ export async function selectSubscriptionPlanAction(
   }
 }
 
-/** Portail Stripe : carte, factures, annulation — géré par Stripe. */
+/**
+ * Valide la cible de changement de palier reçue du client : l'abonnement doit
+ * être celui de l'entreprise, et le prix doit correspondre à un palier connu.
+ */
+async function validatePortalTarget(
+  companyId: string,
+  target: PortalUpdateTarget | null,
+): Promise<PortalUpdateTarget | null> {
+  if (!target?.subscriptionId || !target.priceId) return null;
+  if (!tierForPriceId(target.priceId)) return null;
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("companies")
+    .select("stripe_subscription_id")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const owned = data?.stripe_subscription_id ? String(data.stripe_subscription_id) : null;
+  return owned && owned === target.subscriptionId ? target : null;
+}
+
+/** Portail Stripe : changer de palier, carte, factures, annulation — géré par Stripe. */
 export async function openBillingPortalAction(
   returnPath = "/settings",
+  target: PortalUpdateTarget | null = null,
 ): Promise<AccessActionResult> {
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
@@ -244,8 +287,14 @@ export async function openBillingPortalAction(
 
   const safePath = returnPath.startsWith("/") ? returnPath : "/settings";
 
+  // `target` vient de l'appelant : cette action est exposée au client. On ne la
+  // transmet à Stripe qu'après avoir vérifié que l'abonnement est bien celui de
+  // l'entreprise et que le prix fait partie des paliers configurés. Une cible
+  // invalide est ignorée — on ouvre le portail générique plutôt que d'échouer.
+  const safeTarget = await validatePortalTarget(ctx.company.id, target);
+
   try {
-    const url = await createBillingPortalSession(billingIdentity(ctx), safePath);
+    const url = await createBillingPortalSession(billingIdentity(ctx), safePath, safeTarget);
     return { success: true, redirectTo: url };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

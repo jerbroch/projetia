@@ -101,10 +101,15 @@ export async function createSubscriptionCheckoutSession(
     subscriptionData.trial_period_days = trialDays;
   }
 
-  const session = await stripe.checkout.sessions.create({
+  // Managed Payments est activé par défaut sur le compte mais exige l'API
+  // 2025-03-31.basil ou plus récente ; le SDK épingle 2025-02-24.acacia
+  // (voir src/lib/stripe.ts). On le désactive pour rester sur cette version.
+  // Le champ est absent des types de stripe@17, d'où le cast.
+  const params = {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
+    managed_payments: { enabled: false },
     // Taxes canadiennes (TPS/TVQ) : nécessite Stripe Tax activé au dashboard.
     automatic_tax: { enabled: true },
     customer_update: { address: "auto", name: "auto" },
@@ -116,7 +121,9 @@ export async function createSubscriptionCheckoutSession(
     subscription_data: subscriptionData,
     success_url: `${appUrl}/choose-plan?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/choose-plan?checkout=cancel`,
-  });
+  } as Stripe.Checkout.SessionCreateParams;
+
+  const session = await stripe.checkout.sessions.create(params);
 
   if (!session.url) {
     throw new Error("Stripe n'a pas retourné d'URL de paiement");
@@ -125,19 +132,46 @@ export async function createSubscriptionCheckoutSession(
   return { url: session.url, sessionId: session.id };
 }
 
+/** Palier visé quand le portail est ouvert pour un changement précis. */
+export interface PortalUpdateTarget {
+  subscriptionId: string;
+  priceId: string;
+}
+
 /** Portail Stripe : changer de palier, changer de carte, voir les factures, annuler. */
 export async function createBillingPortalSession(
   identity: CompanyBillingIdentity,
   returnPath = "/settings",
+  target?: PortalUpdateTarget | null,
 ): Promise<string> {
   const customerId = await ensureStripeCustomer(identity);
   const stripe = getStripe();
 
-  const session = await stripe.billingPortal.sessions.create({
+  const params: Stripe.BillingPortal.SessionCreateParams = {
     customer: customerId,
     locale: "fr-CA",
     return_url: `${getAppUrl()}${returnPath}`,
-  });
+  };
+
+  if (target) {
+    // Amène droit à l'écran de confirmation du changement au lieu de l'accueil
+    // du portail. Stripe exige l'id de l'item d'abonnement, qui n'est pas
+    // persisté en base : on le relit chez Stripe. Sans lui, on retombe sur le
+    // portail générique plutôt que d'échouer.
+    const subscription = await stripe.subscriptions.retrieve(target.subscriptionId);
+    const itemId = subscription.items.data[0]?.id;
+    if (itemId) {
+      params.flow_data = {
+        type: "subscription_update_confirm",
+        subscription_update_confirm: {
+          subscription: target.subscriptionId,
+          items: [{ id: itemId, price: target.priceId, quantity: 1 }],
+        },
+      };
+    }
+  }
+
+  const session = await stripe.billingPortal.sessions.create(params);
 
   return session.url;
 }
