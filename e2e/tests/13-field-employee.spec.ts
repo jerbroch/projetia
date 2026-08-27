@@ -73,7 +73,11 @@ test.describe("13. Employé terrain", () => {
     await page.getByRole("button", { name: "Travaux terminés" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.getByRole("button", { name: "Confirmer travaux terminés" }).click();
-    await expect(page.getByText("Travaux terminés")).toBeVisible({ timeout: 15000 });
+    // Le texte « Travaux terminés » est aussi celui de deux boutons : on vise
+    // le badge de statut, à côté du titre, plutôt que la page entière.
+    await expect(
+      page.locator("h1").locator("..").getByText("Travaux terminés", { exact: true }),
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test("page Mes outils accessible", async ({ page }) => {

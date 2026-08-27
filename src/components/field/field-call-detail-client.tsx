@@ -65,14 +65,20 @@ export function FieldCallDetailClient({
     hasFieldNotes: boolean;
     missingHours: boolean;
   } | null>(null);
-  const [isPending, startTransition] = useTransition();
+  // Un état d'attente PAR ACTION. Un seul `isPending` partagé désactivait les
+  // cinq formulaires de la carte dès qu'une action tournait — et, si l'une
+  // d'elles levait une exception, les gelait tous définitivement.
+  const [statusPending, startStatus] = useTransition();
+  const [hourPending, startHour] = useTransition();
+  const [materialPending, startMaterial] = useTransition();
+  const [notesPending, startNotes] = useTransition();
 
   const editable = isFieldJobEditable(job.status);
   const address = job.jobSiteAddress || job.location || "—";
   const estimatedHours = job.quoteEstimationSnapshot?.estimatedHours;
 
   function handleStatus(status: ScheduleEvent["status"]) {
-    startTransition(async () => {
+    startStatus(async () => {
       setError("");
       const result = await updateFieldJobStatusAction(job.id, status);
       if (!result.success) {
@@ -96,7 +102,7 @@ export function FieldCallDetailClient({
   }
 
   function confirmComplete() {
-    startTransition(async () => {
+    startStatus(async () => {
       setError("");
       const result = await completeFieldWorkAction(job.id);
       if (!result.success) {
@@ -111,39 +117,46 @@ export function FieldCallDetailClient({
 
   function submitHour(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    // Le formulaire est capturé MAINTENANT : React remet `e.currentTarget` à
+    // null dès que le gestionnaire rend la main, donc bien avant la fin de
+    // l'await ci-dessous. L'y lire levait un TypeError qui interrompait la
+    // transition — `router.refresh()` n'était jamais atteint et tous les
+    // boutons de la carte restaient désactivés.
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     formData.set("jobId", job.id);
-    startTransition(async () => {
+    startHour(async () => {
       const result = await saveFieldHourAction(formData);
       if (!result.success) {
         setError(result.error);
         return;
       }
       if (result.data) setHours((prev) => [result.data!, ...prev]);
-      e.currentTarget.reset();
+      form.reset();
       router.refresh();
     });
   }
 
   function submitMaterial(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     formData.set("jobId", job.id);
     formData.set("isCustom", "true");
-    startTransition(async () => {
+    startMaterial(async () => {
       const result = await saveFieldMaterialAction(formData);
       if (!result.success) {
         setError(result.error);
         return;
       }
       if (result.data) setMaterials((prev) => [result.data!, ...prev]);
-      e.currentTarget.reset();
+      form.reset();
       router.refresh();
     });
   }
 
   function saveNotes() {
-    startTransition(async () => {
+    startNotes(async () => {
       const result = await updateFieldNotesAction(job.id, fieldNotes);
       if (!result.success) setError(result.error);
       else if (result.event) setJob(result.event);
@@ -201,13 +214,13 @@ export function FieldCallDetailClient({
           </CardHeader>
           <CardContent className="grid gap-2">
             {canUpdateFieldStatus("employee", job, employeeId, "en-route") && job.status === "scheduled" && (
-              <Button size="lg" className="h-12" disabled={isPending} onClick={() => handleStatus("en-route")}>
+              <Button size="lg" className="h-12" disabled={statusPending} onClick={() => handleStatus("en-route")}>
                 Je suis en route
               </Button>
             )}
             {canUpdateFieldStatus("employee", job, employeeId, "in-progress") &&
               (job.status === "scheduled" || job.status === "en-route") && (
-                <Button size="lg" className="h-12" disabled={isPending} onClick={() => handleStatus("in-progress")}>
+                <Button size="lg" className="h-12" disabled={statusPending} onClick={() => handleStatus("in-progress")}>
                   Commencer les travaux
                 </Button>
               )}
@@ -216,7 +229,7 @@ export function FieldCallDetailClient({
                 size="lg"
                 variant="secondary"
                 className="h-12"
-                disabled={isPending}
+                disabled={statusPending}
                 onClick={openCompleteDialog}
               >
                 Travaux terminés
@@ -240,7 +253,7 @@ export function FieldCallDetailClient({
             placeholder="Notes pour ce call..."
           />
           {canEditFieldNotes("employee", job, employeeId) && (
-            <Button variant="outline" disabled={isPending} onClick={saveNotes}>
+            <Button variant="outline" disabled={notesPending} onClick={saveNotes}>
               Enregistrer les notes
             </Button>
           )}
@@ -299,8 +312,8 @@ export function FieldCallDetailClient({
                 <Label htmlFor="hourNotes">Notes</Label>
                 <Input id="hourNotes" name="notes" />
               </div>
-              <Button type="submit" disabled={isPending}>
-                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" disabled={hourPending}>
+                {hourPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Ajouter les heures
               </Button>
             </form>
@@ -347,7 +360,7 @@ export function FieldCallDetailClient({
                 <Label htmlFor="materialNotes">Notes</Label>
                 <Input id="materialNotes" name="notes" />
               </div>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={materialPending}>
                 Ajouter le matériau
               </Button>
             </form>
@@ -403,8 +416,8 @@ export function FieldCallDetailClient({
             <Button variant="outline" onClick={() => setCompleteOpen(false)}>
               Corriger
             </Button>
-            <Button disabled={isPending} onClick={confirmComplete}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button disabled={statusPending} onClick={confirmComplete}>
+              {statusPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmer travaux terminés
             </Button>
           </DialogFooter>
