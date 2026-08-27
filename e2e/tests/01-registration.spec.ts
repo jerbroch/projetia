@@ -1,3 +1,4 @@
+import "../load-env";
 import { test, expect } from "../fixtures/base";
 import {
   generateTestEmail,
@@ -7,10 +8,8 @@ import {
 } from "../helpers/auth";
 import { landingRegisterLink } from "../helpers/locators";
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-import path from "path";
 
-dotenv.config({ path: path.resolve(__dirname, "../../.env.local") });
+
 
 test.describe("1. Parcours inscription", () => {
   test.use({ pageName: "Inscription" });
@@ -63,7 +62,7 @@ test.describe("1. Parcours inscription", () => {
     await page.waitForURL(/\/(choose-plan|dashboard)/, { timeout: 30000 });
 
     if (page.url().includes("/choose-plan")) {
-      await expect(page.getByText(/Choisissez votre accès/i)).toBeVisible();
+      await expect(page.getByText(/Choisissez votre forfait/i)).toBeVisible();
     } else {
       await page.goto("/dashboard");
     }

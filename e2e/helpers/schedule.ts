@@ -1,10 +1,9 @@
+import "../load-env";
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-import path from "path";
 import { resetSeedJobForJourney, ensureE2ESeedData, type E2ESeedData } from "./seed-data";
 import { readTestCredentials, writeTestCredentials } from "./test-data";
 
-dotenv.config({ path: path.resolve(__dirname, "../../.env.local") });
+
 
 export async function resetSeedJobIfNeeded(): Promise<E2ESeedData | null> {
   const creds = readTestCredentials();

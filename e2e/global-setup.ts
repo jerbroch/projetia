@@ -1,15 +1,11 @@
 import type { FullConfig } from "@playwright/test";
-import dotenv from "dotenv";
-import path from "path";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { resetAuditFile } from "./helpers/audit";
 import { seedE2EBusinessData } from "./helpers/seed-data";
 import { writeTestCredentials } from "./helpers/test-data";
 
-// Même ordre qu'en playwright.config.ts : `.env.e2e` d'abord, sans quoi
-// `.env.local` (la production) l'emporterait — dotenv n'écrase jamais.
-dotenv.config({ path: path.resolve(__dirname, "../.env.e2e") });
-dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
+
 
 /**
  * Projets sur lesquels une suite e2e ne doit jamais s'exécuter, même si

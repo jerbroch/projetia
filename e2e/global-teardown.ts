@@ -1,12 +1,10 @@
 import type { FullConfig } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-import path from "path";
+import "./load-env";
 import { cleanupE2ESeedData } from "./helpers/seed-data";
 import { readTestCredentials } from "./helpers/test-data";
 
-dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
-dotenv.config({ path: path.resolve(__dirname, "../.env.e2e") });
+
 
 async function globalTeardown(_config: FullConfig) {
   if (process.env.E2E_SKIP_CLEANUP === "true" || process.env.E2E_CLEANUP_SEED !== "true") {
