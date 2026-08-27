@@ -17,6 +17,7 @@ import {
   buildCompanySubscriptionUpdate,
   type ExistingSubscriptionRow,
 } from "@/lib/billing/subscription-status";
+import { subscriptionPeriodEnd } from "@/lib/billing/stripe-payload";
 
 function asId(value: string | { id: string } | null | undefined): string | null {
   if (!value) return null;
@@ -118,7 +119,7 @@ export async function syncSubscriptionToCompany(
       priceId,
       subscriptionId: subscription.id,
       customerId: asId(subscription.customer),
-      currentPeriodEnd: subscription.current_period_end,
+      currentPeriodEnd: subscriptionPeriodEnd(subscription),
       trialEnd: subscription.trial_end,
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
     },

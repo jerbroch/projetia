@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { getStripe, getStripeWebhookSecret, isStripeConfigured } from "@/lib/stripe";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { syncSubscriptionById, syncSubscriptionToCompany } from "@/lib/billing/sync";
+import { invoiceSubscriptionId, stripeIdOf } from "@/lib/billing/stripe-payload";
 import { logAdminActivity } from "@/lib/data/platform-data";
 import type { AdminActivityEventType } from "@/types/platform";
 
@@ -18,14 +19,6 @@ const HANDLED_EVENTS = new Set([
   "invoice.payment_failed",
   "invoice.payment_succeeded",
 ]);
-
-function subscriptionIdOf(value: unknown): string | null {
-  if (typeof value === "string") return value;
-  if (value && typeof value === "object" && "id" in value) {
-    return String((value as { id: unknown }).id);
-  }
-  return null;
-}
 
 /** Évite de retraiter un évènement redélivré par Stripe. */
 async function alreadyProcessed(eventId: string): Promise<boolean> {
@@ -119,7 +112,7 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.mode !== "subscription") return null;
 
-      const subscriptionId = subscriptionIdOf(session.subscription);
+      const subscriptionId = stripeIdOf(session.subscription);
       if (!subscriptionId) return null;
 
       const companyId =
@@ -155,9 +148,7 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
     case "invoice.payment_failed":
     case "invoice.payment_succeeded": {
       const invoice = event.data.object as Stripe.Invoice;
-      const subscriptionId = subscriptionIdOf(
-        (invoice as unknown as { subscription?: unknown }).subscription,
-      );
+      const subscriptionId = invoiceSubscriptionId(invoice);
       if (!subscriptionId) return null;
 
       // Stripe a déjà fait basculer l'abonnement (past_due, active…) :
