@@ -38,7 +38,7 @@ if (!secretKey) {
   process.exit(1);
 }
 
-const { SUBSCRIPTION_TIERS, BILLING_CURRENCY } = await import(
+const { SUBSCRIPTION_TIERS, BILLING_CURRENCY, tierStripeDescription } = await import(
   "../src/lib/billing/tiers.ts"
 );
 
@@ -145,18 +145,24 @@ for (const tier of SUBSCRIPTION_TIERS) {
 
   if (product) {
     console.log(`  produit trouvé via ${how} : ${product.id}`);
+    const description = tierStripeDescription(tier);
     const needsTaxCode = product.tax_code !== TAX_CODE;
     const needsStamp = product.metadata?.tier !== tier.id;
     const needsName = product.name !== tier.name;
-    if (needsTaxCode || needsStamp || needsName) {
+    // La description est visible sur les factures et le Checkout : elle doit
+    // suivre la grille, sinon elle fige les libellés du jour de la création.
+    const needsDescription = product.description !== description;
+    if (needsTaxCode || needsStamp || needsName || needsDescription) {
       const patch = {};
       if (needsTaxCode) patch.tax_code = TAX_CODE;
       if (needsName) patch.name = tier.name;
+      if (needsDescription) patch.description = description;
       if (needsStamp) patch.metadata = { ...(product.metadata ?? {}), tier: tier.id };
       note(
         `produit ${product.id} : ${[
           needsTaxCode && "tax_code",
           needsName && "name",
+          needsDescription && "description",
           needsStamp && "metadata.tier",
         ]
           .filter(Boolean)
@@ -172,7 +178,7 @@ for (const tier of SUBSCRIPTION_TIERS) {
       product = await stripe.products.create({
         id: `plan_${tier.id}`,
         name: tier.name,
-        description: tier.tagline,
+        description: tierStripeDescription(tier),
         tax_code: TAX_CODE,
         metadata: { tier: tier.id },
       });

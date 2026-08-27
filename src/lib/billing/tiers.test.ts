@@ -12,6 +12,7 @@ import {
   priceCentsForTier,
   priceIdForTier,
   tierForPriceId,
+  tierStripeDescription,
   userLimitForTier,
   userLimitLabel,
 } from "./tiers";
@@ -159,5 +160,39 @@ describe("affichage", () => {
     expect(isSubscriptionTier("gratuit")).toBe(false);
     expect(isBillingCycle("annual")).toBe(true);
     expect(isBillingCycle("weekly")).toBe(false);
+  });
+});
+
+describe("tierStripeDescription", () => {
+  it("reprend la promesse puis les deux lignes distinctives", () => {
+    const solo = SUBSCRIPTION_TIERS.find((t) => t.id === "solo")!;
+    expect(tierStripeDescription(solo)).toBe(
+      "Pour l'entrepreneur seul à gérer l'administration. " +
+        "1 compte connecté, fiches employés illimitées.",
+    );
+  });
+
+  it("porte les fiches illimitées sur les quatre paliers", () => {
+    // Cette description s'affiche sur les factures et le Checkout : c'est là
+    // que l'argument doit survivre, pas seulement sur la page de tarification.
+    for (const tier of SUBSCRIPTION_TIERS) {
+      expect(tierStripeDescription(tier)).toContain("fiches employés illimitées");
+    }
+  });
+
+  it("ne se répète pas — aucune tagline ne redit sa propre première ligne", () => {
+    // « Sans limite de comptes connectés. Comptes connectés illimités » : la
+    // description se lisait deux fois. Le test fige la correction.
+    for (const tier of SUBSCRIPTION_TIERS) {
+      const description = tierStripeDescription(tier);
+      const promesse = description.split(". ")[0];
+      expect(promesse).not.toContain(tier.features[0]);
+    }
+  });
+
+  it("reste dans une longueur lisible sur une facture", () => {
+    for (const tier of SUBSCRIPTION_TIERS) {
+      expect(tierStripeDescription(tier).length).toBeLessThan(160);
+    }
   });
 });

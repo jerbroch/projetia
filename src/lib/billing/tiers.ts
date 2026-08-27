@@ -98,7 +98,7 @@ export const SUBSCRIPTION_TIERS: readonly TierDefinition[] = [
   {
     id: "croissance",
     name: "Croissance",
-    tagline: "Sans limite de comptes connectés",
+    tagline: "Pour les organisations sans plafond",
     monthlyPriceCents: 24999,
     annualPriceCents: 249990,
     userLimit: null,
@@ -117,6 +117,20 @@ export const SUBSCRIPTION_TIERS: readonly TierDefinition[] = [
 ] as const;
 
 const TIER_IDS: ReadonlySet<string> = new Set(SUBSCRIPTION_TIERS.map((t) => t.id));
+
+/**
+ * Description du produit chez Stripe — visible sur les factures et le Checkout.
+ *
+ * Dérivée de la grille pour qu'un seul endroit fasse foi : `scripts/setup-stripe-catalog.mjs`
+ * la réapplique à chaque exécution, y compris lors de la configuration Live.
+ * Reprend la promesse du palier puis ses deux lignes distinctives — le nombre
+ * de comptes connectés, et les fiches employés illimitées qui nous distinguent
+ * des concurrents facturant par personne.
+ */
+export function tierStripeDescription(tier: TierDefinition): string {
+  const [seats, records] = tier.features;
+  return `${tier.tagline}. ${seats}, ${records.toLowerCase()}.`;
+}
 
 export function isSubscriptionTier(value: unknown): value is SubscriptionTier {
   return typeof value === "string" && TIER_IDS.has(value);
