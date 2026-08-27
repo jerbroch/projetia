@@ -18,6 +18,7 @@ import {
   type BillingCycle,
   type SubscriptionTier,
 } from "@/lib/billing/tiers";
+import { seatUsage, seatWarningMessage, type SeatUsage } from "@/lib/billing/seat-limit";
 
 export interface CompanySubscriptionSummary {
   accessType: string | null;
@@ -41,6 +42,13 @@ export interface CompanySubscriptionSummary {
    * doit passer par le portail, pas par un nouveau Checkout.
    */
   canSwitchTierInPortal: boolean;
+  /** Places occupées et restantes — null quand le décompte est indisponible */
+  seats: SeatUsage | null;
+  /**
+   * Avertissement à afficher AVANT le blocage : dernière place, limite
+   * atteinte, ou surnombre après une descente de palier. null = rien à dire.
+   */
+  seatWarning: string | null;
   /** true quand les colonnes de facturation ne sont pas encore migrées */
   schemaMissing: boolean;
 }
@@ -55,6 +63,8 @@ const EMPTY: CompanySubscriptionSummary = {
   priceCents: null,
   userLimit: null,
   userLimitLabel: "—",
+  seats: null,
+  seatWarning: null,
   status: null,
   currentPeriodEnd: null,
   cancelAtPeriodEnd: false,
@@ -95,6 +105,19 @@ export async function getCompanySubscriptionSummary(
   const accessType = data.access_type ? String(data.access_type) : null;
   const definition = getTier(tier);
 
+  // Une place = un compte qui se connecte, propriétaire compris — pas une fiche
+  // employé. Une lecture en échec laisse `seats` à null plutôt que d'afficher
+  // un décompte faux.
+  const { data: activeProfiles, error: profilesError } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("status", "active");
+
+  const seats = profilesError
+    ? null
+    : seatUsage({ activeProfiles: activeProfiles?.length ?? 0 }, tier);
+
   return {
     accessType,
     accessTypeLabel: accessTypeLabel(accessType),
@@ -106,6 +129,8 @@ export async function getCompanySubscriptionSummary(
       definition && cycle ? priceCentsForTier(definition, cycle) : null,
     userLimit: tier ? userLimitForTier(tier) : null,
     userLimitLabel: tier ? userLimitLabel(tier) : "—",
+    seats,
+    seatWarning: seats ? seatWarningMessage(seats, tier) : null,
     status: data.subscription_status ? String(data.subscription_status) : null,
     currentPeriodEnd: data.subscription_current_period_end
       ? String(data.subscription_current_period_end)

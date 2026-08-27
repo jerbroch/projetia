@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { mapEmployeeRow } from "@/lib/data/tenant-data";
 import { hasAdminAccess, requireAdminContext } from "@/lib/session";
+import { seatLimitMessage, seatUsage } from "@/lib/billing/seat-limit";
 import type { Employee } from "@/types";
 
 export type EmployeeAccessResult =
@@ -13,6 +14,48 @@ export type EmployeeAccessResult =
 
 function generateTempPassword(): string {
   return randomBytes(10).toString("base64url").slice(0, 12);
+}
+
+/**
+ * Refuse une nouvelle place quand la limite du palier est atteinte.
+ *
+ * Rendre son accès à quelqu'un qui l'occupe déjà ne consomme rien : on ne
+ * bloque que l'ajout d'un connecté de plus. Réactiver un accès révoqué, en
+ * revanche, reprend une place — le profil était repassé à `inactive`.
+ *
+ * Retourne le message de refus, ou `null` quand l'opération est permise.
+ */
+async function refuseIfNoSeatLeft(
+  companyId: string,
+  employeeUserId: unknown,
+): Promise<string | null> {
+  const admin = createAdminClient();
+
+  const { data: company } = await admin
+    .from("companies")
+    .select("subscription_tier")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const { data: activeProfiles, error } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("status", "active");
+
+  // Colonne ou table absente : on ne bloque pas sur une lecture incertaine.
+  if (error) return null;
+
+  const userId = employeeUserId ? String(employeeUserId) : null;
+  const occupeDeja = userId
+    ? (activeProfiles ?? []).some((p) => String(p.id) === userId)
+    : false;
+  if (occupeDeja) return null;
+
+  const tier = company?.subscription_tier ? String(company.subscription_tier) : null;
+  const usage = seatUsage({ activeProfiles: activeProfiles?.length ?? 0 }, tier);
+
+  return usage.isFull ? seatLimitMessage(usage, tier) : null;
 }
 
 export async function grantEmployeeAccessAction(
@@ -38,6 +81,9 @@ export async function grantEmployeeAccessAction(
   if (!email) {
     return { success: false, error: "Un courriel est requis pour donner accès à l'application." };
   }
+
+  const seatRefusal = await refuseIfNoSeatLeft(ctx.company.id, employee.user_id);
+  if (seatRefusal) return { success: false, error: seatRefusal };
 
   const tempPassword = generateTempPassword();
   let userId = employee.user_id ? String(employee.user_id) : null;

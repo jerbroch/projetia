@@ -81,14 +81,32 @@ export function SubscriptionSettingsForm({
           </div>
         )}
 
+        {subscription.seatWarning && (
+          <p
+            className={`rounded-md border p-3 text-sm ${
+              subscription.seats?.isOverLimit || subscription.seats?.isFull
+                ? "border-destructive/40 bg-destructive/5 text-destructive"
+                : "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400"
+            }`}
+          >
+            {subscription.seatWarning}
+          </p>
+        )}
+
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt className="text-sm text-muted-foreground">Forfait</dt>
             <dd className="font-medium">{subscription.tierLabel}</dd>
           </div>
           <div>
-            <dt className="text-sm text-muted-foreground">Utilisateurs inclus</dt>
-            <dd className="font-medium">{subscription.userLimitLabel}</dd>
+            <dt className="text-sm text-muted-foreground">Comptes connectés</dt>
+            <dd className="font-medium">
+              {subscription.seats
+                ? subscription.seats.isUnlimited
+                  ? `${subscription.seats.used} — illimité`
+                  : `${subscription.seats.used} sur ${subscription.seats.limit}`
+                : subscription.userLimitLabel}
+            </dd>
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Statut</dt>
