@@ -265,7 +265,40 @@ correctif préalable, cette montée aurait cassé ce dernier chemin sain.
 
 ---
 
-## 6. Historique des commits
+## 6. À faire au moment de la bascule Live
+
+### Vider `platform_invoices` avant le premier dollar réel
+
+La table a été remplie en production le 28 août 2026 par
+`npm run invoices:backfill`, avec **six factures de MODE TEST** — celles
+produites pendant la mise en place : deux paiements (39,99 $ et 149,99 $), deux
+notes de crédit négatives issues des changements de palier, et deux factures à
+zéro de création d'abonnement.
+
+Ce sont des artefacts d'essai, pas des ventes. Au moment de basculer en Live :
+
+```sql
+DELETE FROM platform_invoices;
+```
+
+puis relancer `npm run invoices:backfill` avec les clés Live. L'historique de
+revenus commencera alors exactement au premier dollar réel, ce qui est la
+seule base saine pour une trace comptable.
+
+Repère pour les distinguer si le nettoyage est oublié : les factures de test
+portent les préfixes `JDIZZDVQ-` et `H5WEUWBE-`, et toutes ont `gst_cents` et
+`qst_cents` à zéro — mais ce dernier critère cessera d'être discriminant après
+l'inscription aux taxes.
+
+### Les autres points bloquants
+
+Voir la section « Avant de fusionner » de la pull request : inscriptions
+fiscales Stripe Tax, recréation du catalogue en Live, endpoint webhook Live,
+variables Vercel et migrations à appliquer.
+
+---
+
+## 7. Historique des commits
 
 | Commit | Date | Objet |
 |---|---|---|
