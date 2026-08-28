@@ -21,7 +21,8 @@
     "test:e2e": "playwright test",
     "test:e2e:report": "node scripts/generate-e2e-report.mjs && playwright show-report e2e/report/html",
     "verify:prices": "tsx scripts/verify-stripe-prices.mjs",
-    "stripe:setup": "tsx scripts/setup-stripe-catalog.mjs"
+    "stripe:setup": "tsx scripts/setup-stripe-catalog.mjs",
+    "invoices:backfill": "tsx scripts/backfill-platform-invoices.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

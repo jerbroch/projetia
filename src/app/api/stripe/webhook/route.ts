@@ -4,6 +4,7 @@ import { getStripe, getStripeWebhookSecret, isStripeConfigured } from "@/lib/str
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { syncSubscriptionById, syncSubscriptionToCompany } from "@/lib/billing/sync";
 import { invoiceSubscriptionId, stripeIdOf } from "@/lib/billing/stripe-payload";
+import { recordPlatformInvoice } from "@/lib/billing/record-invoice";
 import { logAdminActivity } from "@/lib/data/platform-data";
 import type { AdminActivityEventType } from "@/types/platform";
 
@@ -18,6 +19,12 @@ const HANDLED_EVENTS = new Set([
   "customer.subscription.deleted",
   "invoice.payment_failed",
   "invoice.payment_succeeded",
+  // Enregistrés pour que `platform_invoices` reflète le cycle complet d'une
+  // facture, et pas seulement son encaissement : une facture annulée ou
+  // irrécouvrable ne doit pas rester « payée » dans notre trace.
+  "invoice.finalized",
+  "invoice.voided",
+  "invoice.marked_uncollectible",
 ]);
 
 /** Évite de retraiter un évènement redélivré par Stripe. */
@@ -145,9 +152,26 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
       return result?.companyId ?? null;
     }
 
+    case "invoice.finalized":
+    case "invoice.voided":
+    case "invoice.marked_uncollectible":
     case "invoice.payment_failed":
     case "invoice.payment_succeeded": {
       const invoice = event.data.object as Stripe.Invoice;
+
+      // La trace du revenu est conservée AVANT toute autre logique : c'est le
+      // seul endroit où cette information passe, et elle ne repasse pas. Un
+      // échec est journalisé sans interrompre le traitement — mieux vaut une
+      // ligne manquante, que le rattrapage retrouvera, qu'un webhook en erreur
+      // que Stripe redélivrera en boucle.
+      const trace = await recordPlatformInvoice(invoice);
+      if (!trace.recorded) {
+        console.error(
+          `Stripe: facture ${trace.id ?? "?"} non enregistrée:`,
+          trace.error,
+        );
+      }
+
       const subscriptionId = invoiceSubscriptionId(invoice);
       if (!subscriptionId) return null;
 
