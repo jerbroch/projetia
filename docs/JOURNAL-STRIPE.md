@@ -265,7 +265,56 @@ correctif préalable, cette montée aurait cassé ce dernier chemin sain.
 
 ---
 
-## 6. À faire au moment de la bascule Live
+## 6. Nettoyage de la production — 28 août 2026
+
+### Ce qui a été supprimé
+
+**151 entreprises et 151 comptes auth**, laissés en production par la suite
+e2e du temps où elle visait la mauvaise base — voir §7 de la pull request pour
+la cause, un ordre de chargement de `dotenv` qui rendait `.env.e2e` inopérant.
+
+Sur 159 entreprises, il en restait 8 après l'opération : les 7 réelles
+(`plomberie goutte d'eau`, `construction brochu`, `hjggu`, `KetchupMayo inc`,
+`Joncasinc`, `Plomberie SG`, `Jesurection`) et `Test Co 1785710180570`,
+conservée à part — elle date du 2 août, dix jours avant les premières
+exécutions e2e, et porte un courriel en `example.com`. Probablement un essai
+manuel antérieur à l'automatisation.
+
+### L'identification, et pourquoi pas par le nom
+
+Le marqueur retenu est le domaine `@e2e.constructionios.test` du compte
+propriétaire, jamais le nom de l'entreprise. Un vrai client peut s'appeler
+« Test Co » ; personne ne possède ce domaine. C'est ce qui a permis de séparer
+les 151 artefacts des 7 entreprises réelles sans arbitrage.
+
+### `platform_invoices` n'a pas bougé
+
+Les six factures étaient toutes intactes après coup, montants et rattachements
+inchangés. Deux raisons cumulées : les trois rattachées le sont à une
+entreprise conservée, et la contrainte est `ON DELETE SET NULL`, jamais
+`CASCADE` — le choix fait en écrivant la migration 027, précisément pour
+qu'une suppression d'entreprise ne puisse pas effacer un revenu.
+
+### Pourquoi la barrière n'a pas été touchée
+
+`purgeE2ETenants`, utilisée par le teardown e2e, **refuse la production** — et
+c'est sa raison d'être. La désactiver le temps d'une opération ponctuelle
+l'aurait rendue franchissable par habitude : le prochain qui aurait besoin de
+passer outre aurait trouvé le chemin déjà tracé.
+
+L'opération est donc passée par un script séparé, qui assumait sa cible :
+il exigeait que le projet soit nommé sur la ligne de commande et refusait si
+la référence ne correspondait pas à la base réellement atteinte. Les deux
+refus ont été éprouvés avant l'exécution.
+
+**Ce script a été supprimé après usage.** Un outil de suppression de
+production n'a pas sa place dans un dépôt public, et il ne devrait plus jamais
+servir : la barrière de `e2e/target-guard.ts` empêche désormais la suite de
+viser la production, ce qui supprime la cause plutôt que de traiter ses effets.
+
+---
+
+## 7. À faire au moment de la bascule Live
 
 ### Vider `platform_invoices` avant le premier dollar réel
 
@@ -318,7 +367,7 @@ variables Vercel et migrations à appliquer.
 
 ---
 
-## 7. Historique des commits
+## 8. Historique des commits
 
 | Commit | Date | Objet |
 |---|---|---|
