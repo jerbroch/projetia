@@ -4,59 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 import { resetAuditFile } from "./helpers/audit";
 import { seedE2EBusinessData } from "./helpers/seed-data";
 import { writeTestCredentials } from "./helpers/test-data";
+import { cibleConfirmee } from "./target-guard";
 
 
 
-/**
- * Projets sur lesquels une suite e2e ne doit jamais s'exécuter, même si
- * quelqu'un les déclare explicitement. Une référence de projet Supabase n'est
- * pas un secret : elle voyage dans le bundle client via NEXT_PUBLIC_SUPABASE_URL.
- */
-const PROJETS_INTERDITS: Record<string, string> = {
-  dxobukushgxuciqhgrpf: "ConstructionIOS-Production",
-};
-
-/** `https://abc.supabase.co` → `abc` */
-function refDuProjet(url: string): string | null {
-  return /^https:\/\/([a-z0-9]+)\.supabase\.co/i.exec(url.trim())?.[1] ?? null;
-}
-
-/**
- * Refuse de démarrer tant que la cible n'est pas confirmée.
- *
- * Corriger l'ordre de chargement ne suffisait pas : un `.env.e2e` absent ou
- * incomplet ferait silencieusement retomber sur la production. Il faut donc
- * une déclaration explicite, et elle doit correspondre au projet réellement
- * visé. Deux gestes délibérés sont nécessaires pour viser la production, et
- * aucun oubli n'y mène.
- */
-function verifierCible(): void {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const cible = refDuProjet(url);
-  const declare = process.env.E2E_SUPABASE_REF?.trim();
-
-  const refus = (raison: string) => {
-    throw new Error(
-      `\n\n❌ Cible e2e refusée — ${raison}\n` +
-        `   projet visé      : ${cible ?? "(URL illisible)"}\n` +
-        `   E2E_SUPABASE_REF : ${declare || "(absente)"}\n\n` +
-        `   Déclarez E2E_SUPABASE_REF dans .env.e2e, avec la référence du\n` +
-        `   projet de développement. Les tests créent des entreprises et des\n` +
-        `   comptes : ils ne doivent jamais viser une base réelle.\n`,
-    );
-  };
-
-  if (!cible) refus("NEXT_PUBLIC_SUPABASE_URL absente ou malformée");
-  if (PROJETS_INTERDITS[cible!]) {
-    refus(`${PROJETS_INTERDITS[cible!]} est une base protégée`);
-  }
-  if (!declare) refus("aucune cible déclarée");
-  if (declare !== cible) refus("la cible déclarée ne correspond pas au projet visé");
-
-  console.log(`[e2e] cible confirmée : ${cible}`);
-}
-
-verifierCible();
+cibleConfirmee();
 
 const DEFAULT_PASSWORD = process.env.E2E_DEFAULT_PASSWORD ?? "TestE2ePass123!";
 
