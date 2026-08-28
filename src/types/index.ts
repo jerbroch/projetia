@@ -375,7 +375,7 @@ export interface Employee {
   hourlyRate: number;
   userId?: string | null;
   appAccessEnabled?: boolean;
-  appAccessStatus?: "active" | "invited" | "inactive" | "none";
+  appAccessStatus?: "active" | "invited" | "pending" | "inactive" | "none";
 }
 
 export type JobNumberType = "contract" | "service_call";

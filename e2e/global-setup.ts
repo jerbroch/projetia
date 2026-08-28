@@ -5,10 +5,12 @@ import { resetAuditFile } from "./helpers/audit";
 import { seedE2EBusinessData } from "./helpers/seed-data";
 import { writeTestCredentials } from "./helpers/test-data";
 import { cibleConfirmee } from "./target-guard";
+import { acquerirVerrou } from "./run-lock";
 
 
 
 cibleConfirmee();
+acquerirVerrou();
 
 const DEFAULT_PASSWORD = process.env.E2E_DEFAULT_PASSWORD ?? "TestE2ePass123!";
 

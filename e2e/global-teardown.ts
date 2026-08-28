@@ -4,6 +4,7 @@ import "./load-env";
 import { cleanupE2ESeedData } from "./helpers/seed-data";
 import { readTestCredentials } from "./helpers/test-data";
 import { purgeE2ETenants } from "./helpers/purge-e2e-tenants";
+import { libererVerrou } from "./run-lock";
 
 
 
@@ -32,6 +33,10 @@ async function globalTeardown(_config: FullConfig) {
     );
   } catch (err) {
     console.warn("[E2E globalTeardown] Cleanup skipped:", err);
+  } finally {
+    // Libéré même si le nettoyage échoue : un verrou oublié bloquerait tous
+    // les passages suivants.
+    libererVerrou();
   }
 }
 

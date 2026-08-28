@@ -2,7 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Mail, Phone, Truck, User } from "lucide-react";
-import { revokeEmployeeAccessAction } from "@/lib/actions/employee-access";
+import { getEmployeeAppAccessStatusLabel } from "@/lib/employee-access-utils";
+import {
+  resendEmployeeInvitationAction,
+  revokeEmployeeAccessAction,
+  sendEmployeeInvitationAction,
+} from "@/lib/actions/employee-access";
 import type { Company, Employee, ProfileRole, ToolListItem, ToolWithDetails } from "@/types";
 import { getEmployeeFullName, getEmployeeInitials } from "@/lib/employee-utils";
 import {
@@ -128,11 +133,7 @@ export function EmployeeProfilePanel({
                 <p>
                   Accès application :{" "}
                   <strong>
-                    {employee.appAccessStatus === "active"
-                      ? "Actif"
-                      : employee.appAccessStatus === "inactive"
-                        ? "Non activé"
-                        : "Non configuré"}
+                    {getEmployeeAppAccessStatusLabel(employee.appAccessStatus ?? "none")}
                   </strong>
                 </p>
               )}
@@ -166,19 +167,59 @@ export function EmployeeProfilePanel({
               )}
             </div>
             <div className="flex gap-2">
-              {canManageAccess && employee.appAccessStatus === "active" && (
+              {canManageAccess && employee.email && employee.appAccessStatus === "none" && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     startTransition(async () => {
-                      const result = await revokeEmployeeAccessAction(employee.id);
+                      const result = await sendEmployeeInvitationAction(employee.id);
                       if (result.success) onOpenChange(false);
                     });
                   }}
                 >
-                  Désactiver l&apos;accès
+                  Envoyer invitation
                 </Button>
               )}
+              {canManageAccess &&
+                (employee.appAccessStatus === "invited" ||
+                  employee.appAccessStatus === "pending") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      startTransition(async () => {
+                        const result = await resendEmployeeInvitationAction(employee.id);
+                        if (result.success) onOpenChange(false);
+                      });
+                    }}
+                  >
+                    Renvoyer invitation
+                  </Button>
+                )}
+              {canManageAccess &&
+                employee.appAccessStatus &&
+                employee.appAccessStatus !== "none" && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      startTransition(async () => {
+                        const result = await revokeEmployeeAccessAction(employee.id);
+                        if (result.success) onOpenChange(false);
+                      });
+                    }}
+                  >
+                    {/*
+                      Le même bouton sert deux situations. « Désactiver
+                      l'accès » sur une invitation jamais acceptée serait
+                      trompeur : rien n'est actif. Et c'est ce geste qui libère
+                      la place réservée par l'invitation — l'utilisateur doit
+                      comprendre qu'il annule, pas qu'il retire.
+                    */}
+                    {employee.appAccessStatus === "invited" ||
+                    employee.appAccessStatus === "pending"
+                      ? "Annuler l'invitation"
+                      : "Désactiver l'accès"}
+                  </Button>
+                )}
               {employee.status !== "inactive" && canManage && (
                 <Button variant="outline" onClick={() => onDeactivate(employee.id)}>
                   Désactiver

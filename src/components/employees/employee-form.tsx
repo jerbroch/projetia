@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { createEmployeeAction, updateEmployeeAction } from "@/lib/actions/employees";
+import { getEmployeeAppAccessStatusLabel } from "@/lib/employee-access-utils";
 import {
   buildEmployeeFromForm,
   getDefaultEmployeeFormValues,
@@ -197,7 +198,7 @@ export function EmployeeForm({
                   <div>
                     <Label htmlFor="grantAppAccess">Donner accès à l&apos;application</Label>
                     <p className="text-xs text-muted-foreground">
-                      Utilise le courriel de l&apos;employé pour créer ou activer son compte.
+                      Envoie une invitation par courriel à l&apos;employé. Votre compte administrateur ne sera jamais modifié.
                     </p>
                   </div>
                   <input
@@ -211,13 +212,7 @@ export function EmployeeForm({
                 {employee?.appAccessStatus && employee.appAccessStatus !== "none" && (
                   <p className="text-sm">
                     Accès application :{" "}
-                    <strong>
-                      {employee.appAccessStatus === "active"
-                        ? "Actif"
-                        : employee.appAccessStatus === "inactive"
-                          ? "Non activé"
-                          : "Invité"}
-                    </strong>
+                    <strong>{getEmployeeAppAccessStatusLabel(employee.appAccessStatus)}</strong>
                   </p>
                 )}
               </div>

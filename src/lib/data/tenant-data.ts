@@ -12,6 +12,7 @@ import {
   quotes as demoQuotes,
   scheduleEvents as demoScheduleEvents,
 } from "@/lib/mock-data";
+import { resolveEmployeeAppAccessStatus as resolveEmployeeAccessStatus } from "@/lib/employee-access-utils";
 import { createClient } from "@/lib/supabase/server";
 import { DEMO_COMPANY_ID } from "@/lib/demo/constants";
 import type {
@@ -790,9 +791,7 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
 function resolveEmployeeAppAccessStatus(
   row: Record<string, unknown>
 ): Employee["appAccessStatus"] {
-  if (!row.user_id) return "none";
-  if (row.app_access_enabled === false) return "inactive";
-  return "active";
+  return resolveEmployeeAccessStatus(row);
 }
 
 function parseStringArray(value: unknown): string[] {

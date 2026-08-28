@@ -47,7 +47,10 @@ export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormV
       department: employee.department,
       hireDate: employee.hireDate,
       hourlyRate: String(employee.hourlyRate),
-      grantAppAccess: employee.appAccessStatus === "active",
+      grantAppAccess:
+        employee.appAccessStatus === "active" ||
+        employee.appAccessStatus === "invited" ||
+        employee.appAccessStatus === "pending",
     };
   }
 

@@ -118,7 +118,10 @@ export async function updateEmployeeAction(
 
   let employee = mapEmployeeRow(data as Record<string, unknown>);
 
-  if (parsed.data.grantAppAccess && employee.appAccessStatus !== "active") {
+  if (
+    parsed.data.grantAppAccess &&
+    (employee.appAccessStatus === "none" || employee.appAccessStatus === "inactive")
+  ) {
     const accessResult = await grantEmployeeAccessAction(employeeId);
     if (!accessResult.success) {
       return safeError(accessResult.error);
@@ -130,7 +133,7 @@ export async function updateEmployeeAction(
   revalidatePath("/dashboard");
   revalidatePath("/schedule");
 
-  return { success: true, employee: mapEmployeeRow(data as Record<string, unknown>) };
+  return { success: true, employee };
 }
 
 export async function deactivateEmployeeAction(employeeId: string): Promise<EmployeeActionResult> {
