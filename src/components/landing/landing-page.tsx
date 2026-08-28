@@ -1,40 +1,8 @@
 import Link from "next/link";
-import { Calendar, CheckCircle2, CreditCard, FileText, Receipt, Users } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { ConstructionIosLogo } from "@/components/brand/construction-ios-logo";
+import { InteractiveDemo } from "@/components/landing/interactive-demo";
 import { Button } from "@/components/ui/button";
-
-const steps = [
-  {
-    number: 1,
-    title: "Clients",
-    description: "Centralisez vos contacts, projets et historique client.",
-    icon: Users,
-  },
-  {
-    number: 2,
-    title: "Soumissions",
-    description: "Créez et envoyez des soumissions professionnelles en quelques clics.",
-    icon: FileText,
-  },
-  {
-    number: 3,
-    title: "Planification",
-    description: "Organisez les équipes et les chantiers dans un calendrier partagé.",
-    icon: Calendar,
-  },
-  {
-    number: 4,
-    title: "Facturation",
-    description: "Générez vos factures à partir des travaux réalisés.",
-    icon: Receipt,
-  },
-  {
-    number: 5,
-    title: "Paiement",
-    description: "Encaissez en ligne par carte ou Interac selon vos préférences.",
-    icon: CreditCard,
-  },
-] as const;
 
 const benefits = [
   "Soumissions professionnelles",
@@ -66,11 +34,8 @@ export function LandingPage() {
       <main className="flex-1">
         <section className="relative overflow-hidden border-b bg-muted/30">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.08),transparent_60%)]" />
-          <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
+          <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="mb-8 flex justify-center">
-                <ConstructionIosLogo size="lg" showName={false} />
-              </div>
               <h1 className="text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
                 Gérez votre entreprise de construction au même endroit.
               </h1>
@@ -78,7 +43,7 @@ export function LandingPage() {
                 Clients, soumissions, planification, facturation et paiements — réunis dans une
                 seule application.
               </p>
-              <div className="mt-10 flex flex-col items-center gap-4">
+              <div className="mt-8 flex flex-col items-center gap-4">
                 <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                   <Button asChild size="lg" className="w-full sm:w-auto">
                     <Link href="/register">Créer un compte</Link>
@@ -93,35 +58,19 @@ export function LandingPage() {
                 </p>
               </div>
             </div>
-          </div>
-        </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Comment ça fonctionne</h2>
-            <p className="mt-3 text-muted-foreground">
-              Un flux simple, de la première prise de contact au paiement final.
-            </p>
+            <div className="relative mx-auto mt-12 max-w-4xl text-center">
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+                Voyez-le en action
+              </p>
+              <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
+                Suivez le projet de Marie, de la prise de contact au paiement
+              </h2>
+              <div className="mt-6 text-left">
+                <InteractiveDemo />
+              </div>
+            </div>
           </div>
-          <ol className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
-            {steps.map((step) => (
-              <li
-                key={step.number}
-                className="relative flex flex-col rounded-xl border bg-card p-5 shadow-sm"
-              >
-                <div className="mb-4 flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                    {step.number}
-                  </span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-primary">
-                    <step.icon className="h-4 w-4" />
-                  </div>
-                </div>
-                <h3 className="font-semibold">{step.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{step.description}</p>
-              </li>
-            ))}
-          </ol>
         </section>
 
         <section className="border-y bg-muted/30">
