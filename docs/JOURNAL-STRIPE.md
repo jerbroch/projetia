@@ -290,6 +290,26 @@ portent les préfixes `JDIZZDVQ-` et `H5WEUWBE-`, et toutes ont `gst_cents` et
 `qst_cents` à zéro — mais ce dernier critère cessera d'être discriminant après
 l'inscription aux taxes.
 
+### Retirer la mention « Prix affichés sans taxes »
+
+`src/components/auth/choose-plan-client.tsx`, juste sous la grille :
+
+> Prix affichés sans taxes. Aucune TPS ni TVQ n'est facturée pour le moment.
+
+Elle existe parce que Stripe marque les factures `not_collecting` tant que
+l'inscription n'est pas faite : un client qui s'attend à voir des taxes doit
+comprendre leur absence plutôt que de la prendre pour une erreur.
+
+**Le jour de l'inscription, la seconde phrase devient fausse** — les taxes
+seront bel et bien facturées. Deux options à ce moment :
+
+- retirer la seconde phrase et garder « Prix affichés sans taxes », qui reste
+  exact puisque `automatic_tax` les ajoute par-dessus le prix affiché ;
+- retirer la mention entière, si la facture Stripe suffit à l'expliquer.
+
+Un commentaire dans le composant renvoie ici, pour que la mention ne survive
+pas à sa raison d'être.
+
 ### Les autres points bloquants
 
 Voir la section « Avant de fusionner » de la pull request : inscriptions

@@ -260,6 +260,17 @@ export function ChoosePlanClient({
         })}
       </div>
 
+      {/*
+        Mention à RETIRER le jour de l'inscription à la TPS/TVQ. Tant que
+        l'inscription n'est pas faite, Stripe marque les factures
+        `not_collecting` et n'ajoute aucune taxe : un client qui s'attend à en
+        voir doit comprendre pourquoi il n'y en a pas. Voir
+        docs/JOURNAL-STRIPE.md §6.
+      */}
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        Prix affichés sans taxes. Aucune TPS ni TVQ n&apos;est facturée pour le moment.
+      </p>
+
       <Card className="mt-6">
         <CardHeader>
           <div className="flex items-center justify-between">
