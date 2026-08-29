@@ -47,7 +47,8 @@ interface EmployeeProfilePanelProps {
   membershipRole: ProfileRole;
   isDemo?: boolean;
   onEdit: (employee: Employee) => void;
-  onDeactivate: (employeeId: string) => void;
+  onArchive: (employeeId: string) => void;
+  onRestore: (employeeId: string) => void;
   onToolUpdated?: (tool: ToolWithDetails) => void;
 }
 
@@ -60,7 +61,8 @@ export function EmployeeProfilePanel({
   membershipRole,
   isDemo,
   onEdit,
-  onDeactivate,
+  onArchive,
+  onRestore,
   onToolUpdated,
 }: EmployeeProfilePanelProps) {
   const [assignOpen, setAssignOpen] = useState(false);
@@ -217,12 +219,28 @@ export function EmployeeProfilePanel({
                     {employee.appAccessStatus === "invited" ||
                     employee.appAccessStatus === "pending"
                       ? "Annuler l'invitation"
-                      : "Désactiver l'accès"}
+                      : "Retirer l'accès à l'application"}
                   </Button>
                 )}
-              {employee.status !== "inactive" && canManage && (
-                <Button variant="outline" onClick={() => onDeactivate(employee.id)}>
-                  Désactiver
+              {/*
+                Archiver et retirer l'accès répondaient au même mot
+                (« Désactiver » / « Désactiver l'accès »), côte à côte, pour
+                deux gestes sans rapport. Le libellé dit maintenant ce qui
+                arrive, et la séparation visuelle empêche de confondre le
+                départ d'un employé avec une simple fermeture de session.
+              */}
+              {canManage && !employee.archivedAt && (
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                  onClick={() => onArchive(employee.id)}
+                >
+                  Archiver l&apos;employé
+                </Button>
+              )}
+              {canManage && employee.archivedAt && (
+                <Button variant="outline" onClick={() => onRestore(employee.id)}>
+                  Réactiver l&apos;employé
                 </Button>
               )}
               {canManage && (

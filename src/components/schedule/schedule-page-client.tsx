@@ -477,7 +477,8 @@ export function SchedulePageClient({
         membershipRole={membershipRole}
         isDemo={isDemo}
         onEdit={() => profileEmployee && setProfileOpen(false)}
-        onDeactivate={() => profileEmployee && setProfileOpen(false)}
+        onArchive={() => undefined}
+          onRestore={() => undefined}
       />
     </DashboardLayout>
   );

@@ -179,3 +179,29 @@ export async function shouldBlockTenantRoute(
 
   return !userHasAppAccess(access.fields, { isPlatformAdmin: access.isPlatformAdmin });
 }
+
+/**
+ * Statut du profil, pour la porte d'accès du middleware.
+ *
+ * Requête volontairement minuscule et séparée : elle tourne sur toute route
+ * protégée, avant les vérifications d'abonnement, parce qu'un accès retiré
+ * doit fermer immédiatement — pas après une cascade de lectures.
+ *
+ * Rend `null` quand aucun profil n'existe, ce que `porteDeProfil` interprète
+ * comme « laisser passer » : c'est le cas d'un nouvel inscrit.
+ */
+export async function chargerStatutDeProfil(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("status")
+    .eq("id", userId)
+    .maybeSingle();
+
+  // Une lecture en échec ne doit pas verrouiller tout le monde : si le schéma
+  // n'est pas prêt, on laisse les autres gardes décider.
+  if (error) return null;
+  return data?.status ? String(data.status) : null;
+}

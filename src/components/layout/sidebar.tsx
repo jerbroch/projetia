@@ -15,6 +15,7 @@ import {
   Users,
   UserCircle,
   Wrench,
+  Clock,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const navigation = [
   { name: "Calendrier", href: "/schedule", icon: Calendar },
   { name: "Archives", href: "/archives", icon: Archive },
   { name: "Employés", href: "/employees", icon: UserCircle },
+  { name: "Heures", href: "/heures", icon: Clock },
   { name: "Outillage", href: "/outillage", icon: Wrench },
   { name: "Paiements", href: "/payments", icon: CreditCard },
   { name: "Paramètres", href: "/settings", icon: Settings },

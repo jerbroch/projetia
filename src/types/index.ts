@@ -368,6 +368,13 @@ export interface Employee {
   email: string;
   truckNumber: string;
   status: EmployeeStatus;
+  /**
+   * Date de départ de l'entreprise. null = employé courant.
+   *
+   * Axe distinct de `status` : quelqu'un peut être en congé puis partir, et
+   * l'archivage ne doit pas effacer l'information du congé.
+   */
+  archivedAt?: string | null;
   profilePhoto?: string;
   notes?: string;
   department: string;

@@ -58,3 +58,50 @@ export function cibleConfirmee(): string {
 
   return cible!;
 }
+
+/**
+ * Vérifie la base visée par LE SERVEUR, et non par le processus de test.
+ *
+ * `cibleConfirmee()` ne peut inspecter que son propre environnement. Quand
+ * Playwright réutilise un serveur déjà démarré — le comportement par défaut en
+ * local — celui-ci tourne avec l'environnement de la personne qui l'a lancé.
+ * Un `npm run dev` ordinaire lit `.env.local`, donc la production. La barrière
+ * validait alors le dev déclaré dans `.env.e2e` pendant que les navigateurs
+ * écrivaient dans la vraie base.
+ *
+ * On interroge donc le serveur. Un point de contrôle qui ne répond pas est
+ * refusé aussi : sans réponse, on ne sait pas où l'on écrit, et « on ne sait
+ * pas » doit se comporter comme « non ».
+ */
+export async function cibleDuServeurConfirmee(baseURL: string, attendu: string): Promise<void> {
+  const point = new URL("/api/e2e-target", baseURL).toString();
+
+  const refus = (raison: string, vu?: string | null): never => {
+    throw new Error(
+      `\n\n❌ Serveur e2e refusé — ${raison}\n` +
+        `   serveur          : ${baseURL}\n` +
+        `   projet du SERVEUR: ${vu ?? "(inconnu)"}\n` +
+        `   projet attendu   : ${attendu}\n\n` +
+        `   Playwright réutilise le serveur déjà ouvert sur ce port. Si vous\n` +
+        `   avez un « npm run dev » en cours, il lit .env.local — donc la\n` +
+        `   production. Arrêtez-le (npm run kill-ports) et relancez la suite :\n` +
+        `   Playwright démarrera le sien avec le bon environnement.\n`,
+    );
+  };
+
+  let charge: { projectRef?: string | null };
+  try {
+    const reponse = await fetch(point, { cache: "no-store" });
+    if (!reponse.ok) refus(`le point de contrôle a répondu ${reponse.status}`);
+    charge = (await reponse.json()) as { projectRef?: string | null };
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("Serveur e2e refusé")) throw err;
+    refus("le point de contrôle est injoignable");
+    return;
+  }
+
+  const vu = charge.projectRef ?? null;
+  if (!vu) refus("le serveur ne déclare aucun projet", vu);
+  if (PROJETS_INTERDITS[vu!]) refus(`le serveur vise ${PROJETS_INTERDITS[vu!]}`, vu);
+  if (vu !== attendu) refus("le serveur vise une autre base que celle déclarée", vu);
+}

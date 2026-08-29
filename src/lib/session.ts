@@ -7,6 +7,7 @@ import { DEMO_COMPANY, DEMO_USER } from "@/lib/demo/constants";
 import { getDemoSession } from "@/lib/demo/session";
 import { isSuperAdminUser } from "@/lib/platform/super-admin";
 import type { Company, Profile, ProfileRole, TenantContext, User } from "@/types";
+import { formatCompanyName } from "@/lib/company-display-name";
 
 export class AuthError extends Error {
   constructor(message: string) {
@@ -78,7 +79,7 @@ async function fetchCompanyFromDb(companyId: string): Promise<Company | null> {
 
   return {
     id: data.id,
-    name: data.name,
+    name: formatCompanyName(String(data.name)),
     legalName: data.legal_name,
     phone: data.phone,
     email: data.email,

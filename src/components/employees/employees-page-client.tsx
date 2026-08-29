@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { deactivateEmployeeAction } from "@/lib/actions/employees";
+import { archiveEmployeeAction, restoreEmployeeAction } from "@/lib/actions/employee-access";
 import { buildToolListItemFromDetails, mergeToolIntoList, syncToolListFromServer } from "@/lib/tool-utils";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -46,6 +46,9 @@ export function EmployeesPageClient({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [employeeList, setEmployeeList] = useState<Employee[]>(initialEmployees);
+  // Les archivés sortent des listes courantes. Une vue les retrouve : le gars
+  // qui part l'hiver revient au printemps, et sa fiche doit l'attendre.
+  const [voirArchives, setVoirArchives] = useState(false);
   const [toolList, setToolList] = useState<ToolListItem[]>(tools);
   const [formOpen, setFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -64,7 +67,10 @@ export function EmployeesPageClient({
     startTransition(() => router.refresh());
   }
 
-  const activeCount = employeeList.filter((e) => e.status === "active").length;
+  const archives = employeeList.filter((e) => Boolean(e.archivedAt));
+  const courants = employeeList.filter((e) => !e.archivedAt);
+  const employesAffiches = voirArchives ? archives : courants;
+  const activeCount = courants.filter((e) => e.status === "active").length;
 
   function openCreateForm() {
     setFormMode("create");
@@ -93,27 +99,49 @@ export function EmployeesPageClient({
     router.refresh();
   }
 
-  function handleDeactivate(employeeId: string) {
+  function appliquerResultat(employeeId: string, employee: Employee) {
+    setEmployeeList((prev) => prev.map((e) => (e.id === employeeId ? employee : e)));
+    setProfileOpen(false);
+    router.refresh();
+  }
+
+  function handleArchive(employeeId: string) {
     startTransition(async () => {
       if (isDemo) {
         setEmployeeList((prev) =>
-          prev.map((e) => (e.id === employeeId ? { ...e, status: "inactive" as const } : e))
+          prev.map((e) =>
+            e.id === employeeId ? { ...e, archivedAt: new Date().toISOString() } : e
+          )
         );
         setProfileOpen(false);
         return;
       }
 
-      const result = await deactivateEmployeeAction(employeeId);
+      const result = await archiveEmployeeAction(employeeId);
       if (!result.success) {
         setActionError(result.error);
         return;
       }
+      appliquerResultat(employeeId, result.employee);
+    });
+  }
 
-      setEmployeeList((prev) =>
-        prev.map((e) => (e.id === employeeId ? result.employee : e))
-      );
-      setProfileOpen(false);
-      router.refresh();
+  function handleRestore(employeeId: string) {
+    startTransition(async () => {
+      if (isDemo) {
+        setEmployeeList((prev) =>
+          prev.map((e) => (e.id === employeeId ? { ...e, archivedAt: null } : e))
+        );
+        setProfileOpen(false);
+        return;
+      }
+
+      const result = await restoreEmployeeAction(employeeId);
+      if (!result.success) {
+        setActionError(result.error);
+        return;
+      }
+      appliquerResultat(employeeId, result.employee);
     });
   }
 
@@ -129,10 +157,20 @@ export function EmployeesPageClient({
         title="Employés"
         description="Gérez votre équipe, métiers et camions"
         action={
+            <div className="flex gap-2">
           <Button onClick={openCreateForm}>
             <Plus className="mr-2 h-4 w-4" />
             Ajouter un employé
           </Button>
+          {archives.length > 0 && (
+            <Button
+              variant={voirArchives ? "default" : "outline"}
+              onClick={() => setVoirArchives((v) => !v)}
+            >
+              {voirArchives ? "Voir les employés actifs" : `Archivés (${archives.length})`}
+            </Button>
+          )}
+            </div>
         }
       />
 
@@ -152,7 +190,7 @@ export function EmployeesPageClient({
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
               </CardHeader>
-              <CardContent><p className="text-2xl font-bold">{employeeList.length}</p></CardContent>
+              <CardContent><p className="text-2xl font-bold">{courants.length}</p></CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
@@ -166,7 +204,7 @@ export function EmployeesPageClient({
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold text-blue-600">
-                  {employeeList.filter((e) => e.status === "vacation").length}
+                  {courants.filter((e) => e.status === "vacation").length}
                 </p>
               </CardContent>
             </Card>
@@ -176,7 +214,7 @@ export function EmployeesPageClient({
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold text-amber-600">
-                  {employeeList.filter((e) => e.status === "sick" || e.status === "inactive").length}
+                  {courants.filter((e) => e.status === "sick" || e.status === "inactive").length}
                 </p>
               </CardContent>
             </Card>
@@ -198,7 +236,7 @@ export function EmployeesPageClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employeeList.map((employee) => (
+                  {employesAffiches.map((employee) => (
                     <TableRow key={employee.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -225,7 +263,7 @@ export function EmployeesPageClient({
                       <TableCell><StatusBadge status={employee.status} /></TableCell>
                       <TableCell>{formatDate(employee.hireDate)}</TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
+                      <div className="flex gap-2">
                           <Button size="sm" variant="ghost" onClick={() => openProfile(employee)}>Profil</Button>
                           <Button size="sm" variant="ghost" onClick={() => openEditForm(employee)}>Modifier</Button>
                         </div>
@@ -260,7 +298,8 @@ export function EmployeesPageClient({
         membershipRole={membershipRole}
         isDemo={isDemo}
         onEdit={openEditForm}
-        onDeactivate={handleDeactivate}
+        onArchive={handleArchive}
+        onRestore={handleRestore}
         onToolUpdated={handleToolUpdated}
       />
     </DashboardLayout>

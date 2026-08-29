@@ -35,6 +35,7 @@ import {
   serializeEstimationSnapshotForDb,
 } from "@/lib/quote-cost-utils";
 import type { QuoteCostEstimation } from "@/types";
+import { formatCompanyName } from "@/lib/company-display-name";
 
 function adminClient() {
   if (!isSupabaseAdminConfigured()) return null;
@@ -480,7 +481,8 @@ export async function duplicateQuoteForCompany(companyId: string, quoteId: strin
 function mapCompanyRow(row: Record<string, unknown>): Company {
   return {
     id: String(row.id),
-    name: String(row.name),
+    // Redressé à l'affichage seulement : la donnée stockée n'est pas touchée.
+    name: formatCompanyName(String(row.name)),
     legalName: row.legal_name ? String(row.legal_name) : null,
     phone: row.phone ? String(row.phone) : null,
     email: row.email ? String(row.email) : null,
@@ -777,6 +779,7 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
     email: String(row.email ?? ""),
     truckNumber: String(row.truck_number ?? ""),
     status: row.status as Employee["status"],
+    archivedAt: row.archived_at ? String(row.archived_at) : null,
     notes: row.notes ? String(row.notes) : undefined,
     department: String(row.department ?? ""),
     hireDate: String(row.hire_date ?? ""),

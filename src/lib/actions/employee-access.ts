@@ -15,6 +15,7 @@ import {
   activationRefusedMessage,
   countPendingInvitations,
 } from "@/lib/billing/pending-invitations";
+import { sendEmployeeInvitationEmail } from "@/lib/email/send-employee-invitation";
 import type { Employee, ProfileRole } from "@/types";
 
 export type EmployeeAccessResult =
@@ -84,7 +85,11 @@ async function ensureEmployeeProfileAndMembership(params: {
       email: params.email,
       phone: params.phone,
       role: "employee",
-      status: "active",
+      // Le profil naît « invited » et ne devient « active » qu'à l'activation
+      // (voir activateEmployeeAccessAfterConfirmation). Le créer « active »
+      // dès l'invitation le faisait compter DEUX FOIS dans readSeatUsage :
+      // une fois comme profil actif, une fois comme invitation en attente.
+      status: "invited",
       employee_id: params.employeeId,
     });
 
@@ -96,7 +101,9 @@ async function ensureEmployeeProfileAndMembership(params: {
       .from("profiles")
       .update({
         role: "employee",
-        status: "active",
+        // Même raison qu'à l'insertion : une invitation ne rend pas le profil
+        // actif. L'activation s'en charge.
+        status: "invited",
         employee_id: params.employeeId,
         first_name: params.firstName,
         last_name: params.lastName,
@@ -257,6 +264,64 @@ async function refuseIfNoSeatLeft(
   return seats.usage.isFull ? seatLimitMessage(seats.usage, seats.tier) : null;
 }
 
+/**
+ * Ferme ou rouvre les sessions d'un compte, en plus des drapeaux en base.
+ *
+ * Retirer l'accès ne déconnectait personne : le jeton d'un employé déjà
+ * connecté restait valide, et son jeton de rafraîchissement lui rendait
+ * indéfiniment de nouvelles sessions. GoTrue n'expose aucune déconnexion par
+ * identifiant — vérifié, l'endpoint répond 404 — mais il sait bannir, ce qui
+ * refuse à la fois le rafraîchissement et la reconnexion.
+ *
+ * Le bannissement est RÉVERSIBLE et ne touche pas au mot de passe : après
+ * levée, l'employé se reconnecte avec le sien. C'est ce qui le rend utilisable
+ * pour une suspension temporaire comme pour un départ.
+ *
+ * Un échec ici n'annule pas la révocation : les drapeaux en base et les
+ * politiques RLS ferment déjà la porte. On journalise et on continue.
+ */
+/**
+ * Ce qui rend l'invitation reconnaissable : le logo et les coordonnées de
+ * l'employeur, plus le nom de qui invite. Sans moyen de vérifier ailleurs, le
+ * message reste invérifiable — et c'est ce qui le fait passer pour frauduleux.
+ */
+function brandingDeLEntreprise(ctx: {
+  company: { name?: string | null; logoUrl?: string | null; email?: string | null; phone?: string | null };
+  user: { name?: string | null };
+}) {
+  return {
+    companyName: ctx.company.name ?? null,
+    companyLogoUrl: ctx.company.logoUrl ?? null,
+    companyEmail: ctx.company.email ?? null,
+    companyPhone: ctx.company.phone ?? null,
+    inviterName: ctx.user.name ?? null,
+  };
+}
+
+const BANNISSEMENT_LONG = "876000h"; // ~100 ans : indéfini, sans date à gérer.
+
+async function fermerLesSessions(userId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, {
+    ban_duration: BANNISSEMENT_LONG,
+  });
+  if (error) console.error("[fermerLesSessions]", error.message);
+}
+
+async function rouvrirLesSessions(userId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+  if (error) console.error("[rouvrirLesSessions]", error.message);
+}
+
+/**
+ * Où atterrit l'employé qui clique sur son invitation.
+ *
+ * Surtout pas /terrain : il n'a pas encore de mot de passe à ce stade. Il le
+ * choisit d'abord, et l'accès n'est activé qu'ensuite.
+ */
+const INVITE_REDIRECT = "/auth/callback?next=/definir-mot-de-passe";
+
 export async function sendEmployeeInvitationAction(
   employeeId: string
 ): Promise<EmployeeAccessResult> {
@@ -318,6 +383,10 @@ export async function sendEmployeeInvitationAction(
     company_id: ctx.company.id,
     role: "employee",
     employee_id: employeeId,
+    // Lu par le middleware : tant qu'il est vrai, aucune route protégée n'est
+    // atteignable. C'est ce qui empêche de contourner le choix du mot de passe
+    // en tapant /terrain directement.
+    must_set_password: true,
   };
 
   let userId = linkedUserId ?? existingProfile?.id ?? null;
@@ -334,7 +403,7 @@ export async function sendEmployeeInvitationAction(
       normalizedEmail,
       {
         data: inviteMetadata,
-        redirectTo: `${appUrl}/auth/callback?next=/terrain`,
+        redirectTo: `${appUrl}${INVITE_REDIRECT}`,
       }
     );
 
@@ -347,19 +416,37 @@ export async function sendEmployeeInvitationAction(
 
     userId = inviteData.user.id;
   } else {
-    const { error: linkError } = await admin.auth.admin.generateLink({
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "invite",
       email: normalizedEmail,
       options: {
         data: inviteMetadata,
-        redirectTo: `${appUrl}/auth/callback?next=/terrain`,
+        redirectTo: `${appUrl}${INVITE_REDIRECT}`,
       },
     });
 
-    if (linkError) {
+    if (linkError || !linkData?.properties?.action_link) {
       return { success: false, error: "Impossible d'envoyer l'invitation employé." };
     }
+
+    // `generateLink` ne poste aucun courriel — contrairement à
+    // `inviteUserByEmail`. Sans cet envoi, l'employé n'aurait jamais reçu le
+    // lien qu'on vient de fabriquer.
+    const envoi = await sendEmployeeInvitationEmail({
+      to: normalizedEmail,
+      firstName: employee.first_name ? String(employee.first_name) : null,
+      ...brandingDeLEntreprise(ctx),
+      actionLink: linkData.properties.action_link,
+    });
+
+    if (!envoi.sent) {
+      return { success: false, error: envoi.error ?? "Impossible d'envoyer l'invitation employé." };
+    }
   }
+
+  // Réinviter quelqu'un qu'on avait révoqué doit lever son bannissement,
+  // sinon l'invitation partirait vers un compte incapable de se connecter.
+  await rouvrirLesSessions(userId!);
 
   const profileResult = await ensureEmployeeProfileAndMembership({
     userId: userId!,
@@ -456,19 +543,37 @@ export async function resendEmployeeInvitationAction(
     company_id: ctx.company.id,
     role: "employee",
     employee_id: employeeId,
+    // Lu par le middleware : tant qu'il est vrai, aucune route protégée n'est
+    // atteignable. C'est ce qui empêche de contourner le choix du mot de passe
+    // en tapant /terrain directement.
+    must_set_password: true,
   };
 
-  const { error: linkError } = await admin.auth.admin.generateLink({
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: "invite",
     email: normalizedEmail,
     options: {
       data: inviteMetadata,
-      redirectTo: `${appUrl}/auth/callback?next=/terrain`,
+      redirectTo: `${appUrl}${INVITE_REDIRECT}`,
     },
   });
 
-  if (linkError) {
+  if (linkError || !linkData?.properties?.action_link) {
     return { success: false, error: "Impossible de renvoyer l'invitation." };
+  }
+
+  // Même piège que dans sendEmployeeInvitationAction : `generateLink` ne poste
+  // rien. Sans cet envoi, « Renvoyer invitation » renvoyait un succès et
+  // l'employé n'en voyait jamais la couleur.
+  const envoi = await sendEmployeeInvitationEmail({
+    to: normalizedEmail,
+    firstName: employee.first_name ? String(employee.first_name) : null,
+    ...brandingDeLEntreprise(ctx),
+    actionLink: linkData.properties.action_link,
+  });
+
+  if (!envoi.sent) {
+    return { success: false, error: envoi.error ?? "Impossible de renvoyer l'invitation." };
   }
 
   const { data: updated, error: updateError } = await updateEmployeeAccessFields(
@@ -520,6 +625,8 @@ export async function revokeEmployeeAccessAction(
 
   if (userId) {
     await admin.from("profiles").update({ status: "inactive" }).eq("id", userId);
+    // Sans ceci, l'employé dont l'application est déjà ouverte y reste.
+    await fermerLesSessions(userId);
   }
 
   const { data: updated, error: updateError } = await updateEmployeeAccessFields(
@@ -568,9 +675,20 @@ export async function activateEmployeeAccessAfterConfirmation(
 
   const { data: employee } = await admin
     .from("employees")
-    .select("company_id")
+    .select("company_id, archived_at")
     .eq("id", profile.employee_id)
     .maybeSingle();
+
+  // Un employé archivé ne doit pas entrer, même avec un lien encore valide.
+  // Annuler l'invitation en base ne rappelle pas le courriel déjà parti : ce
+  // refus-ci est le seul qui tienne vraiment.
+  if (employee?.archived_at) {
+    return {
+      activated: false,
+      reason:
+        "Votre accès n'est plus actif. Contactez votre employeur si vous pensez qu'il s'agit d'une erreur.",
+    };
+  }
 
   const companyId = employee?.company_id ? String(employee.company_id) : null;
 
@@ -586,6 +704,10 @@ export async function activateEmployeeAccessAfterConfirmation(
     }
   }
 
+  // Un employé dont l'accès avait été retiré puis rendu est encore banni :
+  // sans cette levée, il se heurterait à « User is banned » à la connexion.
+  await rouvrirLesSessions(userId);
+
   await admin
     .from("employees")
     .update({ app_access_enabled: true })
@@ -598,4 +720,86 @@ export async function activateEmployeeAccessAfterConfirmation(
 
 export async function canManageEmployeeAccess(role: string): Promise<boolean> {
   return hasAdminAccess(role as Parameters<typeof hasAdminAccess>[0]);
+}
+
+/**
+ * Archive un employé qui a quitté l'entreprise.
+ *
+ * Trois effets, indissociables : il sort des listes courantes, son accès se
+ * ferme, et sa place d'abonnement se libère. Ses heures et son travail passés
+ * ne bougent pas — ils se joignent par `employee_id`, clé qui ne change jamais.
+ *
+ * L'invitation en attente est ANNULÉE au passage. Un lien d'invitation est un
+ * identifiant vivant : le laisser valide permettrait à quelqu'un qui a quitté
+ * l'entreprise de se créer un compte des jours plus tard. Et comme vider les
+ * champs ne rappelle pas le courriel déjà parti, l'activation refuse aussi un
+ * employé archivé (voir activateEmployeeAccessAfterConfirmation).
+ */
+export async function archiveEmployeeAction(employeeId: string): Promise<EmployeeAccessResult> {
+  const ctx = await requireAdminContext();
+  if (ctx.isDemo) return { success: false, error: "Non disponible en mode démo." };
+  if (!isSupabaseConfigured()) return { success: false, error: "Supabase n'est pas configuré." };
+
+  const employee = await loadEmployeeForAccess(employeeId, ctx.company.id);
+  if (!employee) return { success: false, error: "Employé introuvable." };
+
+  const userId = employee.user_id ? String(employee.user_id) : null;
+  if (userId === ctx.user.id) {
+    return {
+      success: false,
+      error: "Impossible d'archiver l'employé lié à votre compte administrateur.",
+    };
+  }
+
+  const admin = createAdminClient();
+  if (userId) {
+    await admin.from("profiles").update({ status: "inactive" }).eq("id", userId);
+    await fermerLesSessions(userId);
+  }
+
+  const { data: updated, error } = await updateEmployeeAccessFields(employeeId, ctx.company.id, {
+    archived_at: new Date().toISOString(),
+    app_access_enabled: false,
+    app_access_invited_at: null,
+  });
+
+  if (error || !updated) {
+    return { success: false, error: "Impossible d'archiver l'employé." };
+  }
+
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule");
+
+  return { success: true, employee: mapEmployeeRow(updated as Record<string, unknown>) };
+}
+
+/**
+ * Remet un employé archivé dans les listes courantes.
+ *
+ * L'accès n'est PAS rendu au passage. Le redonner reste un geste délibéré, qui
+ * repasse par l'invitation et revérifie la limite de places — sinon un
+ * désarchivage pourrait dépasser silencieusement l'abonnement.
+ */
+export async function restoreEmployeeAction(employeeId: string): Promise<EmployeeAccessResult> {
+  const ctx = await requireAdminContext();
+  if (ctx.isDemo) return { success: false, error: "Non disponible en mode démo." };
+  if (!isSupabaseConfigured()) return { success: false, error: "Supabase n'est pas configuré." };
+
+  const employee = await loadEmployeeForAccess(employeeId, ctx.company.id);
+  if (!employee) return { success: false, error: "Employé introuvable." };
+
+  const { data: updated, error } = await updateEmployeeAccessFields(employeeId, ctx.company.id, {
+    archived_at: null,
+  });
+
+  if (error || !updated) {
+    return { success: false, error: "Impossible de réactiver l'employé." };
+  }
+
+  revalidatePath("/employees");
+  revalidatePath("/dashboard");
+  revalidatePath("/schedule");
+
+  return { success: true, employee: mapEmployeeRow(updated as Record<string, unknown>) };
 }
