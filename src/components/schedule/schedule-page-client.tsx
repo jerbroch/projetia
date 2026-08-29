@@ -41,12 +41,14 @@ import {
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { CloseWorkDialog } from "@/components/workflow/close-work-dialog";
 import type { Company, Customer, Employee, ProfileRole, ScheduleEvent, ToolListItem, User } from "@/types";
+import type { JobShift } from "@/lib/job-shifts";
 
 interface SchedulePageClientProps {
   initialEvents: ScheduleEvent[];
   initialCustomers: Customer[];
   initialEmployees: Employee[];
   tools: ToolListItem[];
+  shifts?: JobShift[];
   company: Company;
   user: User;
   membershipRole: ProfileRole;
@@ -86,6 +88,7 @@ export function SchedulePageClient({
   initialCustomers,
   initialEmployees,
   tools,
+  shifts = [],
   company,
   user,
   membershipRole,
@@ -369,6 +372,8 @@ export function SchedulePageClient({
         membershipRole={membershipRole}
         company={company}
         isDemo={isDemo}
+          shifts={shifts}
+          onShiftsChanged={() => router.refresh()}
         onEventUpdated={(updated) => {
           applyLocalEvent(updated, { mergeMode: "preserve-placement" });
           setQuickEvent(updated);

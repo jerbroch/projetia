@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  comparerPrevuEtReel,
   debutDeSemaine,
   semainesDeLEmploye,
   totalGeneral,
@@ -113,5 +114,43 @@ describe("arrondi", () => {
       l("e1", "Marc", "j1", "A", "2026-08-25", 0.2),
     ];
     expect(totalGeneral(tiers)).toBe(0.3);
+  });
+});
+
+describe("comparerPrevuEtReel", () => {
+  it("met le prévu et le réel côte à côte, avec l'écart", () => {
+    const r = comparerPrevuEtReel(
+      [{ cle: "e1", libelle: "Marc", hours: 8 }],
+      [{ cle: "e1", libelle: "Marc", hours: 9.5 }],
+    );
+    expect(r[0]).toEqual({ cle: "e1", libelle: "Marc", prevu: 8, reel: 9.5, ecart: 1.5 });
+  });
+
+  it("garde un chantier planifié sans heures saisies", () => {
+    // Le masquer cacherait précisément l'écart qu'on cherche : du travail
+    // prévu que personne n'a fait.
+    const r = comparerPrevuEtReel([{ cle: "j1", libelle: "Toiture", hours: 16 }], []);
+    expect(r[0]).toEqual({ cle: "j1", libelle: "Toiture", prevu: 16, reel: 0, ecart: -16 });
+  });
+
+  it("garde des heures saisies sans planification", () => {
+    const r = comparerPrevuEtReel([], [{ cle: "j2", libelle: "Urgence", hours: 4 }]);
+    expect(r[0]).toEqual({ cle: "j2", libelle: "Urgence", prevu: 0, reel: 4, ecart: 4 });
+  });
+
+  it("additionne plusieurs lignes d'une même clé", () => {
+    const r = comparerPrevuEtReel(
+      [
+        { cle: "e1", libelle: "Marc", hours: 4 },
+        { cle: "e1", libelle: "Marc", hours: 4 },
+      ],
+      [{ cle: "e1", libelle: "Marc", hours: 7 }],
+    );
+    expect(r[0].prevu).toBe(8);
+    expect(r[0].ecart).toBe(-1);
+  });
+
+  it("rend une liste vide sans données", () => {
+    expect(comparerPrevuEtReel([], [])).toEqual([]);
   });
 });

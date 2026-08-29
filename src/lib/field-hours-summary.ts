@@ -123,3 +123,59 @@ export function totalParSemaine(lignes: LigneHeures[]): TotalParSemaine[] {
 export function semainesDeLEmploye(lignes: LigneHeures[], employeeId: string): TotalParSemaine[] {
   return totalParSemaine(lignes.filter((l) => l.employeeId === employeeId));
 }
+
+/**
+ * Heures PRÉVUES, pour la comparaison avec le réel.
+ *
+ * Même forme que les lignes réelles, pour que les deux se cumulent par les
+ * mêmes fonctions. Le prévu vient des plages tracées ; un employé sans plage
+ * hérite des heures du call, ce qui est déjà résolu en amont.
+ */
+export interface CumulCompare {
+  cle: string;
+  libelle: string;
+  prevu: number;
+  reel: number;
+  /** réel − prévu. Positif = dépassement. */
+  ecart: number;
+}
+
+function arrondiPublic(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Assemble prévu et réel sur une même clé.
+ *
+ * Les deux listes ne se recouvrent pas forcément : un chantier peut être
+ * planifié sans qu'aucune heure n'ait encore été saisie, et des heures peuvent
+ * être saisies sur un chantier jamais planifié en détail. On garde les deux
+ * côtés, avec zéro là où il n'y a rien — masquer l'un des deux cacherait
+ * précisément les écarts qu'on cherche à voir.
+ */
+export function comparerPrevuEtReel(
+  prevu: { cle: string; libelle: string; hours: number }[],
+  reel: { cle: string; libelle: string; hours: number }[],
+): CumulCompare[] {
+  const par = new Map<string, { libelle: string; prevu: number; reel: number }>();
+  for (const p of prevu) {
+    const e = par.get(p.cle) ?? { libelle: p.libelle, prevu: 0, reel: 0 };
+    e.prevu += p.hours;
+    par.set(p.cle, e);
+  }
+  for (const r of reel) {
+    const e = par.get(r.cle) ?? { libelle: r.libelle, prevu: 0, reel: 0 };
+    e.reel += r.hours;
+    e.libelle = e.libelle || r.libelle;
+    par.set(r.cle, e);
+  }
+  return [...par.entries()]
+    .map(([cle, e]) => ({
+      cle,
+      libelle: e.libelle,
+      prevu: arrondiPublic(e.prevu),
+      reel: arrondiPublic(e.reel),
+      ecart: arrondiPublic(e.reel - e.prevu),
+    }))
+    .sort((a, b) => b.reel - a.reel || b.prevu - a.prevu || a.libelle.localeCompare(b.libelle, "fr"));
+}

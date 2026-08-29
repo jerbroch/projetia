@@ -10,13 +10,20 @@ import {
   sortJobsChronologically,
   type FieldScheduleView,
 } from "@/lib/field-schedule-utils";
+import type { JobShift } from "@/lib/job-shifts";
 import type { ScheduleEvent } from "@/types";
 
 interface FieldSchedulePageClientProps {
   initialJobs: ScheduleEvent[];
+  employeeId?: string;
+  shifts?: JobShift[];
 }
 
-export function FieldSchedulePageClient({ initialJobs }: FieldSchedulePageClientProps) {
+export function FieldSchedulePageClient({
+  initialJobs,
+  employeeId,
+  shifts = [],
+}: FieldSchedulePageClientProps) {
   const [view, setView] = useState<FieldScheduleView>("today");
 
   const jobs = useMemo(
@@ -49,7 +56,12 @@ export function FieldSchedulePageClient({ initialJobs }: FieldSchedulePageClient
       ) : (
         <div className="space-y-3">
           {jobs.map((job) => (
-            <FieldCallCard key={job.id} job={job} />
+            <FieldCallCard
+              key={job.id}
+              job={job}
+              employeeId={employeeId}
+              shifts={shifts.filter((s) => s.scheduledJobId === job.id)}
+            />
           ))}
         </div>
       )}

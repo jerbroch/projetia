@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  comparerPrevuEtReel,
   totalGeneral,
   totalParChantier,
   totalParEmploye,
@@ -25,6 +26,8 @@ import type { Company, User } from "@/types";
 
 interface HeuresPageClientProps {
   lignes: LigneHeures[];
+  /** Heures planifiées, pour la colonne « Prévu ». */
+  prevues?: LigneHeures[];
   company: Company;
   user: User;
   isDemo?: boolean;
@@ -36,6 +39,20 @@ function formatHeures(h: number): string {
   return `${h.toLocaleString("fr-CA", { maximumFractionDigits: 2 })} h`;
 }
 
+/** Un dépassement se lit en positif, une avance en négatif. */
+function formatEcart(h: number): string {
+  if (h === 0) return "—";
+  const signe = h > 0 ? "+" : "\u2212";
+  return `${signe}${Math.abs(h).toLocaleString("fr-CA", { maximumFractionDigits: 2 })} h`;
+}
+
+function ecartClasse(h: number): string {
+  const base = "text-right font-medium";
+  if (h > 0) return `${base} text-destructive`;
+  if (h < 0) return `${base} text-emerald-600`;
+  return `${base} text-muted-foreground`;
+}
+
 function formatSemaine(debutISO: string): string {
   const [a, m, j] = debutISO.split("-").map(Number);
   const d = new Date(a, (m ?? 1) - 1, j ?? 1);
@@ -45,13 +62,39 @@ function formatSemaine(debutISO: string): string {
   return `${jour.format(d)} au ${jour.format(fin)}`;
 }
 
-export function HeuresPageClient({ lignes, company, user, isDemo }: HeuresPageClientProps) {
+export function HeuresPageClient({
+  lignes,
+  prevues = [],
+  company,
+  user,
+  isDemo,
+}: HeuresPageClientProps) {
   const [vue, setVue] = useState<Vue>("employe");
 
   const parEmploye = useMemo(() => totalParEmploye(lignes), [lignes]);
   const parSemaine = useMemo(() => totalParSemaine(lignes), [lignes]);
   const parChantier = useMemo(() => totalParChantier(lignes), [lignes]);
   const total = useMemo(() => totalGeneral(lignes), [lignes]);
+  const totalPrevu = useMemo(() => totalGeneral(prevues), [prevues]);
+
+  // Trois chiffres, pas deux : le prévu vient des plages tracées, le réel de la
+  // saisie terrain. L'écart est celui qui dit si un chantier a dérapé.
+  const cmpEmploye = useMemo(
+    () =>
+      comparerPrevuEtReel(
+        prevues.map((l) => ({ cle: l.employeeId, libelle: l.employeeName, hours: l.hours })),
+        lignes.map((l) => ({ cle: l.employeeId, libelle: l.employeeName, hours: l.hours })),
+      ),
+    [prevues, lignes],
+  );
+  const cmpChantier = useMemo(
+    () =>
+      comparerPrevuEtReel(
+        prevues.map((l) => ({ cle: l.scheduledJobId, libelle: l.jobLabel, hours: l.hours })),
+        lignes.map((l) => ({ cle: l.scheduledJobId, libelle: l.jobLabel, hours: l.hours })),
+      ),
+    [prevues, lignes],
+  );
 
   const onglets: { cle: Vue; libelle: string }[] = [
     { cle: "employe", libelle: "Par employé" },
@@ -72,7 +115,7 @@ export function HeuresPageClient({ lignes, company, user, isDemo }: HeuresPageCl
         description="Ce que vos employés ont réellement travaillé, et où"
       />
 
-      {lignes.length === 0 ? (
+      {lignes.length === 0 && prevues.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Clock className="mx-auto h-10 w-10 text-muted-foreground" />
@@ -89,11 +132,14 @@ export function HeuresPageClient({ lignes, company, user, isDemo }: HeuresPageCl
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total des heures
+                  Heures réelles
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">{formatHeures(total)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  prévu&nbsp;: {formatHeures(totalPrevu)}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -147,17 +193,23 @@ export function HeuresPageClient({ lignes, company, user, isDemo }: HeuresPageCl
                   <TableHeader>
                     <TableRow>
                       <TableHead>Employé</TableHead>
-                      <TableHead className="text-right">Jours travaillés</TableHead>
-                      <TableHead className="text-right">Heures</TableHead>
+                      <TableHead className="text-right">Prévu</TableHead>
+                      <TableHead className="text-right">Réel</TableHead>
+                      <TableHead className="text-right">Écart</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {parEmploye.map((e) => (
-                      <TableRow key={e.employeeId}>
-                        <TableCell className="font-medium">{e.employeeName}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{e.jours}</TableCell>
+                    {cmpEmploye.map((c) => (
+                      <TableRow key={c.cle}>
+                        <TableCell className="font-medium">{c.libelle}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {formatHeures(c.prevu)}
+                        </TableCell>
                         <TableCell className="text-right font-semibold">
-                          {formatHeures(e.hours)}
+                          {formatHeures(c.reel)}
+                        </TableCell>
+                        <TableCell className={ecartClasse(c.ecart)}>
+                          {formatEcart(c.ecart)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -191,19 +243,23 @@ export function HeuresPageClient({ lignes, company, user, isDemo }: HeuresPageCl
                   <TableHeader>
                     <TableRow>
                       <TableHead>Chantier</TableHead>
-                      <TableHead className="text-right">Employés</TableHead>
-                      <TableHead className="text-right">Heures</TableHead>
+                      <TableHead className="text-right">Prévu</TableHead>
+                      <TableHead className="text-right">Réel</TableHead>
+                      <TableHead className="text-right">Écart</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {parChantier.map((c) => (
-                      <TableRow key={c.scheduledJobId}>
-                        <TableCell className="font-medium">{c.jobLabel}</TableCell>
+                    {cmpChantier.map((c) => (
+                      <TableRow key={c.cle}>
+                        <TableCell className="font-medium">{c.libelle}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          {c.employes}
+                          {formatHeures(c.prevu)}
                         </TableCell>
                         <TableCell className="text-right font-semibold">
-                          {formatHeures(c.hours)}
+                          {formatHeures(c.reel)}
+                        </TableCell>
+                        <TableCell className={ecartClasse(c.ecart)}>
+                          {formatEcart(c.ecart)}
                         </TableCell>
                       </TableRow>
                     ))}

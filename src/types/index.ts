@@ -610,3 +610,13 @@ export interface FieldCatalogItem {
   unit: string;
   category?: string | null;
 }
+
+/** Plage horaire d'un employé sur un call. Voir `src/lib/job-shifts.ts`. */
+export interface JobEmployeeShift {
+  id: string;
+  companyId: string;
+  scheduledJobId: string;
+  employeeId: string;
+  startAt: string;
+  endAt: string;
+}

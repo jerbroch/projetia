@@ -44,6 +44,8 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import type { Company, ProfileRole, ScheduleEvent } from "@/types";
+import { JobShiftsEditor } from "@/components/schedule/job-shifts-editor";
+import type { JobShift } from "@/lib/job-shifts";
 
 interface ScheduleQuickActionsDialogProps {
   open: boolean;
@@ -57,6 +59,8 @@ interface ScheduleQuickActionsDialogProps {
   onCloseWork: (event: ScheduleEvent) => void;
   onReview: (event: ScheduleEvent) => void;
   onBilling: (event: ScheduleEvent) => void;
+  shifts?: JobShift[];
+  onShiftsChanged?: () => void;
 }
 
 export function ScheduleQuickActionsDialog({
@@ -70,6 +74,8 @@ export function ScheduleQuickActionsDialog({
   onCloseWork,
   onReview,
   onBilling,
+  shifts = [],
+  onShiftsChanged,
 }: ScheduleQuickActionsDialogProps) {
   const [currentEvent, setCurrentEvent] = useState<ScheduleEvent | undefined>(event);
   const [error, setError] = useState("");
@@ -260,6 +266,16 @@ export function ScheduleQuickActionsDialog({
               {jobDate} · {startTime} – {endTime}
             </p>
           </div>
+
+          <JobShiftsEditor
+            jobId={selectedEvent.id}
+            callStart={selectedEvent.start}
+            callEnd={selectedEvent.end}
+            employeeIds={selectedEvent.employeeIds}
+            employeeNames={selectedEvent.employeeNames}
+            shifts={shifts.filter((s) => s.scheduledJobId === selectedEvent.id)}
+            onChanged={onShiftsChanged}
+          />
         </div>
 
         {(fieldStatusButtons.length > 0 || showCloseWork || adminActions.length > 0) && (

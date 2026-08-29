@@ -59,3 +59,56 @@ export async function getFieldHoursForCompany(companyId: string): Promise<LigneH
     hours: Number(l.hours),
   }));
 }
+
+/**
+ * Heures PRÉVUES d'une entreprise, ligne par ligne, comme les heures réelles.
+ *
+ * Un employé sans plage tracée hérite des heures du call — c'est le repli qui
+ * fait que les calls existants comptent comme avant, sans qu'on ait inventé
+ * une planification que personne n'a saisie.
+ */
+export async function getPlannedHoursForCompany(companyId: string): Promise<LigneHeures[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+
+  const { data: jobs, error } = await supabase
+    .from("scheduled_jobs")
+    .select("id, title, customer_name, start_at, end_at, employee_ids, employee_names")
+    .eq("company_id", companyId);
+
+  if (error || !jobs?.length) {
+    if (error) console.error("[getPlannedHoursForCompany]", error.message);
+    return [];
+  }
+
+  const { getShiftsForJobs } = await import("@/lib/data/job-shifts-data");
+  const { plageDeLEmploye, dureeEnHeures } = await import("@/lib/job-shifts");
+  const shifts = await getShiftsForJobs(jobs.map((j) => String(j.id)));
+
+  const lignes: LigneHeures[] = [];
+  for (const job of jobs) {
+    const jobId = String(job.id);
+    const ids = (job.employee_ids ?? []) as string[];
+    const noms = (job.employee_names ?? []) as string[];
+    const debut = String(job.start_at);
+    const fin = String(job.end_at);
+    const titre = String(job.title ?? "").trim();
+    const client = String(job.customer_name ?? "").trim();
+    const propres = shifts.filter((s) => s.scheduledJobId === jobId);
+
+    ids.forEach((employeeId, i) => {
+      const p = plageDeLEmploye(employeeId, propres, debut, fin);
+      const heures = dureeEnHeures(p.start, p.end);
+      if (heures <= 0) return;
+      lignes.push({
+        employeeId,
+        employeeName: noms[i] ?? "Employé",
+        scheduledJobId: jobId,
+        jobLabel: [titre, client].filter(Boolean).join(" — ") || "Chantier",
+        workDate: p.start.slice(0, 10),
+        hours: heures,
+      });
+    });
+  }
+  return lignes;
+}
