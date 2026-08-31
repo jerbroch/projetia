@@ -264,7 +264,13 @@ export function EmployeesPageClient({
                       <TableCell>{employee.truckNumber || "—"}</TableCell>
                       <TableCell>
                         <div className="space-y-0.5">
-                          <p className="text-sm">{employee.email}</p>
+                            <p className="text-sm">
+                              {/* Une case vide passerait inaperçue : on montre
+                                  qu'il n'y a PAS d'adresse, pas rien du tout. */}
+                              {employee.email || (
+                                <span className="text-muted-foreground">— aucun courriel</span>
+                              )}
+                            </p>
                           <p className="text-xs text-muted-foreground">{employee.mobilePhone}</p>
                         </div>
                       </TableCell>

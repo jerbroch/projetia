@@ -74,6 +74,9 @@ export function EmployeeForm({
   // Vrai quand le refus vient d'un courriel déjà pris : on propose alors de le
   // transférer, plutôt que d'obliger à vider l'autre fiche puis revenir.
   const [transfertPossible, setTransfertPossible] = useState(false);
+  // Nom du porteur actuel, extrait du refus : le bouton doit dire à QUI on
+  // retire l'adresse, sinon on transfère sans savoir ce qu'on enlève.
+  const [porteurActuel, setPorteurActuel] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -81,6 +84,7 @@ export function EmployeeForm({
       setForm(getDefaultEmployeeFormValues(employee));
       setError("");
         setTransfertPossible(false);
+        setPorteurActuel("");
     }
   }, [open, employee]);
 
@@ -115,7 +119,9 @@ export function EmployeeForm({
       if (!result.success) {
         setError(result.error);
         // Le refus nomme le porteur : c'est ce qui rend le transfert offrable.
-        setTransfertPossible(/déjà utilisé par/.test(result.error));
+        const porteur = /déjà utilisé par ([^.]+)\./.exec(result.error);
+        setTransfertPossible(Boolean(porteur));
+        setPorteurActuel(porteur?.[1]?.trim() ?? "");
         return;
       }
 
@@ -151,7 +157,9 @@ export function EmployeeForm({
                   disabled={isPending}
                   onClick={() => envoyer(true)}
                 >
-                  Transférer ce courriel vers cet employé
+                  {porteurActuel
+          ? `Retirer ce courriel à ${porteurActuel} et le donner ici`
+          : "Transférer ce courriel vers cet employé"}
                 </Button>
               )}
             </div>
