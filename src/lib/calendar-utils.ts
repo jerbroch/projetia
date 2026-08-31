@@ -27,7 +27,56 @@ import type { ScheduleEvent } from "@/types";
 export const CALENDAR_START_HOUR = 5;
 export const CALENDAR_END_HOUR = 22;
 export const HOUR_WIDTH = 64;
-export const ROW_HEIGHT = 80;
+/**
+ * Hauteur d'une ligne d'employé quand un seul call l'occupe.
+ *
+ * 80 px donnait une vue d'ensemble trop courte : six employés à l'écran. 56 px
+ * en montre une dizaine. Le prix est l'adresse du chantier, qui ne tient plus
+ * dans le bloc et n'apparaît qu'à l'ouverture du call.
+ */
+export const ROW_HEIGHT = 56;
+
+/** Marge en haut et en bas d'une ligne. */
+export const LIGNE_PADDING = 4;
+
+/**
+ * Hauteur minimale d'une voie : en dessous, un bloc devient impossible à
+ * viser à la souris et son texte disparaît entièrement.
+ */
+export const VOIE_MIN = 22;
+
+export interface MetriquesDeLigne {
+  /** Hauteur totale de la ligne d'employé. */
+  rowHeight: number;
+  /** Hauteur d'un bloc. */
+  laneHeight: number;
+  /** Décalage vertical du bloc n° `lane`. */
+  top: (lane: number) => number;
+}
+
+/**
+ * Géométrie d'une ligne et de ses blocs, calculée UNE SEULE FOIS.
+ *
+ * La ligne et le bloc utilisaient deux formules différentes — `16 + voies × 32`
+ * d'un côté, `8 + voie × max(28, 64 / voies)` de l'autre. Elles ne pouvaient
+ * pas coïncider : à trois calls superposés le dernier bloc dépassait sa ligne,
+ * et l'alignement se défaisait.
+ *
+ * Ici la ligne s'agrandit pour contenir ses voies plutôt que de les laisser
+ * déborder. Un employé sans chevauchement garde donc une ligne compacte, et
+ * seules les lignes chargées grandissent.
+ */
+export function metriquesDeLigne(laneCount: number): MetriquesDeLigne {
+  const voies = Math.max(1, laneCount);
+  const disponible = ROW_HEIGHT - 2 * LIGNE_PADDING;
+  const laneHeight = Math.max(VOIE_MIN, Math.floor(disponible / voies));
+  const rowHeight = Math.max(ROW_HEIGHT, 2 * LIGNE_PADDING + voies * laneHeight);
+  return {
+    rowHeight,
+    laneHeight,
+    top: (lane: number) => LIGNE_PADDING + lane * laneHeight,
+  };
+}
 export const LEFT_COLUMN_WIDTH = 240;
 export const MIN_JOB_MINUTES = 30;
 export const SNAP_MINUTES = 15;

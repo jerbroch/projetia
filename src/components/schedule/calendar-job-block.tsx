@@ -7,6 +7,7 @@ import { getScheduleBlockAppearance } from "@/lib/schedule-utils";
 import { cn } from "@/lib/utils";
 import {
   HOUR_WIDTH,
+  metriquesDeLigne,
   clampMinutes,
   minutesToTimeValue,
   snapMinutes,
@@ -66,10 +67,22 @@ export function CalendarJobBlock({
   const [apercu, setApercu] = useState<(ApercuPlage & { left?: number }) | null>(null);
   const appearance = getScheduleBlockAppearance(event.status);
 
-  const laneHeight = Math.max(28, Math.floor(64 / laneCount));
-  const top = 8 + lane * laneHeight;
+  // Même source de vérité que la ligne : c'est ce qui garantit que le bloc ne
+  // déborde jamais de la ligne qui le contient.
+  const metriques = metriquesDeLigne(laneCount);
+  const laneHeight = metriques.laneHeight;
+  const top = metriques.top(lane);
+
 
   const enGeste = apercu !== null;
+
+  // Ce qui tient dans la hauteur disponible. Sur une ligne compacte on garde
+  // l'essentiel : ce qu'on fait et quand. Le reste s'obtient en ouvrant le
+  // call. Pendant un geste l'heure passe devant tout : c'est l'information
+  // qu'on cherche en tirant.
+  const afficheHeures = laneHeight >= 30 || enGeste;
+  const afficheClient = laneHeight >= 44 && !enGeste;
+  const afficheDetail = laneHeight >= 64 && !enGeste;
   const gauche = apercu?.left ?? left;
   const largeur = apercu ? largeurEnPixels(apercu) : width;
   const libelleHeures = apercu
@@ -183,19 +196,27 @@ export function CalendarJobBlock({
       onPointerUp={handlePointerUp}
       onPointerCancel={annulerGeste}
     >
-      <div className="pointer-events-none space-y-0.5">
-        {event.jobNumber && (
+      <div className="pointer-events-none space-y-0 leading-tight">
+        {afficheDetail && event.jobNumber && (
           <p className="truncate text-[10px] font-bold opacity-95">{event.jobNumber}</p>
         )}
         <p className="truncate text-[11px] font-semibold leading-tight">{event.title}</p>
-        <p className="truncate text-[10px] opacity-90">{event.customerName}</p>
-        <p className="hidden truncate text-[10px] opacity-80 sm:block">{event.jobSiteAddress ?? event.location}</p>
-        <p
-          data-testid="bloc-heures"
-          className={cn("text-[10px]", enGeste ? "font-bold opacity-100" : "opacity-80")}
-        >
-          {libelleHeures}
-        </p>
+        {afficheClient && (
+          <p className="truncate text-[10px] opacity-90">{event.customerName}</p>
+        )}
+        {afficheDetail && (
+          <p className="hidden truncate text-[10px] opacity-80 sm:block">
+            {event.jobSiteAddress ?? event.location}
+          </p>
+        )}
+        {afficheHeures && (
+          <p
+            data-testid="bloc-heures"
+            className={cn("truncate text-[10px]", enGeste ? "font-bold opacity-100" : "opacity-80")}
+          >
+            {libelleHeures}
+          </p>
+        )}
       </div>
       <div
         data-handle="resize"

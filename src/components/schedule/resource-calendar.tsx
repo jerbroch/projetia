@@ -11,7 +11,7 @@ import {
   subDays,
   subWeeks,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Mail, Phone, User } from "lucide-react";
+import { ChevronLeft, ChevronRight, Phone, User } from "lucide-react";
 import type { Employee, ScheduleEvent } from "@/types";
 import { getEmployeeFullName, getEmployeeInitials } from "@/lib/employee-utils";
 import {
@@ -20,6 +20,7 @@ import {
   HOUR_WIDTH,
   LEFT_COLUMN_WIDTH,
   ROW_HEIGHT,
+  metriquesDeLigne,
   clampMinutes,
   getDayTimelineWidth,
   getEventDayKey,
@@ -150,7 +151,7 @@ export function ResourceCalendar({
     const layout = layoutOverlappingEvents(placed);
     return {
       ...layout,
-      rowHeight: Math.max(ROW_HEIGHT, 16 + layout.laneCount * 32),
+      rowHeight: metriquesDeLigne(layout.laneCount).rowHeight,
     };
   }
 
@@ -313,42 +314,51 @@ export function ResourceCalendar({
                 <div key={rowKey} className="flex border-b">
                   <div
                     className={cn(
-                      "sticky left-0 z-20 shrink-0 border-r bg-background p-3",
+                      "sticky left-0 z-20 shrink-0 border-r bg-background px-2 py-1.5",
                       row.id === null && "bg-amber-50/80 dark:bg-amber-950/20"
                     )}
-                    style={{ width: LEFT_COLUMN_WIDTH, minHeight: rowHeight }}
+                    style={{ width: LEFT_COLUMN_WIDTH, height: rowHeight }}
                   >
                     {row.employee ? (
-                      <div className="space-y-2">
-                        <div className="flex items-start gap-2">
-                          <Avatar className="h-8 w-8">
-                            {row.employee.profilePhoto ? (
-                              <AvatarImage src={row.employee.profilePhoto} alt={row.label} />
-                            ) : null}
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                              {getEmployeeInitials(row.employee)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0 flex-1">
+                      <div className="flex h-full items-center gap-2">
+                        <Avatar className="h-7 w-7 shrink-0">
+                          {row.employee.profilePhoto ? (
+                            <AvatarImage src={row.employee.profilePhoto} alt={row.label} />
+                          ) : null}
+                          <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                            {getEmployeeInitials(row.employee)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
                             <p className="truncate text-sm font-semibold">{row.label}</p>
-                            <p className="truncate text-xs text-muted-foreground">{row.employee.trade}</p>
-                            <p className="text-xs text-muted-foreground">Camion {row.employee.truckNumber || "—"}</p>
+                            <StatusBadge status={row.employee.status} />
                           </div>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {[
+                              row.employee.trade,
+                              row.employee.truckNumber ? `Camion ${row.employee.truckNumber}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ") || "—"}
+                          </p>
                         </div>
-                        <StatusBadge status={row.employee.status} />
-                        <div className="flex gap-1">
+                        <div className="flex shrink-0 gap-0.5">
                           {row.employee.mobilePhone && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                              <a href={`tel:${row.employee.mobilePhone}`} aria-label="Call"><Phone className="h-3.5 w-3.5" /></a>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                              <a href={`tel:${row.employee.mobilePhone}`} aria-label="Call">
+                                <Phone className="h-3 w-3" />
+                              </a>
                             </Button>
                           )}
-                          {row.employee.email && (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" asChild>
-                              <a href={`mailto:${row.employee.email}`} aria-label="Email"><Mail className="h-3.5 w-3.5" /></a>
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEmployeeProfile(row.employee!)} aria-label="Profile">
-                            <User className="h-3.5 w-3.5" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => onEmployeeProfile(row.employee!)}
+                            aria-label="Profile"
+                          >
+                            <User className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
