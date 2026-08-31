@@ -50,6 +50,24 @@ export function apercuRedimensionnement(
 }
 
 /**
+ * Nouveau début pendant un redimensionnement par la GAUCHE.
+ *
+ * La fin sert de point fixe. Le début ne peut pas s'en approcher à moins de
+ * MIN_JOB_MINUTES, sinon tirer trop loin vers la droite dessinerait un bloc
+ * inversé pendant le geste.
+ */
+export function apercuRedimensionnementDebut(
+  startMinutes: number,
+  endMinutes: number,
+  deltaPx: number,
+): ApercuPlage {
+  const debut = clampMinutes(
+    Math.min(endMinutes - MIN_JOB_MINUTES, startMinutes + pixelsEnMinutes(deltaPx)),
+  );
+  return { startMinutes: debut, endMinutes };
+}
+
+/**
  * Nouvelle plage pendant un déplacement.
  *
  * Le début se cale sur la position du curseur — c'est ce que fait

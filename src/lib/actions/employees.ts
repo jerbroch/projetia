@@ -11,6 +11,11 @@ import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { requireTenantContext } from "@/lib/session";
 import { employeeFormSchema } from "@/lib/validations/employees";
 import type { Employee } from "@/types";
+import { getEmployees } from "@/lib/data/tenant-data";
+import {
+  normaliserCourriel,
+  refusCourrielEnDouble,
+} from "@/lib/employee-email-uniqueness";
 
 export type EmployeeActionResult =
   | { success: true; employee: Employee }
@@ -55,6 +60,24 @@ function toEmployeeInput(parsed: NonNullable<ReturnType<typeof parseEmployeeForm
   };
 }
 
+
+/**
+ * Refuse un courriel déjà porté par un autre employé de l'entreprise.
+ *
+ * La vérification lit la liste complète plutôt que d'interroger la base sur
+ * l'adresse : c'est la même source que celle affichée, donc le message ne peut
+ * pas contredire ce que l'utilisateur voit à l'écran.
+ */
+async function refuserSiCourrielPris(
+  companyId: string,
+  email: string | null | undefined,
+  employeIdCourant?: string,
+): Promise<string | null> {
+  if (!normaliserCourriel(email)) return null;
+  const employes = await getEmployees(companyId, false);
+  return refusCourrielEnDouble(email, employes, employeIdCourant);
+}
+
 export async function createEmployeeAction(formData: FormData): Promise<EmployeeActionResult> {
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return safeError("Utilisez le mode démo localement.");
@@ -64,6 +87,12 @@ export async function createEmployeeAction(formData: FormData): Promise<Employee
   if (!parsed.success) {
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
   }
+
+  const doublon = await refuserSiCourrielPris(
+    ctx.company.id,
+    parsed.data.email,
+  );
+  if (doublon) return safeError(doublon);
 
   const { data, error } = await createEmployeeForCompany(ctx.company.id, toEmployeeInput(parsed.data));
 
@@ -104,6 +133,13 @@ export async function updateEmployeeAction(
   if (!parsed.success) {
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
   }
+
+  const doublon = await refuserSiCourrielPris(
+    ctx.company.id,
+    parsed.data.email,
+    employeeId,
+  );
+  if (doublon) return safeError(doublon);
 
   const { data, error } = await updateEmployeeForCompany(
     ctx.company.id,

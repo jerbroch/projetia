@@ -2,11 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   apercuDeplacement,
   apercuRedimensionnement,
+  apercuRedimensionnementDebut,
   gaucheEnPixels,
   largeurEnPixels,
   pixelsEnMinutes,
 } from "./calendar-drag-preview";
-import { HOUR_WIDTH, MIN_JOB_MINUTES, resizeEventEnd } from "@/lib/calendar-utils";
+import {
+  CALENDAR_END_HOUR,
+  CALENDAR_START_HOUR,
+  HOUR_WIDTH,
+  MIN_JOB_MINUTES,
+  resizeEventEnd,
+  resizeEventStart,
+} from "@/lib/calendar-utils";
 import type { ScheduleEvent } from "@/types";
 
 const DEBUT = 9 * 60; // 09:00
@@ -49,7 +57,9 @@ describe("apercuRedimensionnement", () => {
   });
 
   it("reste dans la journée affichée", () => {
-    expect(apercuRedimensionnement(DEBUT, FIN, 50 * HOUR_WIDTH).endMinutes).toBe(20 * 60);
+    expect(apercuRedimensionnement(DEBUT, FIN, 50 * HOUR_WIDTH).endMinutes).toBe(
+      CALENDAR_END_HOUR * 60,
+    );
   });
 
   it("donne le MÊME résultat que l'enregistrement", () => {
@@ -81,7 +91,7 @@ describe("apercuDeplacement", () => {
   });
 
   it("borne le début à la journée affichée", () => {
-    expect(apercuDeplacement(DEBUT, FIN, 2 * 60).startMinutes).toBe(6 * 60);
+    expect(apercuDeplacement(DEBUT, FIN, 2 * 60).startMinutes).toBe(CALENDAR_START_HOUR * 60);
   });
 
   it("conserve une durée minimale sur un bloc dégénéré", () => {
@@ -99,8 +109,58 @@ describe("conversions en pixels", () => {
     expect(largeurEnPixels({ startMinutes: DEBUT, endMinutes: DEBUT })).toBeGreaterThan(0);
   });
 
-  it("place 06:00 à l'origine", () => {
-    expect(gaucheEnPixels(6 * 60)).toBe(0);
-    expect(gaucheEnPixels(7 * 60)).toBe(HOUR_WIDTH);
+  it("place la première heure affichée à l'origine", () => {
+    expect(gaucheEnPixels(CALENDAR_START_HOUR * 60)).toBe(0);
+    expect(gaucheEnPixels((CALENDAR_START_HOUR + 1) * 60)).toBe(HOUR_WIDTH);
+  });
+});
+
+describe("apercuRedimensionnementDebut", () => {
+  it("recule le début vers la gauche", () => {
+    expect(apercuRedimensionnementDebut(DEBUT, FIN, -2 * HOUR_WIDTH)).toEqual({
+      startMinutes: 7 * 60,
+      endMinutes: FIN,
+    });
+  });
+
+  it("avance le début vers la droite", () => {
+    expect(apercuRedimensionnementDebut(DEBUT, FIN, 2 * HOUR_WIDTH).startMinutes).toBe(11 * 60);
+  });
+
+  it("laisse la fin immobile", () => {
+    // C'est ce qui distingue le bord gauche du déplacement : la fin est le
+    // point fixe.
+    for (const delta of [-3 * HOUR_WIDTH, HOUR_WIDTH, 5 * HOUR_WIDTH]) {
+      expect(apercuRedimensionnementDebut(DEBUT, FIN, delta).endMinutes).toBe(FIN);
+    }
+  });
+
+  it("ne franchit jamais la fin", () => {
+    // Sans cette borne, tirer loin vers la droite dessinerait un bloc inversé.
+    const r = apercuRedimensionnementDebut(DEBUT, FIN, 30 * HOUR_WIDTH);
+    expect(r.startMinutes).toBe(FIN - MIN_JOB_MINUTES);
+  });
+
+  it("reste dans la journée affichée", () => {
+    expect(apercuRedimensionnementDebut(DEBUT, FIN, -30 * HOUR_WIDTH).startMinutes).toBe(
+      CALENDAR_START_HOUR * 60,
+    );
+  });
+
+  it("donne le MÊME résultat que l'enregistrement", () => {
+    const jour = new Date(2026, 7, 31);
+    const event = {
+      start: "2026-08-31T13:00:00.000Z",
+      end: "2026-08-31T21:00:00.000Z",
+    } as ScheduleEvent;
+
+    for (const delta of [-HOUR_WIDTH, -3 * HOUR_WIDTH, HOUR_WIDTH, 30 * HOUR_WIDTH]) {
+      const apercu = apercuRedimensionnementDebut(DEBUT, FIN, delta);
+      const enregistre = resizeEventStart(event, DEBUT + pixelsEnMinutes(delta), jour);
+      const debutEnregistre = new Date(enregistre.start);
+      expect(apercu.startMinutes).toBe(
+        debutEnregistre.getHours() * 60 + debutEnregistre.getMinutes(),
+      );
+    }
   });
 });

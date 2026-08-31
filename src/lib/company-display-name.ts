@@ -51,3 +51,18 @@ export function formatCompanyName(nom: string | null | undefined): string {
     })
     .join("");
 }
+
+/**
+ * Même redressement pour un nom de personne.
+ *
+ * Les prénoms et noms sont saisis à la main, souvent tout en minuscules
+ * (« real lanthier »). Affichés tels quels dans une liste d'employés, un
+ * rapport d'heures ou un courriel, ça fait négligé.
+ *
+ * La règle est identique et volontairement timide : dès qu'une majuscule est
+ * présente, on ne touche à rien. « McDonald » et « LeBlanc » gardent leur
+ * forme, et personne ne voit son nom déformé par une correction automatique.
+ */
+export function formatPersonName(nom: string | null | undefined): string {
+  return formatCompanyName(nom);
+}

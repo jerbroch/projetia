@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCompanyName } from "./company-display-name";
+import { formatCompanyName, formatPersonName } from "./company-display-name";
 
 describe("formatCompanyName", () => {
   it("redresse un nom entièrement en minuscules", () => {
@@ -29,5 +29,25 @@ describe("formatCompanyName", () => {
 
   it("conserve l'espacement interne", () => {
     expect(formatCompanyName("béton  express")).toBe("Béton  Express");
+  });
+});
+
+describe("formatPersonName", () => {
+  it("redresse un nom entièrement en minuscules", () => {
+    expect(formatPersonName("real lanthier")).toBe("Real Lanthier");
+    expect(formatPersonName("jerome brochu")).toBe("Jerome Brochu");
+  });
+
+  it("ne touche pas à un nom déjà capitalisé", () => {
+    // « McDonald » ne doit pas devenir « Mcdonald », et « LeBlanc » garder son
+    // B majuscule : personne ne veut voir son nom déformé.
+    expect(formatPersonName("McDonald")).toBe("McDonald");
+    expect(formatPersonName("LeBlanc")).toBe("LeBlanc");
+    expect(formatPersonName("Réal")).toBe("Réal");
+  });
+
+  it("supporte l'absence de nom", () => {
+    expect(formatPersonName(null)).toBe("");
+    expect(formatPersonName("")).toBe("");
   });
 });

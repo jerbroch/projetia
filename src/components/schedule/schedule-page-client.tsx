@@ -22,6 +22,7 @@ import {
   getEventDayKey,
   minutesToTimeValue,
   resizeEventEnd,
+  resizeEventStart,
   updateEventTiming,
   type CalendarView,
 } from "@/lib/calendar-utils";
@@ -316,6 +317,11 @@ export function SchedulePageClient({
     persistEventUpdate(updated);
   }
 
+  function handleEventResizeStart(event: ScheduleEvent, startMinutes: number, day: Date) {
+    const updated = syncEventEmployeeNames(resizeEventStart(event, startMinutes, day), employeeList);
+    persistEventUpdate(updated);
+  }
+
   function handleEventResize(event: ScheduleEvent, endMinutes: number, day: Date) {
     const updated = syncEventEmployeeNames(resizeEventEnd(event, endMinutes, day), employeeList);
     persistEventUpdate(updated);
@@ -357,6 +363,7 @@ export function SchedulePageClient({
         onSlotClick={handleSlotClick}
         onEventClick={openQuickActions}
         onEventMove={handleEventMove}
+        onEventResizeStart={handleEventResizeStart}
         onEventResize={handleEventResize}
         onEmployeeProfile={(employee) => {
           setProfileEmployee(employee);

@@ -35,7 +35,7 @@ import {
   serializeEstimationSnapshotForDb,
 } from "@/lib/quote-cost-utils";
 import type { QuoteCostEstimation } from "@/types";
-import { formatCompanyName } from "@/lib/company-display-name";
+import { formatCompanyName, formatPersonName } from "@/lib/company-display-name";
 
 function adminClient() {
   if (!isSupabaseAdminConfigured()) return null;
@@ -772,8 +772,10 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
   return {
     id: String(row.id),
     companyId: String(row.company_id),
-    firstName: String(row.first_name),
-    lastName: String(row.last_name),
+    // Redressé à l'affichage seulement, comme le nom d'entreprise : la donnée
+    // stockée n'est pas touchée, et un nom déjà capitalisé reste intact.
+    firstName: formatPersonName(String(row.first_name)),
+    lastName: formatPersonName(String(row.last_name)),
     trade: String(row.trade ?? ""),
     mobilePhone: String(row.phone ?? ""),
     email: String(row.email ?? ""),

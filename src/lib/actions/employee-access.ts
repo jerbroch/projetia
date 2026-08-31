@@ -735,6 +735,55 @@ export async function canManageEmployeeAccess(role: string): Promise<boolean> {
  * champs ne rappelle pas le courriel déjà parti, l'activation refuse aussi un
  * employé archivé (voir activateEmployeeAccessAfterConfirmation).
  */
+
+/**
+ * Retire un employé archivé des calls À VENIR, et de ceux-là seulement.
+ *
+ * Quelqu'un qui a quitté l'entreprise ne doit pas rester planifié la semaine
+ * prochaine. Mais les calls passés gardent son nom : c'est l'historique du
+ * travail fait, et le réécrire effacerait qui était sur le chantier.
+ *
+ * Ses plages horaires sur ces calls futurs partent avec lui — une plage sans
+ * assignation ne serait dessinée nulle part, et fausserait le prévu de
+ * /heures en comptant des heures que personne ne fera.
+ */
+async function retirerDesCallsAVenir(companyId: string, employeeId: string): Promise<number> {
+  const admin = createAdminClient();
+  const maintenant = new Date().toISOString();
+
+  const { data: calls } = await admin
+    .from("scheduled_jobs")
+    .select("id, employee_ids, employee_names")
+    .eq("company_id", companyId)
+    .gte("start_at", maintenant)
+    .contains("employee_ids", [employeeId]);
+
+  if (!calls?.length) return 0;
+
+  for (const call of calls) {
+    const ids = (call.employee_ids ?? []) as string[];
+    const noms = (call.employee_names ?? []) as string[];
+    const position = ids.indexOf(employeeId);
+    if (position === -1) continue;
+
+    await admin
+      .from("scheduled_jobs")
+      .update({
+        employee_ids: ids.filter((_, i) => i !== position),
+        employee_names: noms.filter((_, i) => i !== position),
+      })
+      .eq("id", call.id);
+
+    await admin
+      .from("job_employee_shifts")
+      .delete()
+      .eq("scheduled_job_id", call.id)
+      .eq("employee_id", employeeId);
+  }
+
+  return calls.length;
+}
+
 export async function archiveEmployeeAction(employeeId: string): Promise<EmployeeAccessResult> {
   const ctx = await requireAdminContext();
   if (ctx.isDemo) return { success: false, error: "Non disponible en mode démo." };
@@ -757,6 +806,8 @@ export async function archiveEmployeeAction(employeeId: string): Promise<Employe
     await fermerLesSessions(userId);
   }
 
+  await retirerDesCallsAVenir(ctx.company.id, employeeId);
+
   const { data: updated, error } = await updateEmployeeAccessFields(employeeId, ctx.company.id, {
     archived_at: new Date().toISOString(),
     app_access_enabled: false,
@@ -770,6 +821,7 @@ export async function archiveEmployeeAction(employeeId: string): Promise<Employe
   revalidatePath("/employees");
   revalidatePath("/dashboard");
   revalidatePath("/schedule");
+  revalidatePath("/heures");
 
   return { success: true, employee: mapEmployeeRow(updated as Record<string, unknown>) };
 }

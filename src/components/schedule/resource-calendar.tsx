@@ -75,6 +75,7 @@ interface ResourceCalendarProps {
     startMinutes: number,
     day: Date
   ) => void;
+  onEventResizeStart: (event: ScheduleEvent, startMinutes: number, day: Date) => void;
   onEventResize: (event: ScheduleEvent, endMinutes: number, day: Date) => void;
   onEmployeeProfile: (employee: Employee) => void;
 }
@@ -93,6 +94,7 @@ export function ResourceCalendar({
   onSlotClick,
   onEventClick,
   onEventMove,
+  onEventResizeStart,
   onEventResize,
   onEmployeeProfile,
 }: ResourceCalendarProps) {
@@ -406,6 +408,10 @@ export function ResourceCalendar({
                         onResize={(evt, endMinutes) => {
                           const day = parseISO(evt.start);
                           onEventResize(evt, endMinutes, day);
+                        }}
+                        onResizeStart={(evt, startMinutes) => {
+                          const day = parseISO(evt.start);
+                          onEventResizeStart(evt, startMinutes, day);
                         }}
                         getMinutesFromClientX={getMinutesFromClientX}
                         getLeftFromClientX={getLeftFromClientX}

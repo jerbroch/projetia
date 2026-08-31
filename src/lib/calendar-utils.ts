@@ -13,8 +13,19 @@ import {
 } from "@/lib/schedule-timezone";
 import type { ScheduleEvent } from "@/types";
 
-export const CALENDAR_START_HOUR = 6;
-export const CALENDAR_END_HOUR = 20;
+/**
+ * Amplitude affichée par le calendrier.
+ *
+ * 6 h – 20 h laissait des calls hors écran : en construction on part à 5 h
+ * l'été et on finit tard. Un call planifié en dehors existait en base mais
+ * n'apparaissait nulle part — invisible plutôt qu'absent, ce qui est pire.
+ *
+ * 5 h – 22 h porte la journée à 1088 px au lieu de 896. On garde HOUR_WIDTH à
+ * 64 : le rétrécir ferait rentrer plus d'heures à l'écran, mais le pas de
+ * quinze minutes deviendrait trop fin pour être visé à la souris.
+ */
+export const CALENDAR_START_HOUR = 5;
+export const CALENDAR_END_HOUR = 22;
 export const HOUR_WIDTH = 64;
 export const ROW_HEIGHT = 80;
 export const LEFT_COLUMN_WIDTH = 240;
@@ -160,6 +171,21 @@ export function resizeEventEnd(event: ScheduleEvent, endMinutes: number, day: Da
   return {
     ...event,
     end: buildIsoFromDayAndMinutes(day, clampedEnd),
+  };
+}
+
+/**
+ * Recule ou avance le DÉBUT d'un call, la fin ne bougeant pas.
+ *
+ * Symétrique de `resizeEventEnd` : c'est la fin qui sert de point fixe, et le
+ * début qui ne peut jamais la dépasser de moins de MIN_JOB_MINUTES.
+ */
+export function resizeEventStart(event: ScheduleEvent, startMinutes: number, day: Date): ScheduleEvent {
+  const endMinutes = timeToMinutes(event.end);
+  const clampedStart = clampMinutes(Math.min(endMinutes - MIN_JOB_MINUTES, startMinutes));
+  return {
+    ...event,
+    start: buildIsoFromDayAndMinutes(day, clampedStart),
   };
 }
 

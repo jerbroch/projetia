@@ -14,6 +14,8 @@ import {
 import {
   apercuDeplacement,
   apercuRedimensionnement,
+  apercuRedimensionnementDebut,
+  gaucheEnPixels,
   largeurEnPixels,
   type ApercuPlage,
 } from "@/lib/calendar-drag-preview";
@@ -28,6 +30,8 @@ interface CalendarJobBlockProps {
   onClick: (event: ScheduleEvent) => void;
   onMove: (event: ScheduleEvent, sourceEmployeeId: string | null, targetEmployeeId: string | null, startMinutes: number, clientX: number) => void;
   onResize: (event: ScheduleEvent, endMinutes: number) => void;
+  /** Redimensionnement par la gauche : la fin ne bouge pas. */
+  onResizeStart: (event: ScheduleEvent, startMinutes: number) => void;
   getMinutesFromClientX: (clientX: number) => number;
   getEmployeeIdFromClientY: (clientY: number) => string | null;
   /** Position gauche, en pixels, d'un bloc déposé sous ce curseur. */
@@ -44,11 +48,12 @@ export function CalendarJobBlock({
   onClick,
   onMove,
   onResize,
+  onResizeStart,
   getMinutesFromClientX,
   getEmployeeIdFromClientY,
   getLeftFromClientX,
 }: CalendarJobBlockProps) {
-  const interaction = useRef<{ mode: "move" | "resize"; startX: number; startMinutes: number; endMinutes: number; moved: boolean } | null>(null);
+  const interaction = useRef<{ mode: "move" | "resize" | "resize-start"; startX: number; startMinutes: number; endMinutes: number; moved: boolean } | null>(null);
 
   /**
    * Aperçu du geste en cours.
@@ -81,10 +86,18 @@ export function CalendarJobBlock({
   }
 
   function beginResize(e: React.PointerEvent) {
+    demarrerPoignee(e, "resize");
+  }
+
+  function beginResizeStart(e: React.PointerEvent) {
+    demarrerPoignee(e, "resize-start");
+  }
+
+  function demarrerPoignee(e: React.PointerEvent, mode: "resize" | "resize-start") {
     e.stopPropagation();
     const startMinutes = isoToZonedMinutes(event.start);
     const endMinutes = isoToZonedMinutes(event.end);
-    interaction.current = { mode: "resize", startX: e.clientX, startMinutes, endMinutes, moved: false };
+    interaction.current = { mode, startX: e.clientX, startMinutes, endMinutes, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -100,6 +113,18 @@ export function CalendarJobBlock({
       setApercu(
         apercuRedimensionnement(state.startMinutes, state.endMinutes, e.clientX - state.startX),
       );
+      return;
+    }
+
+    if (state.mode === "resize-start") {
+      const plage = apercuRedimensionnementDebut(
+        state.startMinutes,
+        state.endMinutes,
+        e.clientX - state.startX,
+      );
+      // Le bord gauche bouge, donc la position du bloc aussi : sans ce décalage
+      // il s'étirerait vers la gauche sans jamais déplacer son bord.
+      setApercu({ ...plage, left: left + gaucheEnPixels(plage.startMinutes) - gaucheEnPixels(state.startMinutes) });
       return;
     }
 
@@ -128,6 +153,12 @@ export function CalendarJobBlock({
     if (state.mode === "resize") {
       const deltaMinutes = snapMinutes(((e.clientX - state.startX) / HOUR_WIDTH) * 60);
       onResize(event, clampMinutes(state.endMinutes + deltaMinutes));
+      return;
+    }
+
+    if (state.mode === "resize-start") {
+      const deltaMinutes = snapMinutes(((e.clientX - state.startX) / HOUR_WIDTH) * 60);
+      onResizeStart(event, clampMinutes(state.startMinutes + deltaMinutes));
       return;
     }
 
@@ -168,6 +199,16 @@ export function CalendarJobBlock({
       </div>
       <div
         data-handle="resize"
+        title="Reculer ou avancer le début"
+        className="absolute bottom-0 left-0 top-0 w-2 cursor-ew-resize bg-black/10"
+        onPointerDown={beginResizeStart}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={annulerGeste}
+      />
+      <div
+        data-handle="resize"
+        title="Allonger ou raccourcir la fin"
         className="absolute bottom-0 right-0 top-0 w-2 cursor-ew-resize bg-black/10"
         onPointerDown={beginResize}
         onPointerMove={handlePointerMove}
