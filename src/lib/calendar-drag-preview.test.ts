@@ -15,6 +15,7 @@ import {
   resizeEventEnd,
   resizeEventStart,
 } from "@/lib/calendar-utils";
+import { isoToZonedMinutes } from "@/lib/schedule-timezone";
 import type { ScheduleEvent } from "@/types";
 
 const DEBUT = 9 * 60; // 09:00
@@ -74,10 +75,11 @@ describe("apercuRedimensionnement", () => {
     for (const delta of [HOUR_WIDTH, -HOUR_WIDTH, 3 * HOUR_WIDTH, -20 * HOUR_WIDTH]) {
       const apercu = apercuRedimensionnement(DEBUT, FIN, delta);
       const enregistre = resizeEventEnd(event, FIN + pixelsEnMinutes(delta), jour);
-      const finEnregistree = new Date(enregistre.end);
-      const minutes =
-        finEnregistree.getHours() * 60 + finEnregistree.getMinutes();
-      expect(apercu.endMinutes).toBe(minutes);
+        // isoToZonedMinutes lit l'heure DU QUÉBEC, comme toute l'application.
+        // `new Date(...).getHours()` lisait celle de la machine : les tests
+        // passaient chez moi et échouaient en intégration continue, qui tourne
+        // en UTC — 1320 minutes attendues, 1080 reçues.
+        expect(apercu.endMinutes).toBe(isoToZonedMinutes(enregistre.end));
     }
   });
 });
@@ -157,10 +159,7 @@ describe("apercuRedimensionnementDebut", () => {
     for (const delta of [-HOUR_WIDTH, -3 * HOUR_WIDTH, HOUR_WIDTH, 30 * HOUR_WIDTH]) {
       const apercu = apercuRedimensionnementDebut(DEBUT, FIN, delta);
       const enregistre = resizeEventStart(event, DEBUT + pixelsEnMinutes(delta), jour);
-      const debutEnregistre = new Date(enregistre.start);
-      expect(apercu.startMinutes).toBe(
-        debutEnregistre.getHours() * 60 + debutEnregistre.getMinutes(),
-      );
+        expect(apercu.startMinutes).toBe(isoToZonedMinutes(enregistre.start));
     }
   });
 });
