@@ -6,9 +6,9 @@ import {
 } from "./employee-email-uniqueness";
 
 const equipe = [
-  { id: "e1", email: "marc@chantier.ca" },
-  { id: "e2", email: "julie@chantier.ca" },
-  { id: "e3", email: null },
+  { id: "e1", email: "marc@chantier.ca", firstName: "Marc", lastName: "Tremblay" },
+  { id: "e2", email: "julie@chantier.ca", firstName: "Julie", lastName: "Gagnon" },
+  { id: "e3", email: null, firstName: "Réal", lastName: "Lanthier" },
 ];
 
 describe("normaliserCourriel", () => {
@@ -67,5 +67,31 @@ describe("grouperDoublons", () => {
 
   it("ne compte pas les fiches sans adresse comme des doublons", () => {
     expect(grouperDoublons([{ id: "a", email: null }, { id: "b", email: "" }])).toEqual([]);
+  });
+});
+
+describe("le refus nomme le porteur", () => {
+  it("dit QUI détient déjà l'adresse", () => {
+    // « déjà utilisé » sans dire par qui oblige à ouvrir les fiches une par
+    // une pour retrouver le coupable.
+    expect(refusCourrielEnDouble("marc@chantier.ca", equipe)).toContain("Marc Tremblay");
+  });
+
+  it("signale un porteur archivé", () => {
+    // Sinon on le cherche dans une liste où il n'apparaît plus, et le refus
+    // devient incompréhensible.
+    const archives = [
+      { id: "a1", email: "parti@chantier.ca", firstName: "Yves", lastName: "Roy", archivedAt: "2026-08-01" },
+    ];
+    const m = refusCourrielEnDouble("parti@chantier.ca", archives);
+    expect(m).toContain("Yves Roy");
+    expect(m).toContain("archivé");
+  });
+
+  it("reste lisible quand le nom manque", () => {
+    const anonyme = [{ id: "x", email: "sansnom@chantier.ca" }];
+    const m = refusCourrielEnDouble("sansnom@chantier.ca", anonyme);
+    expect(m).toContain("un autre employé");
+    expect(m).not.toContain("undefined");
   });
 });

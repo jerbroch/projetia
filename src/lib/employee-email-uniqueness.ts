@@ -15,6 +15,11 @@
 export interface EmployeeEmailRow {
   id: string;
   email?: string | null;
+  /** Pour nommer le porteur dans le refus : « déjà utilisé » sans dire par qui
+   *  oblige à ouvrir les fiches une par une pour retrouver le coupable. */
+  firstName?: string | null;
+  lastName?: string | null;
+  archivedAt?: string | null;
 }
 
 /** Normalisation utilisée pour la comparaison : casse et espaces ignorés. */
@@ -29,6 +34,11 @@ export function normaliserCourriel(email: string | null | undefined): string {
  * n'en ont pas, et rien ne les oblige à en avoir tant qu'on ne leur donne pas
  * d'accès à l'application.
  */
+function nomComplet(e: EmployeeEmailRow): string {
+  const nom = [e.firstName, e.lastName].filter(Boolean).join(" ").trim();
+  return nom || "un autre employé";
+}
+
 export function refusCourrielEnDouble(
   email: string | null | undefined,
   autres: EmployeeEmailRow[],
@@ -42,7 +52,15 @@ export function refusCourrielEnDouble(
   );
   if (!collision) return null;
 
-  return "Ce courriel est déjà utilisé par un autre employé. Chaque employé doit avoir sa propre adresse, sinon l'invitation à l'application ne peut pas les distinguer.";
+  // On nomme le porteur, et on dit s'il est archivé : sinon on cherche dans
+  // une liste où il n'apparaît plus, et le refus devient incompréhensible.
+  const qui = nomComplet(collision);
+  const ou = collision.archivedAt ? " (employé archivé)" : "";
+  return (
+    `Ce courriel est déjà utilisé par ${qui}${ou}. ` +
+    "Chaque employé doit avoir sa propre adresse, sinon l'invitation à " +
+    "l'application ne peut pas les distinguer."
+  );
 }
 
 /**
