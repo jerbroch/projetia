@@ -4,6 +4,21 @@ import { useState } from "react";
 import { Wrench } from "lucide-react";
 import { AssignToolDialog } from "@/components/outillage/assign-tool-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Employee, ToolListItem, ToolWithDetails } from "@/types";
 
 interface JobToolsSectionProps {
@@ -32,10 +47,13 @@ export function JobToolsSection({
   onAssigned,
 }: JobToolsSectionProps) {
   const [ouvert, setOuvert] = useState(false);
-  const [outilChoisi, setOutilChoisi] = useState<ToolListItem | undefined>();
+  const [choixOuvert, setChoixOuvert] = useState(false);
+  const [outilId, setOutilId] = useState("");
 
   const sortisPourCeCall = tools.filter((t) => t.currentScheduledJobId === jobId);
   const disponibles = tools.filter((t) => t.effectiveStatus === "available");
+
+  const outilChoisi = tools.find((t) => t.id === outilId);
 
   const nomDe = (employeeId?: string | null) => {
     const e = employees.find((x) => x.id === employeeId);
@@ -53,8 +71,11 @@ export function JobToolsSection({
           variant="outline"
           disabled={disponibles.length === 0}
           onClick={() => {
-            setOutilChoisi(disponibles[0]);
-            setOuvert(true);
+            // On ouvre d'abord le CHOIX de l'outil. Sans cette étape, la
+            // fenêtre s'ouvrait sur le premier outil libre sans jamais laisser
+            // décider lequel sortait du magasin.
+            setOutilId("");
+            setChoixOuvert(true);
           }}
         >
           Assigner un outil
@@ -79,6 +100,45 @@ export function JobToolsSection({
           ))}
         </ul>
       )}
+
+      <Dialog open={choixOuvert} onOpenChange={setChoixOuvert}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quel outil sort pour ce chantier&nbsp;?</DialogTitle>
+            <DialogDescription>
+              {disponibles.length} outil{disponibles.length > 1 ? "s" : ""} disponible
+              {disponibles.length > 1 ? "s" : ""} au magasin.
+            </DialogDescription>
+          </DialogHeader>
+          <Select value={outilId} onValueChange={setOutilId}>
+            <SelectTrigger aria-label="Outil à assigner">
+              <SelectValue placeholder="Sélectionner un outil" />
+            </SelectTrigger>
+            <SelectContent>
+              {disponibles.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                  {t.internalNumber ? ` (${t.internalNumber})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setChoixOuvert(false)}>
+              Annuler
+            </Button>
+            <Button
+              disabled={!outilId}
+              onClick={() => {
+                setChoixOuvert(false);
+                setOuvert(true);
+              }}
+            >
+              Continuer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AssignToolDialog
         open={ouvert}
