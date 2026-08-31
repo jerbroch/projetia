@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ligneAvecAutreGabarit,
   lignesDeMainOeuvre,
   lignesDeMateriaux,
   lignesQueLImportEcraserait,
@@ -137,5 +138,43 @@ describe("un réimport ne facture jamais deux fois", () => {
   it("laisse passer une proposition sans recoupement", () => {
     const couvertes = new Set(["1","2"]);
     expect(["3","4"].some((id) => couvertes.has(id))).toBe(false);
+  });
+});
+
+describe("ligneAvecAutreGabarit", () => {
+  it("recalcule le prix sans toucher aux heures", () => {
+    // Les heures viennent du terrain et ne se discutent pas. Seul le TAUX est
+    // une décision de bureau.
+    const r = ligneAvecAutreGabarit(11, { id: "g2", name: "Temps supplémentaire", billRate: 142.5 });
+    expect(r.unitSellPrice).toBe(142.5);
+    expect(r.lineTotal).toBe(1567.5);
+    expect(r.prixAsaisir).toBe(false);
+  });
+
+  it("signale un gabarit sans taux facturable", () => {
+    expect(ligneAvecAutreGabarit(8, { id: "g3", name: "Interne", billRate: 0 })).toEqual({
+      unitSellPrice: 0,
+      lineTotal: 0,
+      prixAsaisir: true,
+    });
+  });
+
+  it("supporte l'absence de gabarit", () => {
+    expect(ligneAvecAutreGabarit(8, null).prixAsaisir).toBe(true);
+  });
+
+  it("arrondit au cent", () => {
+    expect(ligneAvecAutreGabarit(3.33, { id: "g", name: "x", billRate: 99.99 }).lineTotal).toBe(332.97);
+  });
+});
+
+describe("la ligne importée retient son gabarit", () => {
+  it("porte l'identifiant, pour pouvoir en changer ensuite", () => {
+    const r = lignesDeMainOeuvre([h("1", "e1", "Marc", 8)], GABARIT);
+    expect(r[0].laborTemplateId).toBe("g1");
+  });
+
+  it("le laisse vide quand aucun gabarit ne s'applique", () => {
+    expect(lignesDeMainOeuvre([h("1", "e1", "Marc", 8)], null)[0].laborTemplateId).toBeNull();
   });
 });

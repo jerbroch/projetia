@@ -55,6 +55,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FieldImportBanner } from "@/components/billing/field-import-banner";
+import { changerGabaritLigneAction } from "@/lib/actions/billing-field-import";
 import { formatCurrency } from "@/lib/utils";
 import type {
   Company,
@@ -514,6 +515,16 @@ export function JobBillingDialog({
   const isInvoiced = sheet?.status === "invoiced";
   const isLocked = isInvoiced && !archiveMode;
 
+  // Le terrain dit COMBIEN d'heures ; la facturation dit À QUEL TAUX. Changer
+  // le gabarit d'une ligne est donc une décision de bureau, prise en facturant.
+  function appliquerGabarit(lineId: string, templateId: string) {
+    startTransition(async () => {
+      const r = await changerGabaritLigneAction({ jobId: event.id, lineId, templateId });
+      if (!r.success) { setError(r.error); return; }
+      await loadSheet();
+    });
+  }
+
   return (
     <Dialog
       open={open}
@@ -588,7 +599,7 @@ export function JobBillingDialog({
                             <SelectValue placeholder="Choisir un modèle" />
                           </SelectTrigger>
                           <SelectContent>
-                            {laborTemplates.map((t) => (
+                            {laborTemplates.map((t: LaborRateTemplate) => (
                               <SelectItem key={t.id} value={t.id}>
                                 {t.name}
                                 {showPrices && ` — ${formatLaborBillRate(t.billRate)}`}
@@ -682,6 +693,8 @@ export function JobBillingDialog({
                   onUpdatePrice={showPrices ? handleUpdateLinePrice : undefined}
                   disabled={isLocked}
                   showPrices={showPrices}
+                  laborTemplates={laborTemplates}
+                  onChangeTemplate={appliquerGabarit}
                 />
               </TabsContent>
 
@@ -828,6 +841,8 @@ export function JobBillingDialog({
                   disabled={isLocked}
                   showPrices={showPrices}
                   materialOnly
+                  laborTemplates={laborTemplates}
+                  onChangeTemplate={appliquerGabarit}
                 />
               </TabsContent>
             </Tabs>
@@ -935,6 +950,8 @@ function BillingLinesTable({
   disabled,
   showPrices,
   materialOnly,
+  laborTemplates = [],
+  onChangeTemplate,
 }: {
   lines: JobBillingLine[];
   onRemove: (id: string) => void;
@@ -942,6 +959,9 @@ function BillingLinesTable({
   disabled?: boolean;
   showPrices?: boolean;
   materialOnly?: boolean;
+  /** Gabarits proposés sur chaque ligne de main-d'œuvre. */
+  laborTemplates?: LaborRateTemplate[];
+  onChangeTemplate?: (lineId: string, templateId: string) => void;
 }) {
   const [editingPrice, setEditingPrice] = useState<Record<string, string>>({});
 
@@ -983,6 +1003,24 @@ function BillingLinesTable({
                   <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
                     prix à saisir
                   </span>
+                )}
+                {line.lineType === "labor" && laborTemplates.length > 1 && (
+                  <select
+                    aria-label={`Gabarit — ${line.description}`}
+                    className="mt-1 block w-full rounded border bg-background px-1 py-0.5 text-xs"
+                    value={line.laborTemplateId ?? ""}
+                    onChange={(e) => onChangeTemplate?.(line.id, e.target.value)}
+                    disabled={disabled}
+                  >
+                    <option value="" disabled>
+                      Choisir un taux
+                    </option>
+                    {laborTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} — {formatCurrency(t.billRate)}/h
+                      </option>
+                    ))}
+                  </select>
                 )}
               </td>
               <td className="p-2 text-right">{line.quantity}</td>
