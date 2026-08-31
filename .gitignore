@@ -52,3 +52,8 @@ next-env.d.ts
 /.windsurf/
 /skills-lock.json
 .e2e-run.lock
+
+# Artefacts Playwright
+/test-results/
+/playwright-report/
+/blob-report/

@@ -57,6 +57,8 @@ export interface LigneProposee {
   unitSellPrice: number;
   sourceKind: "field_hours" | "field_material";
   sourceIds: string[];
+  /** Gabarit appliqué à une ligne de main-d'œuvre, pour pouvoir le changer. */
+  laborTemplateId?: string | null;
   /** Vrai quand aucun prix n'a pu être déterminé — à saisir avant d'envoyer. */
   prixAsaisir: boolean;
 }
@@ -91,6 +93,7 @@ export function lignesDeMainOeuvre(
       unitSellPrice: gabarit?.billRate ?? 0,
       sourceKind: "field_hours" as const,
       sourceIds: e.ids,
+      laborTemplateId: gabarit?.id ?? null,
       prixAsaisir: !gabarit || gabarit.billRate <= 0,
     }))
     .sort((a, b) => a.description.localeCompare(b.description, "fr"));
@@ -183,5 +186,24 @@ export function resumeDesHeures(
     reel: arrondi(reel),
     ecart: arrondi(reel - prevu),
     nonImportees: arrondi(nonImportees),
+  };
+}
+
+/**
+ * Nouveau prix d'une ligne quand on lui applique un autre gabarit.
+ *
+ * Changer de gabarit est une DÉCISION DE BUREAU : c'est en facturant qu'on
+ * tranche entre régulier et temps supplémentaire, pas au moment où le gars
+ * saisit ses heures. Le nombre d'heures ne bouge pas — seul le taux change.
+ */
+export function ligneAvecAutreGabarit(
+  quantity: number,
+  gabarit: GabaritMainOeuvre | null,
+): { unitSellPrice: number; lineTotal: number; prixAsaisir: boolean } {
+  const taux = gabarit?.billRate ?? 0;
+  return {
+    unitSellPrice: taux,
+    lineTotal: Math.round(quantity * taux * 100) / 100,
+    prixAsaisir: taux <= 0,
   };
 }

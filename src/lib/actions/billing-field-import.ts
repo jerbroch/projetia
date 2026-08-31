@@ -148,6 +148,7 @@ export async function importerTerrainAction(input: {
         line_total: Math.round(p.quantity * p.unitSellPrice * 100) / 100,
         source_kind: p.sourceKind,
         source_ids: p.sourceIds,
+        labor_template_id: p.laborTemplateId ?? null,
         manually_edited: false,
         sort_order: depart + i,
       })),
@@ -165,4 +166,73 @@ export async function importerTerrainAction(input: {
   revalidatePath("/invoices");
   revalidatePath("/schedule");
   return { success: true, importees: aInserer.length };
+}
+
+/**
+ * Applique un autre gabarit de main-d'œuvre à une ligne.
+ *
+ * C'est la décision de bureau : le terrain dit COMBIEN d'heures, la
+ * facturation dit À QUEL TAUX. Un même employé peut donc avoir des heures
+ * régulières et des heures supplémentaires sur le même chantier, en scindant
+ * la ligne ou en changeant son gabarit.
+ *
+ * Le changement marque la ligne comme retouchée : un réimport devra demander
+ * avant de l'écraser, comme pour toute correction manuelle.
+ */
+export async function changerGabaritLigneAction(input: {
+  jobId: string;
+  lineId: string;
+  templateId: string;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const ctx = await requireTenantContext();
+  if (ctx.isDemo) return { success: false, error: "Non disponible en mode démo." };
+  if (!isSupabaseConfigured()) return { success: false, error: "Supabase n'est pas configuré." };
+
+  const sheet = await getJobBillingSheet(ctx.company.id, input.jobId);
+  const ligne = sheet?.lines.find((l) => l.id === input.lineId);
+  if (!sheet || !ligne) return { success: false, error: "Ligne introuvable." };
+  if (ligne.lineType !== "labor") {
+    return { success: false, error: "Un gabarit ne s'applique qu'à une ligne de main-d'œuvre." };
+  }
+
+  const gabarits = await getLaborRateTemplates(ctx.company.id);
+  const gabarit = gabarits.find((g) => g.id === input.templateId);
+  if (!gabarit) return { success: false, error: "Gabarit introuvable." };
+
+  const { ligneAvecAutreGabarit } = await import("@/lib/billing-field-import");
+  const calcul = ligneAvecAutreGabarit(ligne.quantity, {
+    id: gabarit.id,
+    name: gabarit.name,
+    billRate: gabarit.billRate,
+  });
+
+  // La description porte le nom du gabarit : on la remet à jour, sinon la
+  // ligne dirait « régulier » tout en facturant le temps supplémentaire.
+  const nom = ligne.description.split(" — ")[0];
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("job_billing_lines")
+    .update({
+      labor_template_id: gabarit.id,
+      description: `${nom} — ${gabarit.name}`,
+      unit_sell_price: calcul.unitSellPrice,
+      line_total: calcul.lineTotal,
+      manually_edited: true,
+    })
+    .eq("id", input.lineId)
+    .eq("company_id", ctx.company.id);
+
+  if (error) {
+    console.error("[changerGabaritLigneAction]", error.message);
+    return { success: false, error: "Impossible d'appliquer ce gabarit." };
+  }
+
+  const { recalculateBillingSheetTotals } = await import("@/lib/data/billing-data");
+  await recalculateBillingSheetTotals(ctx.company.id, sheet.id, ctx.company);
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/invoices");
+  revalidatePath("/schedule");
+  return { success: true };
 }
