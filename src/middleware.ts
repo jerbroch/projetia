@@ -3,27 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { PASSWORD_SETUP_PATH, shouldForcePasswordSetup } from "@/lib/password-setup-gate";
 import { CHEMINS_DE_PORTE, porteDeProfil } from "@/lib/profile-access-gate";
 import {
+  TENANT_PREFIXES,
   chargerStatutDeProfil,
   resolvePostLoginPath,
   shouldBlockTenantRoute,
   shouldRedirectFieldEmployeeFromAdmin,
 } from "@/lib/middleware-access";
 
-const TENANT_PREFIXES = [
-  "/dashboard",
-  "/customers",
-  "/quotes",
-  "/invoices",
-  "/schedule",
-  "/archives",
-  "/reviews",
-  "/employees",
-  "/heures",
-  "/payments",
-  "/settings",
-  "/outillage",
-  "/terrain",
-];
+// Importées : une seule source pour ce qui exige une session et ce qui est
+// réservé au bureau (voir middleware-access.ts).
 
 const PROTECTED_PREFIXES = [...TENANT_PREFIXES, "/onboarding", "/admin"];
 

@@ -136,7 +136,13 @@ export async function resolvePostLoginPath(
   return "/choose-plan";
 }
 
-const ADMIN_TENANT_PREFIXES = [
+/**
+ * Routes de l'espace locataire, dans l'ordre où elles apparaissent.
+ *
+ * Source unique : le middleware l'importe pour décider ce qui exige une
+ * session, et la liste d'administration en DÉRIVE.
+ */
+export const TENANT_PREFIXES = [
   "/dashboard",
   "/customers",
   "/quotes",
@@ -145,10 +151,26 @@ const ADMIN_TENANT_PREFIXES = [
   "/archives",
   "/reviews",
   "/employees",
-  "/payments",
-  "/settings",
   "/outillage",
+  "/payments",
+  "/heures",
+  "/settings",
+  "/terrain",
 ];
+
+/** Le seul espace ouvert aux employés de terrain. */
+export const FIELD_PREFIXES = ["/terrain"];
+
+/**
+ * Tout le reste est réservé au bureau — par DÉRIVATION, jamais par recopie.
+ *
+ * Cette liste était tenue à la main en parallèle de celle du middleware. En
+ * ajoutant /heures j'ai oublié de la mettre à jour, et un employé de terrain
+ * pouvait consulter les heures de TOUS ses collègues en tapant l'adresse.
+ * Une nouvelle route est désormais réservée au bureau par défaut : l'oubli
+ * ferme au lieu d'ouvrir.
+ */
+const ADMIN_TENANT_PREFIXES = TENANT_PREFIXES.filter((p) => !FIELD_PREFIXES.includes(p));
 
 export function isAdminTenantRoute(pathname: string): boolean {
   return ADMIN_TENANT_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
