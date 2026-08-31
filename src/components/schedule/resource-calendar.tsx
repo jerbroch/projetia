@@ -20,7 +20,7 @@ import {
   HOUR_WIDTH,
   LEFT_COLUMN_WIDTH,
   ROW_HEIGHT,
-  type CalendarView,
+  clampMinutes,
   getDayTimelineWidth,
   getEventDayKey,
   getEventPositionForDay,
@@ -31,6 +31,7 @@ import {
   layoutOverlappingEvents,
   pxToMinutes,
   pxToMinutesInWeek,
+  type CalendarView,
   type PlacedEvent,
 } from "@/lib/calendar-utils";
 import { CalendarJobBlock } from "@/components/schedule/calendar-job-block";
@@ -48,6 +49,7 @@ import {
 import { filterScheduleCalendarEvents } from "@/lib/schedule-utils";
 import { calendarDayKey } from "@/lib/schedule-timezone";
 import { cn } from "@/lib/utils";
+import { gaucheEnPixels } from "@/lib/calendar-drag-preview";
 
 export interface ScheduleFilters {
   workerId: string;
@@ -185,6 +187,23 @@ export function ResourceCalendar({
       return pxToMinutesInWeek(x, dayIndex);
     }
     return pxToMinutes(x);
+  }
+
+  /**
+   * Position gauche du bloc s'il était déposé sous ce curseur.
+   *
+   * Calculée à partir des minutes ARRONDIES, comme l'enregistrement : rendre
+   * la position brute du curseur ferait glisser le bloc en continu puis sauter
+   * au quart d'heure le plus proche au relâchement.
+   */
+  function getLeftFromClientX(clientX: number): number {
+    const x = getTimelineX(clientX);
+    if (view === "week") {
+      const dayIndex = getWeekDayIndexFromPx(x);
+      const minutes = clampMinutes(pxToMinutesInWeek(x, dayIndex));
+      return dayIndex * getDayTimelineWidth() + gaucheEnPixels(minutes);
+    }
+    return gaucheEnPixels(clampMinutes(pxToMinutes(x)));
   }
 
   function getEmployeeIdFromClientY(clientY: number): string | null {
@@ -389,6 +408,7 @@ export function ResourceCalendar({
                           onEventResize(evt, endMinutes, day);
                         }}
                         getMinutesFromClientX={getMinutesFromClientX}
+                        getLeftFromClientX={getLeftFromClientX}
                         getEmployeeIdFromClientY={getEmployeeIdFromClientY}
                       />
                     ))}

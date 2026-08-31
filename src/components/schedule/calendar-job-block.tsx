@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ScheduleEvent } from "@/types";
 import { isoToLocalDateTime, isoToZonedMinutes } from "@/lib/schedule-timezone";
 import { getScheduleBlockAppearance } from "@/lib/schedule-utils";
@@ -8,8 +8,15 @@ import { cn } from "@/lib/utils";
 import {
   HOUR_WIDTH,
   clampMinutes,
+  minutesToTimeValue,
   snapMinutes,
 } from "@/lib/calendar-utils";
+import {
+  apercuDeplacement,
+  apercuRedimensionnement,
+  largeurEnPixels,
+  type ApercuPlage,
+} from "@/lib/calendar-drag-preview";
 
 interface CalendarJobBlockProps {
   event: ScheduleEvent;
@@ -23,6 +30,8 @@ interface CalendarJobBlockProps {
   onResize: (event: ScheduleEvent, endMinutes: number) => void;
   getMinutesFromClientX: (clientX: number) => number;
   getEmployeeIdFromClientY: (clientY: number) => string | null;
+  /** Position gauche, en pixels, d'un bloc déposé sous ce curseur. */
+  getLeftFromClientX: (clientX: number) => number;
 }
 
 export function CalendarJobBlock({
@@ -37,12 +46,30 @@ export function CalendarJobBlock({
   onResize,
   getMinutesFromClientX,
   getEmployeeIdFromClientY,
+  getLeftFromClientX,
 }: CalendarJobBlockProps) {
   const interaction = useRef<{ mode: "move" | "resize"; startX: number; startMinutes: number; endMinutes: number; moved: boolean } | null>(null);
+
+  /**
+   * Aperçu du geste en cours.
+   *
+   * Il est en ÉTAT, pas en référence : c'est tout le correctif. L'état du
+   * geste vivait dans `interaction`, et muter une référence ne déclenche aucun
+   * rendu — le bloc ne pouvait donc pas suivre la souris, et l'heure
+   * n'apparaissait qu'au relâchement.
+   */
+  const [apercu, setApercu] = useState<(ApercuPlage & { left?: number }) | null>(null);
   const appearance = getScheduleBlockAppearance(event.status);
 
   const laneHeight = Math.max(28, Math.floor(64 / laneCount));
   const top = 8 + lane * laneHeight;
+
+  const enGeste = apercu !== null;
+  const gauche = apercu?.left ?? left;
+  const largeur = apercu ? largeurEnPixels(apercu) : width;
+  const libelleHeures = apercu
+    ? `${minutesToTimeValue(apercu.startMinutes)} – ${minutesToTimeValue(apercu.endMinutes)}`
+    : `${isoToLocalDateTime(event.start).time} – ${isoToLocalDateTime(event.end).time}`;
 
   function beginMove(e: React.PointerEvent) {
     if ((e.target as HTMLElement).dataset.handle === "resize") return;
@@ -62,16 +89,36 @@ export function CalendarJobBlock({
   }
 
   function handlePointerMove(e: React.PointerEvent) {
-    if (!interaction.current) return;
-    if (Math.abs(e.clientX - interaction.current.startX) > 4) {
-      interaction.current.moved = true;
+    const state = interaction.current;
+    if (!state) return;
+    if (Math.abs(e.clientX - state.startX) > 4) {
+      state.moved = true;
     }
+    if (!state.moved) return;
+
+    if (state.mode === "resize") {
+      setApercu(
+        apercuRedimensionnement(state.startMinutes, state.endMinutes, e.clientX - state.startX),
+      );
+      return;
+    }
+
+    setApercu({
+      ...apercuDeplacement(state.startMinutes, state.endMinutes, getMinutesFromClientX(e.clientX)),
+      left: getLeftFromClientX(e.clientX),
+    });
+  }
+
+  function annulerGeste() {
+    interaction.current = null;
+    setApercu(null);
   }
 
   function handlePointerUp(e: React.PointerEvent) {
     if (!interaction.current) return;
     const state = interaction.current;
     interaction.current = null;
+    setApercu(null);
 
     if (!state.moved && state.mode === "move") {
       onClick(event);
@@ -93,13 +140,17 @@ export function CalendarJobBlock({
     <div
       data-event-id={event.id}
       className={cn(
-        "absolute z-10 overflow-hidden rounded-md border px-2 py-1 shadow-sm transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing",
+        "absolute overflow-hidden rounded-md border px-2 py-1 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing",
+        // Pendant le geste on passe au-dessus des voisins et on coupe la
+        // transition : une animation ferait traîner le bloc derrière la souris.
+        enGeste ? "z-30 shadow-lg ring-2 ring-primary/60" : "z-10 transition-shadow",
         appearance.className
       )}
-      style={{ left, width, top, height: laneHeight }}
+      style={{ left: gauche, width: largeur, top, height: laneHeight }}
       onPointerDown={beginMove}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={annulerGeste}
     >
       <div className="pointer-events-none space-y-0.5">
         {event.jobNumber && (
@@ -108,8 +159,11 @@ export function CalendarJobBlock({
         <p className="truncate text-[11px] font-semibold leading-tight">{event.title}</p>
         <p className="truncate text-[10px] opacity-90">{event.customerName}</p>
         <p className="hidden truncate text-[10px] opacity-80 sm:block">{event.jobSiteAddress ?? event.location}</p>
-        <p className="text-[10px] opacity-80">
-          {isoToLocalDateTime(event.start).time} – {isoToLocalDateTime(event.end).time}
+        <p
+          data-testid="bloc-heures"
+          className={cn("text-[10px]", enGeste ? "font-bold opacity-100" : "opacity-80")}
+        >
+          {libelleHeures}
         </p>
       </div>
       <div
@@ -118,6 +172,7 @@ export function CalendarJobBlock({
         onPointerDown={beginResize}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerCancel={annulerGeste}
       />
     </div>
   );
