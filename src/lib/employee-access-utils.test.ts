@@ -82,7 +82,7 @@ describe("validateEmployeeAccessEmail", () => {
           employeeId: null,
         },
       })
-    ).toMatch(/administrateur ou bureau/i);
+    ).toMatch(/accès bureau/i);
   });
 
   it("rejects linking to another employee profile", () => {
@@ -111,5 +111,75 @@ describe("getEmployeeAppAccessStatusLabel", () => {
     expect(getEmployeeAppAccessStatusLabel("pending")).toBe("Invitation en attente");
     expect(getEmployeeAppAccessStatusLabel("active")).toBe("Accès actif");
     expect(getEmployeeAppAccessStatusLabel("inactive")).toBe("Accès désactivé");
+  });
+});
+
+
+describe("le refus nomme ce qui bloque", () => {
+  const base = {
+    employeeEmail: "partage@chantier.ca",
+    adminUserId: "admin-1",
+    adminEmail: "patron@chantier.ca",
+    companyId: "co-1",
+    employeeId: "emp-1",
+  };
+
+  it("nomme l'entreprise quand le compte est ailleurs", () => {
+    // « Ce courriel est déjà utilisé par un autre compte » ne disait ni où ni
+    // par qui : devant ce message, on ne peut ni corriger ni décider.
+    const message = validateEmployeeAccessEmail({
+      ...base,
+      existingProfile: {
+        id: "u-9",
+        companyId: "co-2",
+        role: "owner",
+        employeeId: null,
+        companyName: "Construction Brochu",
+        personName: "Jérôme Brochu",
+      },
+    });
+    expect(message).toContain("Construction Brochu");
+    expect(message).toContain("Jérôme Brochu");
+    // Aucun transfert possible : ce compte ne lui appartient pas.
+    expect(message).toMatch(/une autre/i);
+  });
+
+  it("reste lisible quand le nom d'entreprise manque", () => {
+    const message = validateEmployeeAccessEmail({
+      ...base,
+      existingProfile: { id: "u-9", companyId: "co-2", role: "owner", employeeId: null },
+    });
+    expect(message).toContain("une autre entreprise");
+    expect(message).not.toContain("undefined");
+    expect(message).not.toContain("null");
+  });
+
+  it("nomme la personne d'un accès bureau", () => {
+    const message = validateEmployeeAccessEmail({
+      ...base,
+      existingProfile: {
+        id: "u-2",
+        companyId: "co-1",
+        role: "admin",
+        employeeId: null,
+        personName: "Marie Dubois",
+      },
+    });
+    expect(message).toContain("Marie Dubois");
+  });
+
+  it("nomme la fiche employé déjà liée", () => {
+    const message = validateEmployeeAccessEmail({
+      ...base,
+      existingProfile: {
+        id: "u-3",
+        companyId: "co-1",
+        role: "employee",
+        employeeId: "emp-autre",
+        personName: "Réal Lanthier",
+      },
+    });
+    expect(message).toContain("Réal Lanthier");
+    expect(message).toMatch(/Retirez-le/i);
   });
 });

@@ -48,6 +48,14 @@ export type ExistingProfileForAccess = {
   companyId: string;
   role: ProfileRole;
   employeeId: string | null;
+  /**
+   * De quoi NOMMER ce qui bloque. « Ce courriel est déjà utilisé par un autre
+   * compte » ne dit ni où ni par qui : devant ce message, on ne peut ni
+   * corriger ni décider. Ces deux champs existent pour que le refus soit
+   * actionnable.
+   */
+  companyName?: string | null;
+  personName?: string | null;
 };
 
 export function validateEmployeeAccessEmail(params: {
@@ -76,16 +84,32 @@ export function validateEmployeeAccessEmail(params: {
     return "Ce courriel correspond à votre compte administrateur. Utilisez un courriel distinct pour l'employé.";
   }
 
+  const qui = profile.personName?.trim();
+
   if (profile.companyId !== params.companyId) {
-    return "Ce courriel est déjà utilisé par un autre compte.";
+    // Un compte d'une AUTRE entreprise. Rien à transférer ici : il ne vous
+    // appartient pas. La seule issue est une autre adresse — autant le dire.
+    const ou = profile.companyName?.trim();
+    return (
+      `Ce courriel sert déjà de compte${ou ? ` à l'entreprise « ${ou} »` : " sur une autre entreprise"}` +
+      `${qui ? ` (${qui})` : ""}. Une adresse ne peut servir qu'à un seul compte : ` +
+      "donnez-en une autre à cet employé."
+    );
   }
 
   if (isOfficeRole(profile.role)) {
-    return "Ce courriel est déjà utilisé par un compte administrateur ou bureau.";
+    return (
+      `Ce courriel est celui d'un accès bureau${qui ? ` — ${qui}` : ""}. ` +
+      "Un même compte ne peut pas être à la fois au bureau et sur le terrain : " +
+      "donnez une adresse distincte à cet employé."
+    );
   }
 
   if (profile.employeeId && profile.employeeId !== params.employeeId) {
-    return "Ce courriel est déjà lié à un autre employé.";
+    return (
+      `Ce courriel est déjà lié à la fiche${qui ? ` de ${qui}` : " d'un autre employé"}. ` +
+      "Retirez-le de cette fiche avant de le donner ici."
+    );
   }
 
   return null;

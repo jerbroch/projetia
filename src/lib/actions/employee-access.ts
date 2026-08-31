@@ -18,6 +18,7 @@ import {
 import { sendEmployeeInvitationEmail } from "@/lib/email/send-employee-invitation";
 import type { Employee, ProfileRole } from "@/types";
 import { getEmployees } from "@/lib/data/tenant-data";
+import { formatCompanyName, formatPersonName } from "@/lib/company-display-name";
 import {
   normaliserCourriel,
   refusCourrielEnDouble,
@@ -37,6 +38,13 @@ function mapExistingProfile(row: Record<string, unknown>): ExistingProfileForAcc
     companyId: String(row.company_id),
     role: row.role as ProfileRole,
     employeeId: row.employee_id ? String(row.employee_id) : null,
+    companyName: row.company_name ? String(row.company_name) : null,
+    personName:
+      [row.first_name, row.last_name]
+        .filter(Boolean)
+        .map((n) => formatPersonName(String(n)))
+        .join(" ")
+        .trim() || null,
   };
 }
 
@@ -57,11 +65,25 @@ async function loadExistingProfileByEmail(email: string) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("profiles")
-    .select("id, company_id, role, employee_id")
+    .select("id, company_id, role, employee_id, first_name, last_name")
     .eq("email", email)
     .maybeSingle();
 
-  return data ? mapExistingProfile(data as Record<string, unknown>) : null;
+  if (!data) return null;
+
+  // Le nom de l'entreprise n'est pas sur le profil : sans cette lecture, le
+  // refus dirait « une autre entreprise » sans jamais dire laquelle.
+  let companyName: string | null = null;
+  if (data.company_id) {
+    const { data: co } = await admin
+      .from("companies")
+      .select("name")
+      .eq("id", data.company_id)
+      .maybeSingle();
+    companyName = co?.name ? formatCompanyName(String(co.name)) : null;
+  }
+
+  return mapExistingProfile({ ...data, company_name: companyName });
 }
 
 async function ensureEmployeeProfileAndMembership(params: {

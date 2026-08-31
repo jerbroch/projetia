@@ -70,6 +70,10 @@ export function EmployeeProfilePanel({
   const [selectedToolId, setSelectedToolId] = useState("");
   const [, startTransition] = useTransition();
 
+  // Les trois actions d'accès laissaient tomber leur message d'erreur : on
+  // cliquait « Envoyer invitation », rien ne se passait, et le refus — qui
+  // explique précisément ce qui bloque — n'atteignait jamais l'écran.
+  const [erreurAcces, setErreurAcces] = useState("");
   const canManage = canManageTools(membershipRole);
   const canManageAccess = membershipRole === "owner" || membershipRole === "admin";
 
@@ -155,6 +159,11 @@ export function EmployeeProfilePanel({
               onAssign={canManage ? () => setPickToolOpen(true) : undefined}
             />
           </div>
+          {erreurAcces && (
+            <div className="mb-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              {erreurAcces}
+            </div>
+          )}
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
             <div className="flex gap-2">
               {employee.mobilePhone && (
@@ -176,6 +185,7 @@ export function EmployeeProfilePanel({
                     startTransition(async () => {
                       const result = await sendEmployeeInvitationAction(employee.id);
                       if (result.success) onOpenChange(false);
+                      else setErreurAcces(result.error);
                     });
                   }}
                 >
@@ -191,6 +201,7 @@ export function EmployeeProfilePanel({
                       startTransition(async () => {
                         const result = await resendEmployeeInvitationAction(employee.id);
                         if (result.success) onOpenChange(false);
+                        else setErreurAcces(result.error);
                       });
                     }}
                   >
@@ -206,6 +217,7 @@ export function EmployeeProfilePanel({
                       startTransition(async () => {
                         const result = await revokeEmployeeAccessAction(employee.id);
                         if (result.success) onOpenChange(false);
+                        else setErreurAcces(result.error);
                       });
                     }}
                   >
