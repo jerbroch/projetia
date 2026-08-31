@@ -7,7 +7,7 @@ import {
   updateEmployeeForCompany,
 } from "@/lib/data/tenant-data";
 import { grantEmployeeAccessAction } from "@/lib/actions/employee-access";
-import { isSupabaseConfigured } from "@/lib/supabase/admin";
+import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { requireTenantContext } from "@/lib/session";
 import { employeeFormSchema } from "@/lib/validations/employees";
 import type { Employee } from "@/types";
@@ -15,6 +15,7 @@ import { getEmployees } from "@/lib/data/tenant-data";
 import {
   normaliserCourriel,
   refusCourrielEnDouble,
+  trouverPorteur,
 } from "@/lib/employee-email-uniqueness";
 
 export type EmployeeActionResult =
@@ -72,9 +73,28 @@ async function refuserSiCourrielPris(
   companyId: string,
   email: string | null | undefined,
   employeIdCourant?: string,
+  transfertAutorise = false,
 ): Promise<string | null> {
   if (!normaliserCourriel(email)) return null;
   const employes = await getEmployees(companyId, false);
+
+  // Transfert explicite : on retire l'adresse au porteur au lieu de refuser.
+  // Sans ça il faut vider la première fiche, l'enregistrer, puis remplir la
+  // seconde — trois gestes pour déplacer un courriel d'un gars à l'autre.
+  if (transfertAutorise) {
+    const porteur = trouverPorteur(email, employes, employeIdCourant);
+    if (porteur) {
+      const admin = createAdminClient();
+      const { error } = await admin
+        .from("employees")
+        .update({ email: null, app_access_invited_at: null })
+        .eq("id", porteur.id)
+        .eq("company_id", companyId);
+      if (error) return "Impossible de libérer le courriel de l'autre employé.";
+    }
+    return null;
+  }
+
   return refusCourrielEnDouble(email, employes, employeIdCourant);
 }
 
@@ -91,6 +111,8 @@ export async function createEmployeeAction(formData: FormData): Promise<Employee
   const doublon = await refuserSiCourrielPris(
     ctx.company.id,
     parsed.data.email,
+    undefined,
+    formData.get("transfertCourriel") === "true",
   );
   if (doublon) return safeError(doublon);
 
@@ -138,6 +160,7 @@ export async function updateEmployeeAction(
     ctx.company.id,
     parsed.data.email,
     employeeId,
+    formData.get("transfertCourriel") === "true",
   );
   if (doublon) return safeError(doublon);
 

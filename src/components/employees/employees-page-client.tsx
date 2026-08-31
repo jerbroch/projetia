@@ -56,6 +56,7 @@ export function EmployeesPageClient({
   const [profileEmployee, setProfileEmployee] = useState<Employee | undefined>();
   const [profileOpen, setProfileOpen] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
 
   useEffect(() => {
     setToolList((prev) => syncToolListFromServer(prev, tools));
@@ -141,6 +142,9 @@ export function EmployeesPageClient({
         setActionError(result.error);
         return;
       }
+      // Réactiver peut avoir libéré son courriel : il faut le dire, sinon
+      // l'employé revient sans adresse et personne ne sait pourquoi.
+      if (result.notice) setActionNotice(result.notice);
       appliquerResultat(employeeId, result.employee);
     });
   }
@@ -174,6 +178,11 @@ export function EmployeesPageClient({
         }
       />
 
+      {actionNotice && (
+        <div className="mb-4 rounded-md bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-400">
+          {actionNotice}
+        </div>
+      )}
       {actionError && (
         <div className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">{actionError}</div>
       )}

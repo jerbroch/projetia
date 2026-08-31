@@ -77,15 +77,14 @@ describe("le refus nomme le porteur", () => {
     expect(refusCourrielEnDouble("marc@chantier.ca", equipe)).toContain("Marc Tremblay");
   });
 
-  it("signale un porteur archivé", () => {
-    // Sinon on le cherche dans une liste où il n'apparaît plus, et le refus
-    // devient incompréhensible.
+  it("laisse un employé ARCHIVÉ libérer son adresse", () => {
+    // Une fiche créée par erreur puis archivée ne doit pas empêcher de la
+    // refaire. L'index en base applique la même règle : les deux doivent
+    // coïncider, sinon on refuse ici ce que la base accepterait.
     const archives = [
       { id: "a1", email: "parti@chantier.ca", firstName: "Yves", lastName: "Roy", archivedAt: "2026-08-01" },
     ];
-    const m = refusCourrielEnDouble("parti@chantier.ca", archives);
-    expect(m).toContain("Yves Roy");
-    expect(m).toContain("archivé");
+    expect(refusCourrielEnDouble("parti@chantier.ca", archives)).toBeNull();
   });
 
   it("reste lisible quand le nom manque", () => {

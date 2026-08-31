@@ -17,9 +17,14 @@ import {
 } from "@/lib/billing/pending-invitations";
 import { sendEmployeeInvitationEmail } from "@/lib/email/send-employee-invitation";
 import type { Employee, ProfileRole } from "@/types";
+import { getEmployees } from "@/lib/data/tenant-data";
+import {
+  normaliserCourriel,
+  refusCourrielEnDouble,
+} from "@/lib/employee-email-uniqueness";
 
 export type EmployeeAccessResult =
-  | { success: true; employee: Employee }
+  | { success: true; employee: Employee; notice?: string }
   | { success: false; error: string };
 
 function getAppUrl(): string {
@@ -841,9 +846,34 @@ export async function restoreEmployeeAction(employeeId: string): Promise<Employe
   const employee = await loadEmployeeForAccess(employeeId, ctx.company.id);
   if (!employee) return { success: false, error: "Employé introuvable." };
 
-  const { data: updated, error } = await updateEmployeeAccessFields(employeeId, ctx.company.id, {
-    archived_at: null,
-  });
+  // Son adresse a-t-elle été reprise pendant son absence ?
+  //
+  // L'index d'unicité ne compte que les employés courants : tant qu'il était
+  // archivé, quelqu'un a pu récupérer son courriel. Le réactiver tel quel
+  // ferait échouer l'écriture sur une erreur de base illisible. On libère donc
+  // son adresse et on le DIT — la fiche revient, l'adresse est à redonner.
+  const champs: Record<string, unknown> = { archived_at: null };
+  let avis: string | undefined;
+
+  const sonCourriel = employee.email ? String(employee.email) : "";
+  if (normaliserCourriel(sonCourriel)) {
+    const equipe = await getEmployees(ctx.company.id, false);
+    const conflit = refusCourrielEnDouble(sonCourriel, equipe, employeeId);
+    if (conflit) {
+      champs.email = null;
+      champs.app_access_enabled = false;
+      champs.app_access_invited_at = null;
+      avis =
+        `${sonCourriel} a été repris pendant son absence. La fiche est réactivée ` +
+        "sans courriel — donnez-lui une nouvelle adresse pour pouvoir l'inviter.";
+    }
+  }
+
+  const { data: updated, error } = await updateEmployeeAccessFields(
+    employeeId,
+    ctx.company.id,
+    champs,
+  );
 
   if (error || !updated) {
     return { success: false, error: "Impossible de réactiver l'employé." };
@@ -853,5 +883,9 @@ export async function restoreEmployeeAction(employeeId: string): Promise<Employe
   revalidatePath("/dashboard");
   revalidatePath("/schedule");
 
-  return { success: true, employee: mapEmployeeRow(updated as Record<string, unknown>) };
+  return {
+    success: true,
+    employee: mapEmployeeRow(updated as Record<string, unknown>),
+    notice: avis,
+  };
 }

@@ -71,12 +71,16 @@ export function EmployeeForm({
   const canManageAccess = membershipRole === "owner" || membershipRole === "admin";
   const [form, setForm] = useState<EmployeeFormValues>(() => getDefaultEmployeeFormValues(employee));
   const [error, setError] = useState("");
+  // Vrai quand le refus vient d'un courriel déjà pris : on propose alors de le
+  // transférer, plutôt que d'obliger à vider l'autre fiche puis revenir.
+  const [transfertPossible, setTransfertPossible] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (open) {
       setForm(getDefaultEmployeeFormValues(employee));
       setError("");
+        setTransfertPossible(false);
     }
   }, [open, employee]);
 
@@ -84,8 +88,7 @@ export function EmployeeForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function envoyer(avecTransfert: boolean) {
     if (!form.firstName.trim() || !form.lastName.trim()) {
       setError("Le prénom et le nom sont requis.");
       return;
@@ -103,6 +106,7 @@ export function EmployeeForm({
       }
 
       const formData = toFormData(form);
+      if (avecTransfert) formData.set("transfertCourriel", "true");
       const result =
         mode === "edit" && employee
           ? await updateEmployeeAction(employee.id, formData)
@@ -110,12 +114,20 @@ export function EmployeeForm({
 
       if (!result.success) {
         setError(result.error);
+        // Le refus nomme le porteur : c'est ce qui rend le transfert offrable.
+        setTransfertPossible(/déjà utilisé par/.test(result.error));
         return;
       }
 
       onSave(result.employee);
       onOpenChange(false);
     });
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setTransfertPossible(false);
+    envoyer(false);
   }
 
   return (
@@ -128,7 +140,22 @@ export function EmployeeForm({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && (
+            <div className="space-y-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <p>{error}</p>
+              {transfertPossible && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => envoyer(true)}
+                >
+                  Transférer ce courriel vers cet employé
+                </Button>
+              )}
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">Prénom</Label>

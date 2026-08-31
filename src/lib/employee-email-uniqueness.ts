@@ -39,6 +39,29 @@ function nomComplet(e: EmployeeEmailRow): string {
   return nom || "un autre employé";
 }
 
+/**
+ * L'employé COURANT qui détient déjà cette adresse, s'il y en a un.
+ *
+ * Sépare « qui bloque » de « quoi dire » : le transfert a besoin de
+ * l'identifiant, le refus a besoin du nom.
+ */
+export function trouverPorteur(
+  email: string | null | undefined,
+  autres: EmployeeEmailRow[],
+  employeIdCourant?: string,
+): EmployeeEmailRow | null {
+  const cible = normaliserCourriel(email);
+  if (!cible) return null;
+  return (
+    autres.find(
+      (e) =>
+        e.id !== employeIdCourant &&
+        !e.archivedAt &&
+        normaliserCourriel(e.email) === cible,
+    ) ?? null
+  );
+}
+
 export function refusCourrielEnDouble(
   email: string | null | undefined,
   autres: EmployeeEmailRow[],
@@ -47,17 +70,20 @@ export function refusCourrielEnDouble(
   const cible = normaliserCourriel(email);
   if (!cible) return null;
 
+  // Un employé ARCHIVÉ ne retient pas son adresse : il a quitté l'entreprise,
+  // et une fiche créée par erreur puis archivée ne doit pas empêcher de la
+  // refaire. L'index en base applique la même règle — les deux doivent
+  // coïncider, sinon on refuse ici ce que la base accepterait, ou l'inverse.
   const collision = autres.find(
-    (e) => e.id !== employeIdCourant && normaliserCourriel(e.email) === cible,
+    (e) =>
+      e.id !== employeIdCourant &&
+      !e.archivedAt &&
+      normaliserCourriel(e.email) === cible,
   );
   if (!collision) return null;
 
-  // On nomme le porteur, et on dit s'il est archivé : sinon on cherche dans
-  // une liste où il n'apparaît plus, et le refus devient incompréhensible.
-  const qui = nomComplet(collision);
-  const ou = collision.archivedAt ? " (employé archivé)" : "";
   return (
-    `Ce courriel est déjà utilisé par ${qui}${ou}. ` +
+    `Ce courriel est déjà utilisé par ${nomComplet(collision)}. ` +
     "Chaque employé doit avoir sa propre adresse, sinon l'invitation à " +
     "l'application ne peut pas les distinguer."
   );
