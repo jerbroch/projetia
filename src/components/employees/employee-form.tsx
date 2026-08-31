@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { createEmployeeAction, updateEmployeeAction } from "@/lib/actions/employees";
+import { getEmployeeAppAccessStatusLabel } from "@/lib/employee-access-utils";
 import {
   buildEmployeeFromForm,
   getDefaultEmployeeFormValues,
@@ -26,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Employee } from "@/types";
+import type { Employee, ProfileRole } from "@/types";
 
 interface EmployeeFormProps {
   open: boolean;
@@ -35,6 +36,7 @@ interface EmployeeFormProps {
   companyId: string;
   isDemo?: boolean;
   employee?: Employee;
+  membershipRole: ProfileRole;
   onSave: (employee: Employee) => void;
 }
 
@@ -52,6 +54,7 @@ function toFormData(form: EmployeeFormValues): FormData {
   formData.set("department", form.department);
   formData.set("hireDate", form.hireDate);
   formData.set("hourlyRate", form.hourlyRate);
+  formData.set("grantAppAccess", form.grantAppAccess ? "true" : "false");
   return formData;
 }
 
@@ -62,16 +65,26 @@ export function EmployeeForm({
   companyId,
   isDemo,
   employee,
+  membershipRole,
   onSave,
 }: EmployeeFormProps) {
+  const canManageAccess = membershipRole === "owner" || membershipRole === "admin";
   const [form, setForm] = useState<EmployeeFormValues>(() => getDefaultEmployeeFormValues(employee));
   const [error, setError] = useState("");
+  // Vrai quand le refus vient d'un courriel déjà pris : on propose alors de le
+  // transférer, plutôt que d'obliger à vider l'autre fiche puis revenir.
+  const [transfertPossible, setTransfertPossible] = useState(false);
+  // Nom du porteur actuel, extrait du refus : le bouton doit dire à QUI on
+  // retire l'adresse, sinon on transfère sans savoir ce qu'on enlève.
+  const [porteurActuel, setPorteurActuel] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     if (open) {
       setForm(getDefaultEmployeeFormValues(employee));
       setError("");
+        setTransfertPossible(false);
+        setPorteurActuel("");
     }
   }, [open, employee]);
 
@@ -79,8 +92,7 @@ export function EmployeeForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function envoyer(avecTransfert: boolean) {
     if (!form.firstName.trim() || !form.lastName.trim()) {
       setError("Le prénom et le nom sont requis.");
       return;
@@ -98,6 +110,7 @@ export function EmployeeForm({
       }
 
       const formData = toFormData(form);
+      if (avecTransfert) formData.set("transfertCourriel", "true");
       const result =
         mode === "edit" && employee
           ? await updateEmployeeAction(employee.id, formData)
@@ -105,12 +118,22 @@ export function EmployeeForm({
 
       if (!result.success) {
         setError(result.error);
+        // Le refus nomme le porteur : c'est ce qui rend le transfert offrable.
+        const porteur = /déjà utilisé par ([^.]+)\./.exec(result.error);
+        setTransfertPossible(Boolean(porteur));
+        setPorteurActuel(porteur?.[1]?.trim() ?? "");
         return;
       }
 
       onSave(result.employee);
       onOpenChange(false);
     });
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setTransfertPossible(false);
+    envoyer(false);
   }
 
   return (
@@ -123,7 +146,24 @@ export function EmployeeForm({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>}
+          {error && (
+            <div className="space-y-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+              <p>{error}</p>
+              {transfertPossible && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => envoyer(true)}
+                >
+                  {porteurActuel
+          ? `Retirer ce courriel à ${porteurActuel} et le donner ici`
+          : "Transférer ce courriel vers cet employé"}
+                </Button>
+              )}
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">Prénom</Label>
@@ -187,6 +227,31 @@ export function EmployeeForm({
                 className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
+            {canManageAccess && (
+              <div className="space-y-2 sm:col-span-2 rounded-lg border p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <Label htmlFor="grantAppAccess">Donner accès à l&apos;application</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Envoie une invitation par courriel à l&apos;employé. Votre compte administrateur ne sera jamais modifié.
+                    </p>
+                  </div>
+                  <input
+                    id="grantAppAccess"
+                    type="checkbox"
+                    checked={form.grantAppAccess}
+                    onChange={(e) => updateField("grantAppAccess", e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                </div>
+                {employee?.appAccessStatus && employee.appAccessStatus !== "none" && (
+                  <p className="text-sm">
+                    Accès application :{" "}
+                    <strong>{getEmployeeAppAccessStatusLabel(employee.appAccessStatus)}</strong>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>

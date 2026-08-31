@@ -66,6 +66,7 @@ export interface Profile {
   phone?: string | null;
   role: ProfileRole;
   status: "active" | "invited" | "inactive";
+  employeeId?: string | null;
 }
 
 export interface TenantContext {
@@ -73,6 +74,7 @@ export interface TenantContext {
   profile: Profile | null;
   company: Company;
   membershipRole: ProfileRole;
+  employeeId: string | null;
   isDemo: boolean;
 }
 
@@ -334,6 +336,12 @@ export interface JobBillingLine {
   catalogItemId?: string;
   supplierId?: string;
   isDivers?: boolean;
+  /** « field_hours » ou « field_material » quand la ligne vient du terrain. */
+  sourceKind?: "field_hours" | "field_material" | null;
+  /** Saisies terrain que cette ligne représente. */
+  sourceIds?: string[];
+  /** Vrai dès qu'on retouche une ligne importée : un réimport doit demander. */
+  manuallyEdited?: boolean;
   sortOrder: number;
 }
 
@@ -366,11 +374,21 @@ export interface Employee {
   email: string;
   truckNumber: string;
   status: EmployeeStatus;
+  /**
+   * Date de départ de l'entreprise. null = employé courant.
+   *
+   * Axe distinct de `status` : quelqu'un peut être en congé puis partir, et
+   * l'archivage ne doit pas effacer l'information du congé.
+   */
+  archivedAt?: string | null;
   profilePhoto?: string;
   notes?: string;
   department: string;
   hireDate: string;
   hourlyRate: number;
+  userId?: string | null;
+  appAccessEnabled?: boolean;
+  appAccessStatus?: "active" | "invited" | "pending" | "inactive" | "none";
 }
 
 export type JobNumberType = "contract" | "service_call";
@@ -413,6 +431,9 @@ export interface ScheduleEvent {
   clientPoNumber?: string;
   /** Plumber field report — travaux effectués */
   workDescription?: string;
+  /** Notes saisies sur le terrain (visible employé) */
+  fieldNotes?: string;
+  fieldReadyForReview?: boolean;
   closureNotes?: string;
   submittedForReviewAt?: string;
   workCompletedAt?: string;
@@ -432,9 +453,16 @@ export interface Payment {
   invoiceNumber: string;
   customerName: string;
   amount: number;
-  method: "card" | "ach" | "check" | "cash";
+  /** Voir PAYMENT_METHODS dans lib/billing/payment-recording. */
+  method: "interac" | "check" | "cash" | "transfer" | "other" | "card";
   status: "pending" | "completed" | "failed" | "refunded";
   stripePaymentId?: string;
+  /** Date de RÉCEPTION de l'argent (AAAA-MM-JJ), distincte de createdAt. */
+  receivedAt?: string;
+  /** N° de chèque, confirmation Interac — sert au rapprochement bancaire. */
+  reference?: string;
+  note?: string;
+  /** Date de SAISIE dans l'application. */
   createdAt: string;
 }
 
@@ -457,4 +485,151 @@ export interface QuoteRequest {
   address?: string;
   status: "new" | "reviewed" | "quoted" | "declined";
   createdAt: string;
+}
+
+export type ToolBaseStatus = "available" | "in_repair" | "out_of_service";
+export type ToolEffectiveStatus =
+  | "available"
+  | "reserved"
+  | "in_use"
+  | "overdue"
+  | "in_repair"
+  | "out_of_service";
+export type ToolCondition = "good" | "damaged" | "needs_repair" | "missing_part" | "other";
+export type ToolAssignmentStatus = "active" | "reserved" | "returned";
+export type ToolReturnCondition = "good" | "damaged" | "needs_repair" | "missing_part" | "other";
+export type ToolSmsStatus = "sent" | "failed" | "pending";
+
+export interface Tool {
+  id: string;
+  companyId: string;
+  name: string;
+  category: string;
+  brand: string;
+  model: string;
+  serialNumber: string;
+  internalNumber: string;
+  description: string;
+  condition: ToolCondition;
+  baseStatus: ToolBaseStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ToolAssignment {
+  id: string;
+  toolId: string;
+  employeeId: string;
+  companyId: string;
+  /**
+   * Call pour lequel l'outil est sorti. null quand l'assignation ne vise
+   * aucun chantier précis — un outil confié pour la saison, par exemple.
+   */
+  scheduledJobId?: string | null;
+  startDate: string;
+  expectedReturnDate: string;
+  actualReturnDate?: string;
+  status: ToolAssignmentStatus;
+  notes?: string;
+  returnCondition?: ToolReturnCondition;
+  createdAt: string;
+  updatedAt: string;
+  createdByUserId?: string;
+}
+
+export interface ToolSmsReminder {
+  id: string;
+  companyId: string;
+  toolId: string;
+  employeeId: string;
+  phone: string;
+  message: string;
+  sentAt: string;
+  sentByUserId: string;
+  sentByUserName?: string;
+  status: ToolSmsStatus;
+  providerId?: string;
+  provider: "twilio" | "console";
+}
+
+export interface ToolListItem extends Tool {
+  effectiveStatus: ToolEffectiveStatus;
+  currentEmployeeId?: string;
+  currentEmployeeName?: string;
+  /** Call pour lequel l'outil est actuellement sorti, s'il y en a un. */
+  currentScheduledJobId?: string | null;
+  checkoutDate?: string;
+  expectedReturnDate?: string;
+  daysOverdue?: number;
+  hasFutureReservation?: boolean;
+  nextReservationStart?: string;
+  nextReservationExpectedReturn?: string;
+  nextReservationEmployeeId?: string;
+  lastSmsReminder?: ToolSmsReminder;
+}
+
+export interface ToolWithDetails extends Tool {
+  effectiveStatus: ToolEffectiveStatus;
+  currentAssignment?: ToolAssignment & { employeeName: string; employeePhone: string };
+  futureReservations: Array<ToolAssignment & { employeeName: string; employeePhone: string }>;
+  assignmentHistory: Array<ToolAssignment & { employeeName: string; employeePhone: string }>;
+  lastSmsReminder?: ToolSmsReminder;
+}
+
+export interface EmployeeToolSummary {
+  current: Array<ToolListItem & { expectedReturnDate: string }>;
+  reservations: Array<ToolListItem & { startDate: string; expectedReturnDate: string }>;
+  history: Array<ToolAssignment & { toolName: string; internalNumber: string }>;
+}
+
+/** Real hours entered by field employees (separate from quote estimation). */
+export interface FieldHour {
+  id: string;
+  companyId: string;
+  scheduledJobId: string;
+  employeeId: string;
+  workDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  hours: number;
+  laborType?: string | null;
+  notes?: string | null;
+  timerStartedAt?: string | null;
+  timerStoppedAt?: string | null;
+  createdByUserId?: string | null;
+  createdAt: string;
+}
+
+/** Real materials used on site (no financial columns). */
+export interface FieldMaterial {
+  id: string;
+  companyId: string;
+  scheduledJobId: string;
+  employeeId: string;
+  catalogItemId?: string | null;
+  name: string;
+  description?: string | null;
+  quantity: number;
+  unit: string;
+  notes?: string | null;
+  isCustom: boolean;
+  createdByUserId?: string | null;
+  createdAt: string;
+}
+
+export interface FieldCatalogItem {
+  id: string;
+  name: string;
+  unit: string;
+  category?: string | null;
+}
+
+/** Plage horaire d'un employé sur un call. Voir `src/lib/job-shifts.ts`. */
+export interface JobEmployeeShift {
+  id: string;
+  companyId: string;
+  scheduledJobId: string;
+  employeeId: string;
+  startAt: string;
+  endAt: string;
 }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
+import { RecordPaymentDialog } from "@/components/payments/record-payment-dialog";
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,6 +21,11 @@ import {
 } from "@/components/ui/table";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import type { Company, Invoice, ProfileRole, ScheduleEvent, User } from "@/types";
+
+/** Une facture annulée ou déjà soldée n'attend plus de paiement. */
+function attendPaiement(invoice: Invoice): boolean {
+  return invoice.status !== "cancelled" && invoice.paidAmount < invoice.amount;
+}
 
 interface InvoicesPageClientProps {
   invoices: Invoice[];
@@ -61,6 +67,7 @@ export function InvoicesPageClient({
   isDemo,
 }: InvoicesPageClientProps) {
   const router = useRouter();
+  const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
   const searchParams = useSearchParams();
   const [billingOpen, setBillingOpen] = useState(false);
   const [billingEvent, setBillingEvent] = useState<ScheduleEvent | undefined>();
@@ -193,6 +200,20 @@ export function InvoicesPageClient({
                 <CardContent className="space-y-1 text-sm">
                   <p className="font-semibold">{formatCurrency(invoice.amount)}</p>
                   <p className="text-xs text-muted-foreground">Échéance {formatDate(invoice.dueDate)}</p>
+                  {attendPaiement(invoice) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPayingInvoice(invoice);
+                      }}
+                    >
+                      <Receipt className="mr-2 h-4 w-4" />
+                      Enregistrer un paiement
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -210,6 +231,7 @@ export function InvoicesPageClient({
                     <TableHead>Payé</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Échéance</TableHead>
+                    <TableHead className="text-right">Paiement</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -231,6 +253,21 @@ export function InvoicesPageClient({
                         <StatusBadge status={invoice.status} />
                       </TableCell>
                       <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+                      <TableCell className="text-right">
+                        {attendPaiement(invoice) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPayingInvoice(invoice);
+                            }}
+                          >
+                            <Receipt className="mr-2 h-4 w-4" />
+                            Paiement
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -238,6 +275,14 @@ export function InvoicesPageClient({
             </CardContent>
           </Card>
         </>
+      )}
+
+      {payingInvoice && (
+        <RecordPaymentDialog
+          invoice={payingInvoice}
+          open={Boolean(payingInvoice)}
+          onOpenChange={(open) => !open && setPayingInvoice(null)}
+        />
       )}
 
       {billingEvent && (

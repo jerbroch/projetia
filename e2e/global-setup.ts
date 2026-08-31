@@ -1,13 +1,16 @@
 import type { FullConfig } from "@playwright/test";
-import dotenv from "dotenv";
-import path from "path";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { resetAuditFile } from "./helpers/audit";
 import { seedE2EBusinessData } from "./helpers/seed-data";
 import { writeTestCredentials } from "./helpers/test-data";
+import { cibleConfirmee, cibleDuServeurConfirmee } from "./target-guard";
+import { acquerirVerrou, libererVerrou } from "./run-lock";
 
-dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
-dotenv.config({ path: path.resolve(__dirname, "../.env.e2e") });
+
+
+const CIBLE_DECLAREE = cibleConfirmee();
+acquerirVerrou();
 
 const DEFAULT_PASSWORD = process.env.E2E_DEFAULT_PASSWORD ?? "TestE2ePass123!";
 
@@ -174,6 +177,21 @@ async function ensureSuperAdminUser(admin: ReturnType<typeof createAdmin>, runId
 }
 
 async function globalSetup(_config: FullConfig) {
+  // La cible du SERVEUR se vérifie avant la moindre écriture. `cibleConfirmee`
+  // n'a inspecté que notre propre environnement ; le serveur que Playwright
+  // vient de réutiliser peut viser tout autre chose.
+  try {
+    await cibleDuServeurConfirmee(
+      process.env.E2E_BASE_URL ?? "http://localhost:3000",
+      CIBLE_DECLAREE,
+    );
+  } catch (err) {
+    // Le verrou a été posé au chargement du module ; un échec ici ne déclenche
+    // pas globalTeardown, donc on le retire nous-mêmes.
+    libererVerrou();
+    throw err;
+  }
+
   resetAuditFile();
   const runId = String(Date.now());
   const admin = createAdmin();

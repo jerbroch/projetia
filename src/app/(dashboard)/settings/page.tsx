@@ -2,11 +2,17 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { BillingSettingsForm } from "@/components/settings/billing-settings-form";
 import { FeedbackForm } from "@/components/settings/feedback-form";
+import { SubscriptionSettingsForm } from "@/components/settings/subscription-settings-form";
 import { InteracSettingsForm } from "@/components/settings/interac-settings-form";
 import { requireTenantContext, hasAdminAccess } from "@/lib/session";
+import { getCompanySubscriptionSummary } from "@/lib/billing/company-subscription";
 
 export default async function SettingsPage() {
   const ctx = await requireTenantContext();
+  const isCompanyAdmin = hasAdminAccess(ctx.membershipRole);
+  const subscription = isCompanyAdmin
+    ? await getCompanySubscriptionSummary(ctx.company.id)
+    : null;
 
   return (
     <DashboardLayout
@@ -18,7 +24,10 @@ export default async function SettingsPage() {
     >
       <div className="space-y-6">
         <CompanySettingsForm company={ctx.company} />
-        {hasAdminAccess(ctx.membershipRole) && <InteracSettingsForm company={ctx.company} />}
+        {isCompanyAdmin && subscription && (
+          <SubscriptionSettingsForm subscription={subscription} isDemo={ctx.isDemo} />
+        )}
+        {isCompanyAdmin && <InteracSettingsForm company={ctx.company} />}
         <BillingSettingsForm company={ctx.company} isDemo={ctx.isDemo} />
         {!ctx.isDemo && <FeedbackForm />}
       </div>

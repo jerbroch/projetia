@@ -29,6 +29,7 @@ export interface EmployeeFormValues {
   department: string;
   hireDate: string;
   hourlyRate: string;
+  grantAppAccess: boolean;
 }
 
 export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormValues {
@@ -46,6 +47,10 @@ export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormV
       department: employee.department,
       hireDate: employee.hireDate,
       hourlyRate: String(employee.hourlyRate),
+      grantAppAccess:
+        employee.appAccessStatus === "active" ||
+        employee.appAccessStatus === "invited" ||
+        employee.appAccessStatus === "pending",
     };
   }
 
@@ -62,6 +67,7 @@ export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormV
     department: "Field",
     hireDate: format(new Date(), "yyyy-MM-dd"),
     hourlyRate: "35",
+    grantAppAccess: false,
   };
 }
 

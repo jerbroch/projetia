@@ -12,6 +12,7 @@ import {
   quotes as demoQuotes,
   scheduleEvents as demoScheduleEvents,
 } from "@/lib/mock-data";
+import { resolveEmployeeAppAccessStatus as resolveEmployeeAccessStatus } from "@/lib/employee-access-utils";
 import { createClient } from "@/lib/supabase/server";
 import { DEMO_COMPANY_ID } from "@/lib/demo/constants";
 import type {
@@ -34,6 +35,7 @@ import {
   serializeEstimationSnapshotForDb,
 } from "@/lib/quote-cost-utils";
 import type { QuoteCostEstimation } from "@/types";
+import { formatCompanyName, formatPersonName } from "@/lib/company-display-name";
 
 function adminClient() {
   if (!isSupabaseAdminConfigured()) return null;
@@ -479,7 +481,8 @@ export async function duplicateQuoteForCompany(companyId: string, quoteId: strin
 function mapCompanyRow(row: Record<string, unknown>): Company {
   return {
     id: String(row.id),
-    name: String(row.name),
+    // Redressé à l'affichage seulement : la donnée stockée n'est pas touchée.
+    name: formatCompanyName(String(row.name)),
     legalName: row.legal_name ? String(row.legal_name) : null,
     phone: row.phone ? String(row.phone) : null,
     email: row.email ? String(row.email) : null,
@@ -769,19 +772,31 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
   return {
     id: String(row.id),
     companyId: String(row.company_id),
-    firstName: String(row.first_name),
-    lastName: String(row.last_name),
+    // Redressé à l'affichage seulement, comme le nom d'entreprise : la donnée
+    // stockée n'est pas touchée, et un nom déjà capitalisé reste intact.
+    firstName: formatPersonName(String(row.first_name)),
+    lastName: formatPersonName(String(row.last_name)),
     trade: String(row.trade ?? ""),
     mobilePhone: String(row.phone ?? ""),
     email: String(row.email ?? ""),
     truckNumber: String(row.truck_number ?? ""),
     status: row.status as Employee["status"],
+    archivedAt: row.archived_at ? String(row.archived_at) : null,
     notes: row.notes ? String(row.notes) : undefined,
     department: String(row.department ?? ""),
     hireDate: String(row.hire_date ?? ""),
     hourlyRate: Number(row.hourly_rate ?? 0),
     profilePhoto: row.profile_photo ? String(row.profile_photo) : undefined,
+    userId: row.user_id ? String(row.user_id) : null,
+    appAccessEnabled: row.app_access_enabled != null ? Boolean(row.app_access_enabled) : false,
+    appAccessStatus: resolveEmployeeAppAccessStatus(row),
   };
+}
+
+function resolveEmployeeAppAccessStatus(
+  row: Record<string, unknown>
+): Employee["appAccessStatus"] {
+  return resolveEmployeeAccessStatus(row);
 }
 
 function parseStringArray(value: unknown): string[] {
@@ -823,6 +838,8 @@ export function mapScheduleRow(row: Record<string, unknown>): ScheduleEvent {
     jobOrigin: row.job_origin as ScheduleEvent["jobOrigin"],
     clientPoNumber: row.client_po_number ? String(row.client_po_number) : undefined,
     workDescription: row.work_description ? String(row.work_description) : undefined,
+    fieldNotes: row.field_notes ? String(row.field_notes) : undefined,
+    fieldReadyForReview: row.field_ready_for_review != null ? Boolean(row.field_ready_for_review) : undefined,
     closureNotes: row.closure_notes ? String(row.closure_notes) : undefined,
     submittedForReviewAt: row.submitted_for_review_at
       ? String(row.submitted_for_review_at)
@@ -929,6 +946,8 @@ function toScheduleRowInput(event: ScheduleEvent) {
     job_origin: event.jobOrigin || null,
     client_po_number: event.clientPoNumber || null,
     work_description: event.workDescription || null,
+    field_notes: event.fieldNotes || null,
+    field_ready_for_review: event.fieldReadyForReview ?? false,
     closure_notes: event.closureNotes || null,
     submitted_for_review_at: event.submittedForReviewAt || null,
     work_completed_at: event.workCompletedAt || null,
@@ -1016,6 +1035,9 @@ function mapPaymentRow(row: Record<string, unknown>): Payment {
     method: row.method as Payment["method"],
     status: row.status as Payment["status"],
     stripePaymentId: row.stripe_payment_id ? String(row.stripe_payment_id) : undefined,
+    receivedAt: row.received_at ? String(row.received_at) : undefined,
+    reference: row.reference ? String(row.reference) : undefined,
+    note: row.note ? String(row.note) : undefined,
     createdAt: String(row.created_at),
   };
 }

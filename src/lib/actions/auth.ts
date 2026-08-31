@@ -15,6 +15,7 @@ import {
   resetPasswordSchema,
 } from "@/lib/validations/auth";
 import { requireTenantContext, getPostLoginRedirectPath } from "@/lib/session";
+import { safeNextPath } from "@/lib/safe-next-path";
 import {
   insertCustomerForCompany,
   insertEmployeeForCompany,
@@ -215,7 +216,13 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     redirect("/verify-email");
   }
 
-  redirect(await getPostLoginRedirectPath());
+  // Destination demandée avant la connexion (posée par le middleware).
+  // Validée : un `next` externe transformerait /login en redirection ouverte.
+  const requested = safeNextPath(
+    typeof formData.get("next") === "string" ? String(formData.get("next")) : null,
+  );
+
+  redirect(requested ?? (await getPostLoginRedirectPath()));
 }
 
 export async function demoLoginAction(): Promise<ActionResult> {

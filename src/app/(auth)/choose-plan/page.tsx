@@ -1,12 +1,23 @@
 import { redirect } from "next/navigation";
 import { ChoosePlanClient } from "@/components/auth/choose-plan-client";
-import { getPricingConfig } from "@/lib/pricing-config";
 import { companyHasAppAccess } from "@/lib/access-control";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isSuperAdminUser } from "@/lib/platform/super-admin";
 import { requireVerifiedUser, getTenantContext } from "@/lib/session";
+import { getCompanySubscriptionSummary } from "@/lib/billing/company-subscription";
 
-export default async function ChoosePlanPage() {
+interface ChoosePlanPageProps {
+  searchParams: Promise<{ checkout?: string; session_id?: string; upgrade?: string }>;
+}
+
+export default async function ChoosePlanPage({ searchParams }: ChoosePlanPageProps) {
+  const { checkout, session_id: sessionId, upgrade } = await searchParams;
+  // ?upgrade=1 : l'utilisateur vient consulter les forfaits volontairement
+  // (bouton des Paramètres). La page cesse alors d'être un portail
+  // d'inscription et devient une page de tarifs — sans quoi tout compte ayant
+  // déjà accès (grandfathered, bêta, promo, abonné) serait renvoyé au
+  // tableau de bord. Voir la redirection plus bas.
+  const isUpgradeView = upgrade === "1";
   await requireVerifiedUser();
   const ctx = await getTenantContext();
   if (!ctx) redirect("/login");
@@ -47,17 +58,31 @@ export default async function ChoosePlanPage() {
         { isPlatformAdmin },
       );
 
-      if (hasAccess) redirect("/dashboard");
+      // Au retour de Stripe on laisse la page confirmer la session avant de
+      // rediriger : le webhook peut ne pas encore être arrivé.
+      // Voir les tarifs ne donne accès à rien — l'accès aux routes applicatives
+      // est gardé par le middleware, pas par cette redirection.
+      if (hasAccess && checkout !== "success" && !isUpgradeView) {
+        redirect("/dashboard");
+      }
     }
   }
 
-  const pricing = getPricingConfig();
+  // Palier courant : affiché comme « Forfait actuel » et sert à router le
+  // changement de palier vers le portail Stripe plutôt qu'un nouveau Checkout.
+  const subscription = isSupabaseConfigured()
+    ? await getCompanySubscriptionSummary(ctx.company.id)
+    : null;
 
   return (
     <ChoosePlanClient
-      pricing={pricing}
       companyName={ctx.company.name}
+      currentTier={subscription?.tier ?? null}
+      currentCycle={subscription?.cycle ?? null}
+      canSwitchTierInPortal={subscription?.canSwitchTierInPortal ?? false}
       pendingPlan={pendingPlan}
+      checkoutStatus={checkout === "success" || checkout === "cancel" ? checkout : null}
+      checkoutSessionId={sessionId ?? null}
     />
   );
 }

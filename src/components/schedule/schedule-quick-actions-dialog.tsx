@@ -44,6 +44,10 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import type { Company, ProfileRole, ScheduleEvent } from "@/types";
+import { JobShiftsEditor } from "@/components/schedule/job-shifts-editor";
+import type { JobShift } from "@/lib/job-shifts";
+import { JobToolsSection } from "@/components/schedule/job-tools-section";
+import type { Employee, ToolListItem } from "@/types";
 
 interface ScheduleQuickActionsDialogProps {
   open: boolean;
@@ -57,6 +61,11 @@ interface ScheduleQuickActionsDialogProps {
   onCloseWork: (event: ScheduleEvent) => void;
   onReview: (event: ScheduleEvent) => void;
   onBilling: (event: ScheduleEvent) => void;
+  shifts?: JobShift[];
+  onShiftsChanged?: () => void;
+  tools?: ToolListItem[];
+  /** Nommée « equipe » : « employees » désigne déjà la liste de noms affichée. */
+  equipe?: Employee[];
 }
 
 export function ScheduleQuickActionsDialog({
@@ -70,6 +79,10 @@ export function ScheduleQuickActionsDialog({
   onCloseWork,
   onReview,
   onBilling,
+  shifts = [],
+  onShiftsChanged,
+  tools = [],
+  equipe = [],
 }: ScheduleQuickActionsDialogProps) {
   const [currentEvent, setCurrentEvent] = useState<ScheduleEvent | undefined>(event);
   const [error, setError] = useState("");
@@ -260,6 +273,24 @@ export function ScheduleQuickActionsDialog({
               {jobDate} · {startTime} – {endTime}
             </p>
           </div>
+
+          <JobShiftsEditor
+            jobId={selectedEvent.id}
+            callStart={selectedEvent.start}
+            callEnd={selectedEvent.end}
+            employeeIds={selectedEvent.employeeIds}
+            employeeNames={selectedEvent.employeeNames}
+            shifts={shifts.filter((s) => s.scheduledJobId === selectedEvent.id)}
+            onChanged={onShiftsChanged}
+          />
+
+          <JobToolsSection
+            jobId={selectedEvent.id}
+            employeeIds={selectedEvent.employeeIds}
+            employees={equipe}
+            tools={tools}
+            onAssigned={onShiftsChanged}
+          />
         </div>
 
         {(fieldStatusButtons.length > 0 || showCloseWork || adminActions.length > 0) && (

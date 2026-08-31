@@ -25,10 +25,13 @@ import {
   canQuickChangeToStatus,
   type JobWorkflowStatus,
 } from "@/lib/job-workflow";
+import { canUpdateFieldStatus } from "@/lib/field-permissions";
 import { requireTenantContext } from "@/lib/session";
 import { scheduleFromQuoteSchema, scheduleJobSchema } from "@/lib/validations/schedule";
 import type { ScheduleEvent } from "@/types";
 import { createClient } from "@/lib/supabase/server";
+import { decalageDuCall } from "@/lib/job-shifts";
+import { decalerPlagesDuCall } from "@/lib/data/job-shifts-data";
 
 export type ScheduleQuoteResult =
   | { success: true; event: ScheduleEvent; scheduledJobId: string }
@@ -311,6 +314,14 @@ export async function saveScheduleJobAction(formData: FormData): Promise<Schedul
     }
 
     const saved = mapScheduleRow(data as Record<string, unknown>);
+
+    // Un call déplacé emmène les plages de ses employés, pour garder les
+    // écarts relatifs. Les effacer forcerait à tout retracer pour un report
+    // d'une heure.
+    const decalage = decalageDuCall(existing.start, saved.start);
+    if (decalage !== 0) {
+      await decalerPlagesDuCall(ctx.company.id, saved.id, decalage);
+    }
     revalidateSchedulePaths();
     return { success: true, event: saved };
   }
@@ -399,6 +410,13 @@ export async function updateScheduleJobStatusAction(
 
   if (!canQuickChangeToStatus(ctx.membershipRole, existing.status, newStatus)) {
     return { success: false, error: "Changement de statut non autorisé." };
+  }
+
+  if (
+    !canUpdateFieldStatus(ctx.membershipRole, existing, ctx.employeeId, newStatus) &&
+    ctx.membershipRole === "employee"
+  ) {
+    return { success: false, error: "Changement de statut non autorisé pour ce call." };
   }
 
   const now = new Date().toISOString();

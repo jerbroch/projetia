@@ -22,6 +22,7 @@ import {
   getEventDayKey,
   minutesToTimeValue,
   resizeEventEnd,
+  resizeEventStart,
   updateEventTiming,
   type CalendarView,
 } from "@/lib/calendar-utils";
@@ -40,12 +41,15 @@ import {
 } from "@/lib/schedule-utils";
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { CloseWorkDialog } from "@/components/workflow/close-work-dialog";
-import type { Company, Customer, Employee, ProfileRole, ScheduleEvent, User } from "@/types";
+import type { Company, Customer, Employee, ProfileRole, ScheduleEvent, ToolListItem, User } from "@/types";
+import type { JobShift } from "@/lib/job-shifts";
 
 interface SchedulePageClientProps {
   initialEvents: ScheduleEvent[];
   initialCustomers: Customer[];
   initialEmployees: Employee[];
+  tools: ToolListItem[];
+  shifts?: JobShift[];
   company: Company;
   user: User;
   membershipRole: ProfileRole;
@@ -84,6 +88,8 @@ export function SchedulePageClient({
   initialEvents,
   initialCustomers,
   initialEmployees,
+  tools,
+  shifts = [],
   company,
   user,
   membershipRole,
@@ -311,6 +317,11 @@ export function SchedulePageClient({
     persistEventUpdate(updated);
   }
 
+  function handleEventResizeStart(event: ScheduleEvent, startMinutes: number, day: Date) {
+    const updated = syncEventEmployeeNames(resizeEventStart(event, startMinutes, day), employeeList);
+    persistEventUpdate(updated);
+  }
+
   function handleEventResize(event: ScheduleEvent, endMinutes: number, day: Date) {
     const updated = syncEventEmployeeNames(resizeEventEnd(event, endMinutes, day), employeeList);
     persistEventUpdate(updated);
@@ -352,6 +363,7 @@ export function SchedulePageClient({
         onSlotClick={handleSlotClick}
         onEventClick={openQuickActions}
         onEventMove={handleEventMove}
+        onEventResizeStart={handleEventResizeStart}
         onEventResize={handleEventResize}
         onEmployeeProfile={(employee) => {
           setProfileEmployee(employee);
@@ -367,6 +379,10 @@ export function SchedulePageClient({
         membershipRole={membershipRole}
         company={company}
         isDemo={isDemo}
+          shifts={shifts}
+          tools={tools}
+          equipe={employeeList}
+          onShiftsChanged={() => router.refresh()}
         onEventUpdated={(updated) => {
           applyLocalEvent(updated, { mergeMode: "preserve-placement" });
           setQuickEvent(updated);
@@ -469,8 +485,14 @@ export function SchedulePageClient({
         open={profileOpen}
         onOpenChange={setProfileOpen}
         employee={profileEmployee}
+        tools={tools}
+        employees={employeeList}
+        company={company}
+        membershipRole={membershipRole}
+        isDemo={isDemo}
         onEdit={() => profileEmployee && setProfileOpen(false)}
-        onDeactivate={() => profileEmployee && setProfileOpen(false)}
+        onArchive={() => undefined}
+          onRestore={() => undefined}
       />
     </DashboardLayout>
   );

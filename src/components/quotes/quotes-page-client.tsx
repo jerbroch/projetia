@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { recordQuoteDepositAction } from "@/lib/actions/payments";
 import Link from "next/link";
 import {
   CalendarDays,
@@ -9,6 +10,7 @@ import {
   Eye,
   Mail,
   MoreHorizontal,
+  Receipt,
   Pencil,
   Plus,
   Trash2,
@@ -266,6 +268,25 @@ export function QuotesPageClient({
     );
   }
 
+  /**
+   * Constate la réception du dépôt. Ce chemin a remplacé l'ancien bouton
+   * public, où la possession du lien de soumission suffisait à marquer le
+   * dépôt payé sans qu'un sou ait bougé.
+   */
+  function handleDepositReceived(quote: Quote) {
+    startTransition(async () => {
+      const result = await recordQuoteDepositAction({
+        quoteId: quote.id,
+        method: "interac",
+      });
+      if (result.success) {
+        router.refresh();
+      } else {
+        setActionError(result.error);
+      }
+    });
+  }
+
   function renderActions(quote: Quote) {
     return (
       <DropdownMenu>
@@ -284,6 +305,12 @@ export function QuotesPageClient({
             <Mail className="mr-2 h-4 w-4" />
             Envoyer par courriel
           </DropdownMenuItem>
+          {quote.status === "deposit_pending" && (
+            <DropdownMenuItem onClick={() => handleDepositReceived(quote)}>
+              <Receipt className="mr-2 h-4 w-4" />
+              Dépôt reçu
+            </DropdownMenuItem>
+          )}
           {renderScheduleAction(quote)}
           <DropdownMenuItem onClick={() => openEditForm(quote)}>
             <Pencil className="mr-2 h-4 w-4" />

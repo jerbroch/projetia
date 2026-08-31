@@ -14,12 +14,15 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify:css": "node scripts/verify-css-health.mjs",
-    "verify": "npm run typecheck && npm run test && npm run build && npm run verify:css",
+    "verify": "npm run typecheck && npm run test && npm run build && npm run verify:css && npm run verify:prices",
     "test": "vitest run",
     "supabase:check": "node scripts/test-supabase-admin.mjs",
     "kill-ports": "node scripts/kill-dev-servers.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:report": "node scripts/generate-e2e-report.mjs && playwright show-report e2e/report/html"
+    "test:e2e:report": "node scripts/generate-e2e-report.mjs && playwright show-report e2e/report/html",
+    "verify:prices": "tsx scripts/verify-stripe-prices.mjs",
+    "stripe:setup": "tsx scripts/setup-stripe-catalog.mjs",
+    "invoices:backfill": "tsx scripts/backfill-platform-invoices.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -49,7 +52,7 @@
     "react-day-picker": "^9.4.4",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
-    "stripe": "^17.5.0",
+    "stripe": "^22.6.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.1"

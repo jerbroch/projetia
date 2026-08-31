@@ -20,6 +20,16 @@ export interface CompanyAccessFields {
   trialEndsAt?: string | null;
 }
 
+/**
+ * Statuts d'abonnement (miroir normalisé de Stripe) qui laissent l'accès ouvert
+ * une fois qu'un plan payant a été choisi.
+ */
+export const PAID_ACCESS_STATUSES: ReadonlySet<string> = new Set([
+  "active",
+  "trial",
+  "past_due",
+]);
+
 export interface AccessCheckOptions {
   isDemo?: boolean;
   isPlatformAdmin?: boolean;
@@ -49,7 +59,9 @@ export function companyHasAppAccess(
   if (company.subscriptionStatus === "active") return true;
 
   if (accessType === "monthly" || accessType === "annual") {
-    return company.subscriptionStatus === "active";
+    // Abonnement Stripe payé : l'essai en cours et le délai de grâce
+    // (paiement en retard, Stripe relance encore) gardent l'accès ouvert.
+    return PAID_ACCESS_STATUSES.has(company.subscriptionStatus ?? "");
   }
 
   if (isGrandfatheredByActivity(company)) return true;

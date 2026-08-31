@@ -4,6 +4,8 @@ import {
   getEmployees,
   getScheduleEvents,
 } from "@/lib/data/tenant-data";
+import { getShiftsForJobs } from "@/lib/data/job-shifts-data";
+import { getToolsWithDetails } from "@/lib/data/tools-data";
 import { requireTenantContext } from "@/lib/session";
 
 interface SchedulePageProps {
@@ -18,12 +20,17 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
     getCustomers(ctx.company.id, ctx.isDemo),
     getEmployees(ctx.company.id, ctx.isDemo),
   ]);
+  const tools = await getToolsWithDetails(ctx.company.id, ctx.isDemo, employees);
+  // Les plages par employé. Vide en démo, et vide tant qu'aucune n'est tracée :
+  // l'affichage retombe alors sur les heures du call.
+  const shifts = ctx.isDemo ? [] : await getShiftsForJobs(events.map((e) => e.id));
 
   return (
     <SchedulePageClient
       initialEvents={events}
       initialCustomers={customers}
       initialEmployees={employees}
+      tools={tools}
       company={ctx.company}
       user={ctx.user}
       membershipRole={ctx.membershipRole}

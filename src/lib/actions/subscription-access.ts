@@ -3,7 +3,23 @@
 import { redirect } from "next/navigation";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { companyHasAppAccess } from "@/lib/access-control";
-import { isStripeConfigured } from "@/lib/stripe";
+import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import {
+  createBillingPortalSession,
+  type PortalUpdateTarget,
+  createSubscriptionCheckoutSession,
+  type CompanyBillingIdentity,
+} from "@/lib/billing/checkout";
+import { syncSubscriptionById } from "@/lib/billing/sync";
+import { hasModifiableSubscription } from "@/lib/billing/subscription-status";
+import {
+  isBillingCycle,
+  isSubscriptionTier,
+  priceIdForTier,
+  tierForPriceId,
+  type BillingCycle,
+  type SubscriptionTier,
+} from "@/lib/billing/tiers";
 import { logAdminActivity } from "@/lib/data/platform-data";
 import {
   normalizePromoCode,
@@ -19,6 +35,17 @@ export type AccessActionResult =
 
 function safeError(message: string): AccessActionResult {
   return { success: false, error: message };
+}
+
+function billingIdentity(ctx: {
+  company: { id: string; name: string };
+  user: { email: string };
+}): CompanyBillingIdentity {
+  return {
+    companyId: ctx.company.id,
+    companyName: ctx.company.name,
+    email: ctx.user.email,
+  };
 }
 
 function isSchemaNotReady(message: string | undefined): boolean {
@@ -130,34 +157,209 @@ export async function applyPromoCodeAction(formData: FormData): Promise<AccessAc
 }
 
 export async function selectSubscriptionPlanAction(
-  plan: "monthly" | "annual",
+  tier: SubscriptionTier,
+  cycle: BillingCycle,
 ): Promise<AccessActionResult> {
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
+
+  if (!isSubscriptionTier(tier) || !isBillingCycle(cycle)) {
+    return safeError("Plan invalide.");
+  }
 
   if (!isSupabaseConfigured()) {
     return safeError("Service indisponible.");
   }
 
-  if (!isStripeConfigured()) {
-    const admin = createAdminClient();
-    await admin
+  const admin = createAdminClient();
+
+  // Un abonnement Stripe encore vivant se MODIFIE, il ne se rachète pas :
+  // ouvrir un second Checkout créerait un deuxième abonnement sur le même
+  // client, donc une double facturation. Le portail gère le changement de
+  // palier et la proration. Garde côté serveur : vaut même si l'interface
+  // est contournée.
+  if (isStripeConfigured()) {
+    const { data: existing } = await admin
       .from("companies")
-      .update({ pending_plan: plan })
-      .eq("id", ctx.company.id);
+      .select("stripe_subscription_id, subscription_status, subscription_price_id")
+      .eq("id", ctx.company.id)
+      .maybeSingle();
+
+    const subscriptionId = existing?.stripe_subscription_id
+      ? String(existing.stripe_subscription_id)
+      : null;
+
+    if (
+      existing &&
+      hasModifiableSubscription({
+        stripeSubscriptionId: subscriptionId,
+        status: existing.subscription_status
+          ? String(existing.subscription_status)
+          : null,
+      })
+    ) {
+      // On transmet le palier choisi pour que le portail s'ouvre sur l'écran de
+      // confirmation, plutôt que d'obliger à re-sélectionner le palier. Stripe
+      // refuse un flux « sans changement à confirmer » : si le palier visé est
+      // déjà l'actuel, on ouvre le portail générique. L'interface désactive ce
+      // cas, mais l'action reste appelable directement.
+      const targetPriceId = priceIdForTier(tier, cycle);
+      const currentPriceId = existing.subscription_price_id
+        ? String(existing.subscription_price_id)
+        : null;
+      const isSamePrice = Boolean(targetPriceId) && targetPriceId === currentPriceId;
+
+      return openBillingPortalAction(
+        "/settings",
+        subscriptionId && targetPriceId && !isSamePrice
+          ? { subscriptionId, priceId: targetPriceId }
+          : null,
+      );
+    }
+  }
+
+  // Le choix est enregistré même si le paiement échoue ensuite : il sert de
+  // relance commerciale et pré-remplit la page d'abonnement au retour.
+  await admin.from("companies").update({ pending_plan: cycle }).eq("id", ctx.company.id);
+
+  if (!isStripeConfigured()) {
     return safeError("Paiement bientôt disponible. Votre choix a été enregistré.");
   }
 
-  // Stripe checkout — price IDs not configured yet; do not fake success
-  const admin = createAdminClient();
-  await admin
-    .from("companies")
-    .update({ pending_plan: plan })
-    .eq("id", ctx.company.id);
+  if (!priceIdForTier(tier, cycle)) {
+    return safeError(
+      "Paiement bientôt disponible — le tarif Stripe de ce palier n'est pas encore configuré.",
+    );
+  }
 
-  return safeError(
-    "Paiement bientôt disponible. La configuration Stripe Checkout sera activée prochainement.",
-  );
+  try {
+    const { url } = await createSubscriptionCheckoutSession(
+      billingIdentity(ctx),
+      tier,
+      cycle,
+    );
+    return { success: true, redirectTo: url };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isSchemaNotReady(message)) {
+      return safeError(
+        "La migration de facturation (022 / 023) n'est pas encore appliquée.",
+      );
+    }
+    console.error("Stripe checkout failed:", message);
+    return safeError("Impossible d'ouvrir le paiement. Réessayez dans un instant.");
+  }
+}
+
+/**
+ * Valide la cible de changement de palier reçue du client : l'abonnement doit
+ * être celui de l'entreprise, et le prix doit correspondre à un palier connu.
+ */
+async function validatePortalTarget(
+  companyId: string,
+  target: PortalUpdateTarget | null,
+): Promise<PortalUpdateTarget | null> {
+  if (!target?.subscriptionId || !target.priceId) return null;
+  if (!tierForPriceId(target.priceId)) return null;
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("companies")
+    .select("stripe_subscription_id")
+    .eq("id", companyId)
+    .maybeSingle();
+
+  const owned = data?.stripe_subscription_id ? String(data.stripe_subscription_id) : null;
+  return owned && owned === target.subscriptionId ? target : null;
+}
+
+/** Portail Stripe : changer de palier, carte, factures, annulation — géré par Stripe. */
+export async function openBillingPortalAction(
+  returnPath = "/settings",
+  target: PortalUpdateTarget | null = null,
+): Promise<AccessActionResult> {
+  const ctx = await requireTenantContext();
+  if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
+
+  if (!isStripeConfigured() || !isSupabaseConfigured()) {
+    return safeError("Gestion de l'abonnement indisponible — Stripe n'est pas configuré.");
+  }
+
+  const safePath = returnPath.startsWith("/") ? returnPath : "/settings";
+
+  // `target` vient de l'appelant : cette action est exposée au client. On ne la
+  // transmet à Stripe qu'après avoir vérifié que l'abonnement est bien celui de
+  // l'entreprise et que le prix fait partie des paliers configurés. Une cible
+  // invalide est ignorée — on ouvre le portail générique plutôt que d'échouer.
+  const safeTarget = await validatePortalTarget(ctx.company.id, target);
+
+  try {
+    const url = await createBillingPortalSession(billingIdentity(ctx), safePath, safeTarget);
+    return { success: true, redirectTo: url };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isSchemaNotReady(message)) {
+      return safeError(
+        "La migration de facturation (022 / 023) n'est pas encore appliquée.",
+      );
+    }
+    console.error("Stripe billing portal failed:", message);
+    return safeError("Impossible d'ouvrir la gestion de l'abonnement. Réessayez.");
+  }
+}
+
+/**
+ * Retour de Checkout : on lit l'abonnement chez Stripe et on l'applique tout de
+ * suite, sans attendre le webhook (qui reste la source de vérité ensuite).
+ */
+export async function confirmCheckoutSessionAction(
+  sessionId: string,
+): Promise<AccessActionResult> {
+  const ctx = await requireTenantContext();
+  if (ctx.isDemo) return safeError("Non disponible pour le compte de démonstration.");
+  if (!isStripeConfigured()) return safeError("Stripe n'est pas configuré.");
+  if (!sessionId.startsWith("cs_")) return safeError("Session de paiement invalide.");
+
+  try {
+    const session = await getStripe().checkout.sessions.retrieve(sessionId);
+
+    // Un identifiant de session est devinable : on refuse toute session qui
+    // n'appartient pas à l'entreprise connectée.
+    if (session.client_reference_id !== ctx.company.id) {
+      return safeError("Session de paiement invalide.");
+    }
+
+    const subscriptionId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription?.id;
+
+    if (!subscriptionId) {
+      return safeError("Paiement en cours de traitement. Actualisez dans quelques secondes.");
+    }
+
+    const result = await syncSubscriptionById(subscriptionId, ctx.company.id);
+    if (!result) {
+      return safeError("Paiement en cours de traitement. Actualisez dans quelques secondes.");
+    }
+
+    try {
+      await logAdminActivity(
+        "subscription_activated",
+        `Abonnement ${result.tier ?? "?"} (${result.cycle ?? "?"}) activé — ${ctx.company.name}`,
+        ctx.company.id,
+        { tier: result.tier, cycle: result.cycle, stripe_status: result.status },
+      );
+    } catch {
+      // Non-blocking if platform tables missing
+    }
+
+    return { success: true, redirectTo: "/dashboard" };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Stripe checkout confirmation failed:", message);
+    return safeError("Impossible de confirmer le paiement. Réessayez.");
+  }
 }
 
 export async function getCompanyAccessStatusAction(): Promise<{

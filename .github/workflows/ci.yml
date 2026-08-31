@@ -1,0 +1,47 @@
+name: CI
+
+# Voie rapide : ~2 minutes, sur chaque push et chaque pull request.
+#
+# AUCUN SECRET N'EST REQUIS. Le build a été vérifié avec un environnement
+# totalement vide : rien ne lit les variables au moment de l'import, tout est
+# lu à l'appel. Ce workflow tourne donc aussi sur les pull requests venues
+# d'un fork, qui n'ont pas accès aux secrets du dépôt.
+#
+# La suite e2e, elle, exige une base de données : voir e2e.yml.
+
+on:
+  push:
+  pull_request:
+
+# Une exécution par branche : un nouveau push annule la précédente.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifications:
+    name: Typecheck, tests et build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérification des types
+        run: npm run typecheck
+
+      # Contient react-event-safety, qui attrape en deux secondes le motif
+      # `currentTarget` lu après un await — sans navigateur.
+      - name: Tests unitaires
+        run: npm test
+
+      - name: Build de production
+        run: npm run build

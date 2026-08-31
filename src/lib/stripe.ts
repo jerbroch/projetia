@@ -10,7 +10,7 @@ export function getStripe(): Stripe {
 
   if (!stripeClient) {
     stripeClient = new Stripe(secretKey, {
-      apiVersion: "2025-02-24.acacia",
+      apiVersion: "2026-08-26.dahlia",
       typescript: true,
     });
   }
@@ -20,4 +20,14 @@ export function getStripe(): Stripe {
 
 export function isStripeConfigured(): boolean {
   return Boolean(process.env.STRIPE_SECRET_KEY);
+}
+
+export function getStripeWebhookSecret(): string | null {
+  return process.env.STRIPE_WEBHOOK_SECRET?.trim() || null;
+}
+
+/** URL de base utilisée pour les retours Stripe (Checkout, portail client). */
+export function getAppUrl(): string {
+  const url = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
+  return url.replace(/\/+$/, "");
 }

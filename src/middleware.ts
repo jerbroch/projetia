@@ -1,22 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { PASSWORD_SETUP_PATH, shouldForcePasswordSetup } from "@/lib/password-setup-gate";
+import { CHEMINS_DE_PORTE, porteDeProfil } from "@/lib/profile-access-gate";
 import {
+  TENANT_PREFIXES,
+  chargerStatutDeProfil,
   resolvePostLoginPath,
   shouldBlockTenantRoute,
+  shouldRedirectFieldEmployeeFromAdmin,
 } from "@/lib/middleware-access";
 
-const TENANT_PREFIXES = [
-  "/dashboard",
-  "/customers",
-  "/quotes",
-  "/invoices",
-  "/schedule",
-  "/archives",
-  "/reviews",
-  "/employees",
-  "/payments",
-  "/settings",
-];
+// Importées : une seule source pour ce qui exige une session et ce qui est
+// réservé au bureau (voir middleware-access.ts).
 
 const PROTECTED_PREFIXES = [...TENANT_PREFIXES, "/onboarding", "/admin"];
 
@@ -44,6 +39,30 @@ function isAccessGatePage(pathname: string): boolean {
   return matchesPrefix(pathname, ACCESS_GATE_PAGES);
 }
 
+/**
+ * Redirige vers /login en conservant la destination COMPLÈTE (chemin + query)
+ * dans `next`. Sans cela, `nextUrl.clone()` laisse la query d'origine collée à
+ * /login (ex. /login?upgrade=1&next=/choose-plan) et le paramètre est perdu au
+ * retour — on retomberait sur /choose-plan sans ?upgrade=1, donc au tableau
+ * de bord.
+ */
+function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
+  const loginUrl = request.nextUrl.clone();
+  const destination = `${pathname}${request.nextUrl.search}`;
+  loginUrl.pathname = "/login";
+  loginUrl.search = "";
+  loginUrl.searchParams.set("next", destination);
+  return NextResponse.redirect(loginUrl);
+}
+
+/** Redirection interne simple : on ne traîne pas la query de la page d'origine. */
+function redirectTo(request: NextRequest, pathname: string): NextResponse {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  url.search = "";
+  return NextResponse.redirect(url);
+}
+
 function isPublicRoute(pathname: string): boolean {
   return pathname === "/soumission" || pathname.startsWith("/soumission/");
 }
@@ -62,6 +81,7 @@ export async function middleware(request: NextRequest) {
   let isLoggedIn = hasDemoSession(request);
   let emailVerified = isLoggedIn;
   let userId: string | null = null;
+  let userMetadata: unknown = null;
 
   let supabase: ReturnType<typeof createServerClient> | null = null;
 
@@ -88,6 +108,7 @@ export async function middleware(request: NextRequest) {
       isLoggedIn = true;
       emailVerified = Boolean(user.email_confirmed_at);
       userId = user.id;
+      userMetadata = user.user_metadata;
     }
   }
 
@@ -99,39 +120,55 @@ export async function middleware(request: NextRequest) {
 
   if (isAccessGatePage(pathname)) {
     if (!isLoggedIn) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(request, pathname);
     }
     if (!emailVerified && !isDemo) {
-      const verifyUrl = request.nextUrl.clone();
-      verifyUrl.pathname = "/verify-email";
-      return NextResponse.redirect(verifyUrl);
+      return redirectTo(request, "/verify-email");
     }
     return supabaseResponse;
   }
 
   if (isProtected(pathname)) {
     if (!isLoggedIn) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/login";
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
+      return redirectToLogin(request, pathname);
+    }
+
+    // Un employé invité a déjà une session, mais pas encore de mot de passe :
+    // taper /terrain dans la barre d'adresse sauterait l'étape.
+    if (!isDemo && shouldForcePasswordSetup({ pathname, isLoggedIn, metadata: userMetadata })) {
+      return redirectTo(request, PASSWORD_SETUP_PATH);
+    }
+
+    // Un accès retiré doit fermer TOUT DE SUITE, avant les vérifications
+    // d'abonnement. Jusqu'ici `profiles.status` était posé par la révocation
+    // et lu par personne : la porte restait grande ouverte.
+    if (supabase && userId && !isDemo) {
+      const porte = porteDeProfil(await chargerStatutDeProfil(supabase, userId));
+      if (porte !== "ouverte") {
+        return redirectTo(request, CHEMINS_DE_PORTE[porte]);
+      }
     }
 
     if (!emailVerified && pathname !== "/verify-email" && !isDemo) {
-      const verifyUrl = request.nextUrl.clone();
-      verifyUrl.pathname = "/verify-email";
-      return NextResponse.redirect(verifyUrl);
+      return redirectTo(request, "/verify-email");
     }
 
     if (isTenantRoute(pathname) && supabase && userId && !isDemo) {
       const blocked = await shouldBlockTenantRoute(supabase, userId, isDemo);
       if (blocked) {
-        const chooseUrl = request.nextUrl.clone();
-        chooseUrl.pathname = "/choose-plan";
-        return NextResponse.redirect(chooseUrl);
+        return redirectTo(request, "/choose-plan");
+      }
+
+      const fieldRedirect = await shouldRedirectFieldEmployeeFromAdmin(
+        supabase,
+        userId,
+        pathname,
+        isDemo,
+      );
+      if (fieldRedirect) {
+        const terrainUrl = request.nextUrl.clone();
+        terrainUrl.pathname = "/terrain";
+        return NextResponse.redirect(terrainUrl);
       }
     }
   }
@@ -165,8 +202,11 @@ export const config = {
     "/archives/:path*",
     "/reviews/:path*",
     "/employees/:path*",
+    "/heures/:path*",
     "/payments/:path*",
     "/settings/:path*",
+    "/outillage/:path*",
+    "/terrain/:path*",
     "/onboarding/:path*",
     "/choose-plan",
     "/admin",
