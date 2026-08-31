@@ -49,7 +49,10 @@ function toEmployeeInput(parsed: NonNullable<ReturnType<typeof parseEmployeeForm
     firstName: parsed.firstName,
     lastName: parsed.lastName,
     trade: parsed.trade,
-    email: parsed.email || undefined,
+    // Enregistré en minuscules : une adresse est insensible à la casse, et
+    // « PART-@X.TEST » affiché en majuscules sème le doute sans rien apporter.
+    // L'unicité s'appuie déjà sur lower(email) — le stockage suit la règle.
+    email: normaliserCourriel(parsed.email) || undefined,
     phone: parsed.mobilePhone || undefined,
     truckNumber: parsed.truckNumber || undefined,
     status: parsed.status ?? ("active" as const),
