@@ -92,6 +92,11 @@ export function mapBillingLineRow(row: Record<string, unknown>): JobBillingLine 
     catalogItemId: row.catalog_item_id ? String(row.catalog_item_id) : undefined,
     supplierId: row.supplier_id ? String(row.supplier_id) : undefined,
     isDivers: Boolean(row.is_divers ?? false),
+    // Origine terrain : d'où vient la ligne, quelles saisies elle représente,
+    // et si elle a été retouchée. Sans ça, un réimport écraserait à l'aveugle.
+    sourceKind: row.source_kind ? (String(row.source_kind) as JobBillingLine["sourceKind"]) : null,
+    sourceIds: Array.isArray(row.source_ids) ? (row.source_ids as string[]) : [],
+    manuallyEdited: Boolean(row.manually_edited ?? false),
     sortOrder: Number(row.sort_order ?? 0),
   };
 }

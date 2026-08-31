@@ -336,6 +336,12 @@ export interface JobBillingLine {
   catalogItemId?: string;
   supplierId?: string;
   isDivers?: boolean;
+  /** « field_hours » ou « field_material » quand la ligne vient du terrain. */
+  sourceKind?: "field_hours" | "field_material" | null;
+  /** Saisies terrain que cette ligne représente. */
+  sourceIds?: string[];
+  /** Vrai dès qu'on retouche une ligne importée : un réimport doit demander. */
+  manuallyEdited?: boolean;
   sortOrder: number;
 }
 

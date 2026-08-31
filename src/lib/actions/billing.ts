@@ -122,11 +122,24 @@ export async function loadBillingSheetAction(jobId: string): Promise<
 
   try {
     const job = await getScheduledJobById(ctx.company.id, jobId, false);
-    const [sheet, laborTemplates, defaultMargin] = await Promise.all([
+    const [sheetInitiale, laborTemplates, defaultMargin] = await Promise.all([
       getOrCreateJobBillingSheet(ctx.company.id, jobId, ctx.company),
       getLaborRateTemplates(ctx.company.id),
       getCompanyDefaultMaterialMargin(ctx.company.id),
     ]);
+
+    // Préremplissage à la PREMIÈRE ouverture : une feuille encore vide se
+    // peuple des heures et matériaux déjà saisis. Le premier chargement doit
+    // être utile sans rien demander ; les suivants ne touchent à rien, et un
+    // réimport reste à la main pour ne jamais écraser une correction.
+    let sheet = sheetInitiale;
+    if (sheet.lines.length === 0) {
+      const { importerTerrainAction } = await import("@/lib/actions/billing-field-import");
+      const r = await importerTerrainAction({ jobId });
+      if (r.success && r.importees > 0) {
+        sheet = (await getJobBillingSheet(ctx.company.id, jobId)) ?? sheet;
+      }
+    }
 
     let quoteNumber: string | undefined;
     let depositApplied: number | undefined;
@@ -430,6 +443,9 @@ export async function updateBillingLineAction(input: {
         unit_cost: unitCost,
         unit_sell_price: unitSellPrice,
         line_total: lineTotal,
+        // Une ligne importée qu'on retouche devient du travail humain : un
+        // réimport devra demander avant de l'écraser.
+        ...(line.sourceKind ? { manually_edited: true } : {}),
       })
       .eq("id", input.lineId)
       .eq("company_id", ctx.company.id);

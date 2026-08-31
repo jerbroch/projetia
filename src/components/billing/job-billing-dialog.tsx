@@ -54,6 +54,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FieldImportBanner } from "@/components/billing/field-import-banner";
 import { formatCurrency } from "@/lib/utils";
 import type {
   Company,
@@ -531,6 +532,9 @@ export function JobBillingDialog({
             {event.customerName ?? "—"} · {event.jobSiteAddress ?? event.location ?? "—"}
           </DialogDescription>
         </DialogHeader>
+        {event?.id && (
+          <FieldImportBanner jobId={event.id} onImported={() => void loadSheet()} />
+        )}
 
         <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -966,7 +970,21 @@ function BillingLinesTable({
         <tbody>
           {lines.map((line) => (
             <tr key={line.id} className="border-b">
-              <td className="p-2">{line.description}</td>
+              <td className="p-2">
+                {line.description}
+                {/* Une ligne venue du terrain se distingue d'une ligne tapée à la
+                    main : c'est elle qu'un réimport peut remplacer. */}
+                {line.sourceKind && (
+                  <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                    terrain{line.manuallyEdited ? " · retouchée" : ""}
+                  </span>
+                )}
+                {line.sourceKind && line.unitSellPrice <= 0 && (
+                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                    prix à saisir
+                  </span>
+                )}
+              </td>
               <td className="p-2 text-right">{line.quantity}</td>
               {showPrices && materialOnly && (
                 <td className="p-2 text-right">
