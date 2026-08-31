@@ -515,6 +515,11 @@ export interface ToolAssignment {
   toolId: string;
   employeeId: string;
   companyId: string;
+  /**
+   * Call pour lequel l'outil est sorti. null quand l'assignation ne vise
+   * aucun chantier précis — un outil confié pour la saison, par exemple.
+   */
+  scheduledJobId?: string | null;
   startDate: string;
   expectedReturnDate: string;
   actualReturnDate?: string;
@@ -545,6 +550,8 @@ export interface ToolListItem extends Tool {
   effectiveStatus: ToolEffectiveStatus;
   currentEmployeeId?: string;
   currentEmployeeName?: string;
+  /** Call pour lequel l'outil est actuellement sorti, s'il y en a un. */
+  currentScheduledJobId?: string | null;
   checkoutDate?: string;
   expectedReturnDate?: string;
   daysOverdue?: number;

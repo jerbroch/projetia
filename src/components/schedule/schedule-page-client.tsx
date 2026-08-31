@@ -380,6 +380,8 @@ export function SchedulePageClient({
         company={company}
         isDemo={isDemo}
           shifts={shifts}
+          tools={tools}
+          equipe={employeeList}
           onShiftsChanged={() => router.refresh()}
         onEventUpdated={(updated) => {
           applyLocalEvent(updated, { mergeMode: "preserve-placement" });

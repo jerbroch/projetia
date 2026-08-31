@@ -43,6 +43,8 @@ interface AssignToolDialogProps {
   isDemo?: boolean;
   defaultEmployeeId?: string;
   mode?: ToolCheckoutMode;
+  /** Call pour lequel l'outil sort, quand l'assignation part d'un chantier. */
+  scheduledJobId?: string;
   onAssigned: (tool: ToolWithDetails) => void;
 }
 
@@ -105,6 +107,7 @@ export function AssignToolDialog({
   isDemo,
   defaultEmployeeId,
   mode = "assign",
+  scheduledJobId,
   onAssigned,
 }: AssignToolDialogProps) {
   const [pending, startTransition] = useTransition();
@@ -144,6 +147,9 @@ export function AssignToolDialog({
     formData.set("durationDays", durationDays);
     formData.set("expectedReturnDate", expectedReturnDate);
     formData.set("mode", mode);
+    // Le call n'est qu'une information de plus : l'outil reste attribué à la
+    // personne, qui le rapportera même si le chantier est annulé.
+    if (scheduledJobId) formData.set("scheduledJobId", scheduledJobId);
 
     startTransition(async () => {
       if (isDemo) {

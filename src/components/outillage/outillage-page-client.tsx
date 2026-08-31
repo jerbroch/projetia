@@ -48,6 +48,8 @@ import { formatDate } from "@/lib/utils";
 interface OutillagePageClientProps {
   initialTools: ToolListItem[];
   employees: Employee[];
+  /** Titre de chaque call, pour dire pour QUEL chantier un outil est sorti. */
+  jobTitles?: Record<string, string>;
   company: Company;
   user: User;
   membershipRole: ProfileRole;
@@ -68,6 +70,7 @@ const STATUS_COUNTERS: Array<{ key: StatusFilter; label: string }> = [
 export function OutillagePageClient({
   initialTools,
   employees,
+  jobTitles = {},
   company,
   user,
   membershipRole,
@@ -299,6 +302,11 @@ export function OutillagePageClient({
                   {tool.currentEmployeeName && (
                     <p>{tool.currentEmployeeName}</p>
                   )}
+                    {tool.currentScheduledJobId && jobTitles[tool.currentScheduledJobId] && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        Sorti pour&nbsp;: {jobTitles[tool.currentScheduledJobId]}
+                      </p>
+                    )}
                   {tool.expectedReturnDate && (
                     <p className="text-muted-foreground">
                       Retour : {formatDate(tool.expectedReturnDate)}
@@ -340,7 +348,14 @@ export function OutillagePageClient({
                       <TableCell>
                         <ToolStatusBadge status={tool.effectiveStatus} />
                       </TableCell>
-                      <TableCell>{tool.currentEmployeeName || "—"}</TableCell>
+                      <TableCell>
+                        <div className="truncate">{tool.currentEmployeeName || "—"}</div>
+                        {tool.currentScheduledJobId && jobTitles[tool.currentScheduledJobId] && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {jobTitles[tool.currentScheduledJobId]}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {tool.checkoutDate ? formatDate(tool.checkoutDate) : "—"}
                       </TableCell>

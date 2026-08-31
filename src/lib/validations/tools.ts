@@ -15,6 +15,8 @@ export const toolFormSchema = z.object({
 });
 
 export const toolAssignSchema = z.object({
+  // Facultatif : on assigne aussi un outil sans chantier précis.
+  scheduledJobId: z.string().uuid().optional(),
   employeeId: z.string().trim().min(1, "L'employé est requis"),
   startDate: z.string().trim().min(1, "La date de début est requise"),
   durationDays: z.coerce.number().int().min(1, "La durée doit être d'au moins 1 jour"),

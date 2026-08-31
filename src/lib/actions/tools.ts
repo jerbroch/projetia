@@ -154,6 +154,8 @@ export async function assignToolAction(
     expectedReturnDate: formData.get("expectedReturnDate"),
     notes: formData.get("notes") || undefined,
     mode: formData.get("mode") || "assign",
+      // Facultatif : présent seulement quand l'assignation part d'un call.
+      scheduledJobId: formData.get("scheduledJobId") || undefined,
   });
 
   if (!parsed.success) {
@@ -196,6 +198,7 @@ export async function assignToolAction(
     expectedReturnDate: parsed.data.expectedReturnDate,
     notes: parsed.data.notes,
     createdByUserId: ctx.user.id,
+      scheduledJobId: parsed.data.scheduledJobId ?? null,
   });
 
   if (error) {

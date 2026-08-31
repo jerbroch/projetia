@@ -52,6 +52,7 @@ export function mapToolAssignmentRow(row: Record<string, unknown>): ToolAssignme
     id: String(row.id),
     toolId: String(row.tool_id),
     employeeId: String(row.employee_id),
+    scheduledJobId: row.scheduled_job_id ? String(row.scheduled_job_id) : null,
     companyId: String(row.company_id),
     startDate: String(row.start_date ?? "").slice(0, 10),
     expectedReturnDate: String(row.expected_return_date ?? "").slice(0, 10),
@@ -107,6 +108,7 @@ function enrichToolListItem(
     ...tool,
     effectiveStatus,
     currentEmployeeId: current?.employeeId,
+    currentScheduledJobId: current?.scheduledJobId ?? null,
     currentEmployeeName: current
       ? getEmployeeFullName(
           employeeMap.get(current.employeeId) ?? {
@@ -408,6 +410,8 @@ export async function createToolAssignment(
     expectedReturnDate: string;
     notes?: string;
     createdByUserId?: string;
+    /** Call pour lequel l'outil sort, s'il y en a un. */
+    scheduledJobId?: string | null;
   },
 ) {
   const supabase = await createClient();
@@ -420,6 +424,7 @@ export async function createToolAssignment(
       employee_id: input.employeeId,
       start_date: input.startDate,
       expected_return_date: input.expectedReturnDate,
+        scheduled_job_id: input.scheduledJobId ?? null,
       status,
       notes: input.notes ?? null,
       created_by_user_id: input.createdByUserId ?? null,

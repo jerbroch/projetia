@@ -248,6 +248,7 @@ export function buildToolListItemFromDetails(tool: ToolWithDetails): ToolListIte
     updatedAt: tool.updatedAt,
     effectiveStatus: tool.effectiveStatus,
     currentEmployeeId: current?.employeeId,
+    currentScheduledJobId: current?.scheduledJobId ?? null,
     currentEmployeeName: current?.employeeName,
     checkoutDate: current?.startDate,
     expectedReturnDate: current?.expectedReturnDate,
