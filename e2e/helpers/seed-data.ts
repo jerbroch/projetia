@@ -1,3 +1,4 @@
+import { COURRIEL_LIVRE } from "./adresses-de-test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const E2E_SEED_MARKER = "E2E Seed";
@@ -85,7 +86,7 @@ export async function seedE2EBusinessData(
     .insert({
       company_id: companyId,
       name: SEED_CUSTOMER_NAME,
-      email: "e2e-seed-client@test.local",
+      email: COURRIEL_LIVRE,
       phone: "5145550100",
       address: SEED_CUSTOMER_ADDRESS,
       company: SEED_CUSTOMER_NAME,
@@ -104,7 +105,7 @@ export async function seedE2EBusinessData(
       company_id: companyId,
       first_name: SEED_EMPLOYEE_FIRST,
       last_name: SEED_EMPLOYEE_LAST,
-      email: "e2e-seed-employee@test.local",
+      email: COURRIEL_LIVRE,
       phone: "5145550101",
       trade: "Plombier",
       truck_number: "E2E-01",
@@ -129,7 +130,7 @@ export async function seedE2EBusinessData(
       quote_number: quoteNumber,
       customer_id: customer.id,
       customer_name: customer.name,
-      customer_email: "e2e-seed-client@test.local",
+      customer_email: COURRIEL_LIVRE,
       title: SEED_QUOTE_TITLE,
       description: "Données de test E2E — parcours complet",
       amount: 1000,
@@ -171,7 +172,7 @@ export async function seedE2EBusinessData(
       end_at: end,
       customer_id: customer.id,
       customer_name: customer.name,
-      customer_email: "e2e-seed-client@test.local",
+      customer_email: COURRIEL_LIVRE,
       customer_phone: "5145550100",
       billing_address: customer.address,
       job_site_address: customer.address,

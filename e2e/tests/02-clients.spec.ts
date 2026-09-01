@@ -1,4 +1,5 @@
 import { test, expect, tenantAuth } from "../fixtures/base";
+import { courrielLivrableUnique } from "../helpers/adresses-de-test";
 import { ensureDashboardAccess } from "../helpers/auth";
 import { E2E_SEED_MARKER } from "../helpers/seed-data";
 import { readTestCredentials } from "../helpers/test-data";
@@ -22,7 +23,7 @@ test.describe("2. Clients", () => {
 
     await page.getByRole("button", { name: "Créer un client" }).click();
     await page.getByLabel("Nom du client").fill(uniqueName);
-    await page.getByLabel("Courriel").fill(`client${Date.now()}@test.local`);
+    await page.getByLabel("Courriel").fill(courrielLivrableUnique("client"));
     await page.getByLabel("Adresse").fill(address);
     await page.getByRole("button", { name: "Créer le client" }).click();
 

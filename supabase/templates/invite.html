@@ -1,0 +1,35 @@
+<!--
+  Invitation d'un employé par son employeur.
+
+  Ce courriel arrive sans avoir été demandé : il doit dire TOUT DE SUITE qui
+  invite et pourquoi, sinon il ressemble à un pourriel. C'est l'employeur qui
+  compte ici, pas nous — l'employé ne connaît pas Construction iOS.
+-->
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #111827;">
+  <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 16px;">Votre employeur vous donne accès</h1>
+
+  <p style="font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+    Votre employeur utilise Construction iOS pour gérer les chantiers. Vous y
+    verrez vos calls du jour, votre horaire et vos outils, et vous y saisirez
+    vos heures depuis votre téléphone.
+  </p>
+
+  <p style="margin: 0 0 24px;">
+    <a href="{{ .ConfirmationURL }}"
+       style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+      Créer mon mot de passe
+    </a>
+  </p>
+
+  <p style="font-size: 13px; line-height: 1.6; color: #6b7280; margin: 0 0 8px;">
+    Le bouton ne fonctionne pas&nbsp;? Copiez ce lien dans votre navigateur&nbsp;:
+  </p>
+  <p style="font-size: 12px; word-break: break-all; color: #2563eb; margin: 0 0 24px;">
+    {{ .ConfirmationURL }}
+  </p>
+
+  <p style="font-size: 13px; line-height: 1.6; color: #6b7280; margin: 0; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+    Vous ne savez pas de quoi il s'agit&nbsp;? Demandez à votre contremaître avant
+    de cliquer.
+  </p>
+</div>

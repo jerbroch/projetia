@@ -233,6 +233,21 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
+# Gabarits en français. Le sujet et le corps sont versionnés dans le dépôt :
+# les modifier dans le tableau de bord Supabase seul laisserait le code et la
+# production dire deux choses différentes.
+[auth.email.template.confirmation]
+subject = "Confirmez votre adresse courriel"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Réinitialiser votre mot de passe"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.invite]
+subject = "Votre employeur vous donne accès à Construction iOS"
+content_path = "./supabase/templates/invite.html"
+
 # Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true

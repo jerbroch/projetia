@@ -1,4 +1,5 @@
 import { test, expect, tenantAuth } from "../fixtures/base";
+import { courrielLivrableUnique } from "../helpers/adresses-de-test";
 import { ensureDashboardAccess } from "../helpers/auth";
 import { tableCell } from "../helpers/locators";
 import { getResendCallCount, resetResendCallCount } from "../helpers/resend-mock";
@@ -20,7 +21,7 @@ test.describe("3. Soumissions", () => {
     const clientName = `QuoteClient ${Date.now()}`;
     await page.getByRole("button", { name: "Créer un client" }).click();
     await page.getByLabel("Nom du client").fill(clientName);
-    await page.getByLabel("Courriel").fill(`qc${Date.now()}@test.local`);
+    await page.getByLabel("Courriel").fill(courrielLivrableUnique("qc"));
     await page.getByRole("button", { name: "Créer le client" }).click();
     await expect(tableCell(page, clientName)).toBeVisible({ timeout: 15000 });
 
