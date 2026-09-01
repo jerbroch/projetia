@@ -13,6 +13,7 @@ import {
   QUOTE_STATUS_LABELS,
   type QuoteFormValues,
 } from "@/lib/quote-utils";
+import { CustomerPicker } from "@/components/shared/customer-picker";
 import {
   avertissementDeModification,
   regimeDeModification,
@@ -81,16 +82,6 @@ export function QuoteForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleCustomerSelect(customerId: string) {
-    const customer = customers.find((c) => c.id === customerId);
-    if (!customer) return;
-    setForm((prev) => ({
-      ...prev,
-      customerId,
-      customerName: customer.name,
-      customerEmail: customer.email || prev.customerEmail,
-    }));
-  }
 
   /** Avertissement en attente : l'enregistrement reprend si l'utilisateur confirme. */
   const [avertissement, setAvertissement] = useState<string | null>(null);
@@ -225,43 +216,33 @@ export function QuoteForm({
               placeholder="Détails des travaux..."
             />
           </div>
-          {customers.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="customerSelect">Client existant</Label>
-              <Select
-                value={form.customerId || undefined}
-                onValueChange={handleCustomerSelect}
-              >
-                <SelectTrigger id="customerSelect">
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          {/*
+            Un seul chemin pour entrer un client.
+
+            Il y avait ici un menu « Client existant » ET des champs nom /
+            courriel séparés : deux façons concurrentes, dont l'une écrasait
+            l'autre en silence. Et aucun moyen de créer un client sans quitter
+            la soumission — donc sans perdre ce qu'on venait de saisir.
+          */}
           <div className="space-y-2">
-            <Label htmlFor="customerName">Nom du client</Label>
-            <Input
-              id="customerName"
-              value={form.customerName}
-              onChange={(e) => updateField("customerName", e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">Courriel du client</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={form.customerEmail}
-              onChange={(e) => updateField("customerEmail", e.target.value)}
-              placeholder="client@exemple.com"
+            <Label>Client</Label>
+            <CustomerPicker
+              customers={customers}
+              value={{
+                id: form.customerId || undefined,
+                name: form.customerName,
+                email: form.customerEmail,
+                phone: "",
+                address: "",
+              }}
+              onChange={(c) =>
+                setForm((f) => ({
+                  ...f,
+                  customerId: c.id ?? "",
+                  customerName: c.name,
+                  customerEmail: c.email,
+                }))
+              }
             />
           </div>
           {open && (

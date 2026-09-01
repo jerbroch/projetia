@@ -1,5 +1,8 @@
 "use client";
 
+import { messageGabaritsARemplir } from "@/lib/gabarits-a-remplir";
+import Link from "next/link";
+
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { searchQuoteMaterialsAction } from "@/lib/actions/quotes";
@@ -344,6 +347,24 @@ export function CostEstimationSection({
             </table>
           </div>
         )}
+        {/*
+          Les gabarits arrivent vides à l'inscription — un montant plausible
+          mais faux part sur une soumission sans qu'on s'en aperçoive, un champ
+          vide se voit. Encore faut-il dire OÙ le remplir : sans ce message,
+          l'entrepreneur ajoute une ligne, voit 0 $, et cherche.
+        */}
+        {messageGabaritsARemplir(laborTemplates) && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+            <p>{messageGabaritsARemplir(laborTemplates)}</p>
+            <Link
+              href="/settings?section=taux"
+              className="mt-1 inline-block font-medium underline underline-offset-2"
+            >
+              Régler mes taux dans Paramètres → Taux de main-d&apos;œuvre
+            </Link>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
