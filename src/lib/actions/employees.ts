@@ -7,6 +7,7 @@ import {
   updateEmployeeForCompany,
 } from "@/lib/data/tenant-data";
 import { grantEmployeeAccessAction } from "@/lib/actions/employee-access";
+import { refusAvecFicheCreee } from "@/lib/billing/seat-limit";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { requireTenantContext } from "@/lib/session";
 import { employeeFormSchema } from "@/lib/validations/employees";
@@ -133,7 +134,14 @@ export async function createEmployeeAction(formData: FormData): Promise<Employee
   if (parsed.data.grantAppAccess) {
     const accessResult = await grantEmployeeAccessAction(employee.id);
     if (!accessResult.success) {
-      return safeError(accessResult.error);
+      // La fiche existe déjà à ce stade : le dire, sinon l'employeur croit que
+      // rien ne s'est passé et recommence.
+      return safeError(
+        refusAvecFicheCreee(
+          accessResult.error ?? "L'invitation n'a pas pu être envoyée.",
+          `${employee.firstName} ${employee.lastName}`.trim(),
+        ),
+      );
     }
     revalidatePath("/employees");
     revalidatePath("/dashboard");
