@@ -13,12 +13,17 @@ import {
   mapToolRow,
   returnToolAssignment,
   updateToolForCompany,
+  numerosInternesDeLEntreprise,
 } from "@/lib/data/tools-data";
 import { getEmployees } from "@/lib/data/tenant-data";
 import { sendSms } from "@/lib/sms/send-sms";
 import { hasAdminAccess, requireAdminContext, requireTenantContext } from "@/lib/session";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
-import { validateCheckoutStartDate } from "@/lib/tool-utils";
+import {
+  outilAvecLeMemeNumero,
+  refusDeNumeroInterne,
+  validateCheckoutStartDate,
+} from "@/lib/tool-utils";
 import {
   resolveToolCategory,
   toolAssignSchema,
@@ -82,6 +87,17 @@ export async function createToolAction(formData: FormData): Promise<ToolActionRe
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
   }
 
+  // Le numéro interne est ce qui est gravé sur l'outil : deux outils qui le
+  // partagent rendent l'inventaire inutilisable. On refuse EN NOMMANT l'autre.
+  const conflit = outilAvecLeMemeNumero(
+    await numerosInternesDeLEntreprise(ctx.company.id),
+    parsed.data.internalNumber,
+    undefined,
+  );
+  if (conflit) {
+    return safeError(refusDeNumeroInterne(parsed.data.internalNumber ?? "", conflit));
+  }
+
   const category = resolveToolCategory(parsed.data);
   const { data, error } = await createToolForCompany(ctx.company.id, {
     name: parsed.data.name,
@@ -115,6 +131,17 @@ export async function updateToolAction(
   const parsed = parseToolForm(formData);
   if (!parsed.success) {
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
+  }
+
+  // Le numéro interne est ce qui est gravé sur l'outil : deux outils qui le
+  // partagent rendent l'inventaire inutilisable. On refuse EN NOMMANT l'autre.
+  const conflit = outilAvecLeMemeNumero(
+    await numerosInternesDeLEntreprise(ctx.company.id),
+    parsed.data.internalNumber,
+    toolId,
+  );
+  if (conflit) {
+    return safeError(refusDeNumeroInterne(parsed.data.internalNumber ?? "", conflit));
   }
 
   const category = resolveToolCategory(parsed.data);

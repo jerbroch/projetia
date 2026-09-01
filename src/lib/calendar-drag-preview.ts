@@ -70,16 +70,27 @@ export function apercuRedimensionnementDebut(
 /**
  * Nouvelle plage pendant un déplacement.
  *
- * Le début se cale sur la position du curseur — c'est ce que fait
- * l'enregistrement — et la durée est conservée.
+ * La durée est conservée, et l'ENDROIT OÙ L'ON A PRIS LE BLOC aussi :
+ * `ecartDeSaisie` est le nombre de minutes entre le début du call et le point
+ * saisi. On le soustrait de la position du curseur pour retrouver le début.
+ *
+ * Sans lui, le début se calait sur le curseur : un call de 4 h attrapé en
+ * plein milieu et relâché sans bouger sautait deux heures plus loin. Mesuré :
+ * +30 min pour une prise à 15 % de la largeur, +2 h 04 pour une prise au
+ * centre. L'écart valait exactement la distance entre le bord gauche et la
+ * main — c'est-à-dire l'information qu'on jetait.
+ *
+ * Reste piloté par le curseur, et non par un simple delta, parce qu'en vue
+ * semaine la position horizontale désigne AUSSI le jour de destination.
  */
 export function apercuDeplacement(
   startMinutes: number,
   endMinutes: number,
   minutesSousLeCurseur: number,
+  ecartDeSaisie = 0,
 ): ApercuPlage {
   const duree = Math.max(MIN_JOB_MINUTES, endMinutes - startMinutes);
-  const debut = clampMinutes(minutesSousLeCurseur);
+  const debut = clampMinutes(minutesSousLeCurseur - ecartDeSaisie);
   return { startMinutes: debut, endMinutes: debut + duree };
 }
 

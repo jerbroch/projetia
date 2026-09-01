@@ -20,7 +20,15 @@ export interface QuoteTotals {
   total: number;
 }
 
-/** Quebec-style tax: QST applies to subtotal + GST */
+/**
+ * Taxes du Québec : TPS et TVQ s'appliquent TOUTES DEUX au prix hors taxes.
+ *
+ * La TVQ était calculée sur `subtotal + gst` — la règle d'AVANT le 1er janvier
+ * 2013, quand elle valait 9,5 % et s'appliquait au prix TPS incluse. Depuis,
+ * elle vaut 9,975 % et porte sur le prix de vente hors TPS. Cumuler les deux
+ * revenait à facturer 10,479 % : 50,40 $ de trop sur une soumission de
+ * 10 000 $, alors que le document remis au client annonce « TVQ 9,975 % ».
+ */
 export function calculateQuoteTotals(
   subtotal: number,
   company: Pick<Company, "gstRate" | "qstRate">
@@ -28,7 +36,7 @@ export function calculateQuoteTotals(
   const gstRate = company.gstRate ?? 0.05;
   const qstRate = company.qstRate ?? 0.09975;
   const gst = Math.round(subtotal * gstRate * 100) / 100;
-  const qst = Math.round((subtotal + gst) * qstRate * 100) / 100;
+  const qst = Math.round(subtotal * qstRate * 100) / 100;
   const total = Math.round((subtotal + gst + qst) * 100) / 100;
   return { subtotal, gst, qst, total };
 }

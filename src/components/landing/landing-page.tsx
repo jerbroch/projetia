@@ -60,12 +60,24 @@ export function LandingPage() {
             </div>
 
             <div className="relative mx-auto mt-12 max-w-4xl text-center">
+              {/*
+                L'accroche parle du PROBLÈME, pas du produit. Un entrepreneur
+                ne cherche pas un logiciel de gestion : il sait qu'il perd des
+                heures et il ne sait pas combien. La question le lui demande.
+              */}
               <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-                Voyez-le en action
+                La question à 500 $
               </p>
-              <h2 className="mt-1 text-xl font-bold tracking-tight sm:text-2xl">
-                Suivez le projet de Marie, de la prise de contact au paiement
+              <h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
+                Combien d&apos;heures avez-vous oublié de facturer le mois passé&nbsp;?
               </h2>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Une demi-heure de plus ici, un coude de cuivre là. Personne ne les note,
+                alors personne ne les facture. Voici un chantier de deux salles de bain à
+                Lévis, suivi de la soumission au paiement — et les{" "}
+                <span className="font-semibold text-foreground">568,56&nbsp;$</span> qui
+                seraient normalement passés dans le beurre.
+              </p>
               <div className="mt-6 text-left">
                 <InteractiveDemo />
               </div>

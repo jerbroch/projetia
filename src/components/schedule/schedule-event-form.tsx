@@ -111,19 +111,19 @@ export function ScheduleEventForm({
     setError("");
 
     if (!form.title.trim()) {
-      setError("Job title is required.");
+      setError("Le titre du travail est requis.");
       return;
     }
     if (form.startTime >= form.endTime) {
-      setError("End time must be after start time.");
+      setError("L'heure de fin doit venir après l'heure de début.");
       return;
     }
     if (form.customerMode === "existing" && !form.customerId) {
-      setError("Please select a customer.");
+      setError("Choisissez un client.");
       return;
     }
     if (form.customerMode === "new" && !form.newCustomerName.trim()) {
-      setError("Customer name is required for new customers.");
+      setError("Le nom du client est requis pour un nouveau client.");
       return;
     }
 
@@ -156,11 +156,11 @@ export function ScheduleEventForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Schedule New Job" : "Edit Scheduled Job"}</DialogTitle>
+          <DialogTitle>{mode === "create" ? "Nouveau travail" : "Modifier le travail"}</DialogTitle>
           <DialogDescription>
             {mode === "create"
-              ? "Create a new job on the schedule."
-              : "Update job details, crew assignment, or status."}
+              ? "Ajoutez un travail au calendrier."
+              : "Modifiez les détails, l'équipe assignée ou le statut."}
           </DialogDescription>
         </DialogHeader>
 
@@ -170,25 +170,25 @@ export function ScheduleEventForm({
           )}
 
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Job Details</h3>
+            <h3 className="text-sm font-semibold">Le travail</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="title">Job Title</Label>
+                <Label htmlFor="title">Titre du travail</Label>
                 <Input
                   id="title"
                   value={form.title}
                   onChange={(e) => updateField("title", e.target.value)}
-                  placeholder="Kitchen remodel - phase 1"
+                  placeholder="Rénovation de cuisine — phase 1"
                   required
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="description">Work Description</Label>
+                <Label htmlFor="description">Description des travaux</Label>
                 <textarea
                   id="description"
                   value={form.description}
                   onChange={(e) => updateField("description", e.target.value)}
-                  placeholder="Describe the scope of work..."
+                  placeholder="Décrivez l'étendue des travaux…"
                   rows={3}
                   className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
@@ -204,21 +204,21 @@ export function ScheduleEventForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="type">Job Type</Label>
+                <Label htmlFor="type">Type de travail</Label>
                 <Select value={form.type} onValueChange={(v) => updateField("type", v as ScheduleFormValues["type"])}>
                   <SelectTrigger id="type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="job">Job</SelectItem>
+                    <SelectItem value="job">Travail</SelectItem>
                     <SelectItem value="inspection">Inspection</SelectItem>
-                    <SelectItem value="meeting">Meeting</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="meeting">Rencontre</SelectItem>
+                    <SelectItem value="maintenance">Entretien</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
+                <Label htmlFor="startTime">Heure de début</Label>
                 <Input
                   id="startTime"
                   type="time"
@@ -228,7 +228,7 @@ export function ScheduleEventForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
+                <Label htmlFor="endTime">Heure de fin</Label>
                 <Input
                   id="endTime"
                   type="time"
@@ -280,7 +280,7 @@ export function ScheduleEventForm({
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Customer</h3>
+            <h3 className="text-sm font-semibold">Le client</h3>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -288,7 +288,7 @@ export function ScheduleEventForm({
                 variant={form.customerMode === "existing" ? "default" : "outline"}
                 onClick={() => updateField("customerMode", "existing")}
               >
-                Existing Customer
+                Client existant
               </Button>
               <Button
                 type="button"
@@ -296,16 +296,16 @@ export function ScheduleEventForm({
                 variant={form.customerMode === "new" ? "default" : "outline"}
                 onClick={() => updateField("customerMode", "new")}
               >
-                New Customer
+                Nouveau client
               </Button>
             </div>
 
             {form.customerMode === "existing" ? (
               <div className="space-y-2">
-                <Label htmlFor="customer">Select Customer</Label>
+                <Label htmlFor="customer">Client</Label>
                 <Select value={form.customerId} onValueChange={handleCustomerSelect}>
                   <SelectTrigger id="customer">
-                    <SelectValue placeholder="Choose a customer" />
+                    <SelectValue placeholder="Choisir un client" />
                   </SelectTrigger>
                   <SelectContent>
                     {customers.map((customer) => (
@@ -324,7 +324,7 @@ export function ScheduleEventForm({
                     id="newCustomerName"
                     value={form.newCustomerName}
                     onChange={(e) => updateField("newCustomerName", e.target.value)}
-                    placeholder="John Smith"
+                    placeholder="Jean Tremblay"
                   />
                 </div>
                 <div className="space-y-2">
@@ -333,7 +333,7 @@ export function ScheduleEventForm({
                     id="newCustomerCompany"
                     value={form.newCustomerCompany}
                     onChange={(e) => updateField("newCustomerCompany", e.target.value)}
-                    placeholder="Smith Construction LLC"
+                    placeholder="Construction Tremblay inc."
                   />
                 </div>
               </div>
@@ -341,40 +341,40 @@ export function ScheduleEventForm({
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="customerPhone">Phone</Label>
+                <Label htmlFor="customerPhone">Téléphone</Label>
                 <Input
                   id="customerPhone"
                   value={form.customerPhone}
                   onChange={(e) => updateField("customerPhone", e.target.value)}
-                  placeholder="(555) 123-4567"
+                  placeholder="(418) 555-0123"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="customerEmail">Email</Label>
+                <Label htmlFor="customerEmail">Courriel</Label>
                 <Input
                   id="customerEmail"
                   type="email"
                   value={form.customerEmail}
                   onChange={(e) => updateField("customerEmail", e.target.value)}
-                  placeholder="contact@company.com"
+                  placeholder="contact@entreprise.ca"
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="billingAddress">Billing Address</Label>
+                <Label htmlFor="billingAddress">Adresse de facturation</Label>
                 <Input
                   id="billingAddress"
                   value={form.billingAddress}
                   onChange={(e) => updateField("billingAddress", e.target.value)}
-                  placeholder="123 Main St, City, ST 12345"
+                  placeholder="12, rue Principale, Québec (QC) G1A 1A1"
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="jobSiteAddress">Job-Site Address</Label>
+                <Label htmlFor="jobSiteAddress">Adresse du chantier</Label>
                 <Input
                   id="jobSiteAddress"
                   value={form.jobSiteAddress}
                   onChange={(e) => updateField("jobSiteAddress", e.target.value)}
-                  placeholder="456 Work Site Rd, City, ST 12345"
+                  placeholder="450, chemin du Chantier, Lévis (QC) G6V 1A1"
                 />
               </div>
             </div>
@@ -383,7 +383,7 @@ export function ScheduleEventForm({
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Assigned Employees</h3>
+            <h3 className="text-sm font-semibold">Employés assignés</h3>
             <div className="grid gap-2 sm:grid-cols-2">
               {activeEmployees.map((employee) => {
                 const selected = form.employeeIds.includes(employee.id);
@@ -414,12 +414,12 @@ export function ScheduleEventForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="internalNotes">Internal Notes</Label>
+            <Label htmlFor="internalNotes">Notes internes</Label>
             <textarea
               id="internalNotes"
               value={form.internalNotes}
               onChange={(e) => updateField("internalNotes", e.target.value)}
-              placeholder="Notes visible only to your team..."
+              placeholder="Notes visibles seulement par votre équipe…"
               rows={3}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             />
@@ -482,7 +482,7 @@ export function ScheduleEventForm({
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Close
               </Button>
-              <Button type="submit">{mode === "create" ? "Create Job" : "Save Changes"}</Button>
+              <Button type="submit">{mode === "create" ? "Créer le travail" : "Enregistrer les modifications"}</Button>
             </div>
           </DialogFooter>
         </form>

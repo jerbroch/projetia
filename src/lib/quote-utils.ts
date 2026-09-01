@@ -80,6 +80,27 @@ export function calculateDepositAmount(total: number, percentage: number): numbe
   return Math.round(total * (percentage / 100) * 100) / 100;
 }
 
+/**
+ * Montant du dépôt : un pourcentage du TOTAL TAXES INCLUSES.
+ *
+ * L'entrepreneur remet les taxes sur ce qu'il facture, pas sur ce qu'il
+ * encaisse. Un dépôt calculé hors taxes lui ferait avancer sa part de TPS et
+ * de TVQ de sa poche jusqu'au paiement final.
+ *
+ * Cette fonction existe parce que le dépôt se calculait à TROIS endroits, sur
+ * DEUX bases différentes : à la création (hors taxes) et à l'acceptation
+ * (taxes incluses). Sur une soumission de 5 000 $ à 20 %, cela donnait
+ * 1 000 $ d'un côté et 1 149,75 $ de l'autre — pour le même dépôt, sur la même
+ * soumission. Un seul chemin, désormais.
+ */
+export function montantDuDepot(
+  sousTotal: number,
+  pourcentage: number,
+  company: Pick<Company, "gstRate" | "qstRate"> | undefined,
+): number {
+  return calculateDepositAmount(calculateQuoteTotals(sousTotal, company ?? {}).total, pourcentage);
+}
+
 export function getDefaultQuoteFormValues(quote?: Quote): QuoteFormValues {
   const defaultValidUntil = new Date();
   defaultValidUntil.setDate(defaultValidUntil.getDate() + 30);
@@ -172,7 +193,7 @@ export function buildQuoteFromForm(
     depositRequired: values.depositRequired,
     depositPercentage,
     depositAmount: values.depositRequired && depositPercentage
-      ? calculateDepositAmount(finalAmount, depositPercentage)
+      ? montantDuDepot(finalAmount, depositPercentage, company)
       : undefined,
     depositStatus: values.depositRequired ? "pending" : "not_required",
     terms: values.terms.trim() || undefined,

@@ -623,11 +623,10 @@ export async function acceptQuoteByToken(token: string): Promise<{ quote: Quote 
   let depositAmount: number | null = null;
   if (quote.depositRequired && quote.depositPercentage) {
     const company = await getCompanyById(quote.companyId);
-    const { getQuoteLineItems, calculateQuoteTotals } = await import("@/lib/quote-utils");
+    const { getQuoteLineItems, montantDuDepot } = await import("@/lib/quote-utils");
     const lineItems = getQuoteLineItems(quote);
     const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
-    const totals = calculateQuoteTotals(subtotal, company ?? {});
-    depositAmount = calculateDepositAmount(totals.total, quote.depositPercentage);
+    depositAmount = montantDuDepot(subtotal, quote.depositPercentage, company ?? undefined);
   }
 
   const newStatus = quote.depositRequired ? "deposit_pending" : "accepted";

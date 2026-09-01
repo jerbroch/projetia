@@ -6,7 +6,7 @@ import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/
 import { sendQuoteEmail } from "@/lib/email/send-quote";
 import {
   buildDefaultLineItems,
-  calculateDepositAmount,
+  montantDuDepot,
   getPublicQuoteUrl,
   resolveAppOriginFromHeaders,
 } from "@/lib/quote-utils";
@@ -109,7 +109,7 @@ function toQuoteInput(
 
   const depositAmount =
     parsed.depositRequired && parsed.depositPercentage
-      ? calculateDepositAmount(amount, parsed.depositPercentage)
+      ? montantDuDepot(amount, parsed.depositPercentage, company)
       : undefined;
 
   return {

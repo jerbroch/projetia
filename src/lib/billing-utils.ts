@@ -144,7 +144,9 @@ export function calculateBillingTotals(
   const gstRate = company.gstRate ?? 0.05;
   const qstRate = company.qstRate ?? 0.09975;
   const gst = roundCurrency(subtotal * gstRate);
-  const qst = roundCurrency((subtotal + gst) * qstRate);
+  // TVQ sur le prix hors taxes, comme la TPS. Voir calculateQuoteTotals :
+  // la cascade sur le montant TPS incluse est la règle d'avant 2013.
+  const qst = roundCurrency(subtotal * qstRate);
   const total = roundCurrency(subtotal + gst + qst);
 
   return { materialCostSubtotal, materialSubtotal, laborSubtotal, subtotal, gst, qst, total };

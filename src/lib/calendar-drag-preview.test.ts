@@ -163,3 +163,51 @@ describe("apercuRedimensionnementDebut", () => {
     }
   });
 });
+
+describe("apercuDeplacement — l'endroit de la prise", () => {
+  const DEB = 9 * 60;   // 09:00
+  const FIN = 13 * 60;  // 13:00, donc un bloc de 4 h
+
+  it("laisse le call sur place quand on le relâche sans bouger", () => {
+    // Le cœur du défaut : saisi au centre (2 h après son début) et relâché au
+    // même endroit, le call sautait à 11:00. Il doit rester à 09:00.
+    const curseur = DEB + 120;
+    expect(apercuDeplacement(DEB, FIN, curseur, 120)).toEqual({
+      startMinutes: DEB,
+      endMinutes: FIN,
+    });
+  });
+
+  it("décale d'exactement ce que la main a parcouru", () => {
+    // Prise au centre, curseur avancé d'une heure : le call avance d'une heure.
+    const curseur = DEB + 120 + 60;
+    expect(apercuDeplacement(DEB, FIN, curseur, 120).startMinutes).toBe(DEB + 60);
+  });
+
+  it("donne le même résultat quel que soit le point de prise", () => {
+    // Trois mains différentes sur le même bloc, un même déplacement d'une
+    // heure : trois fois le même résultat. C'est ce qui manquait.
+    const uneHeurePlusLoin = (ecart: number) =>
+      apercuDeplacement(DEB, FIN, DEB + ecart + 60, ecart).startMinutes;
+    expect(uneHeurePlusLoin(0)).toBe(DEB + 60);
+    expect(uneHeurePlusLoin(36)).toBe(DEB + 60);
+    expect(uneHeurePlusLoin(120)).toBe(DEB + 60);
+    expect(uneHeurePlusLoin(240)).toBe(DEB + 60);
+  });
+
+  it("conserve la durée", () => {
+    const p = apercuDeplacement(DEB, FIN, DEB + 300, 120);
+    expect(p.endMinutes - p.startMinutes).toBe(FIN - DEB);
+  });
+
+  it("reste dans la journée même si la prise pousse avant l'ouverture", () => {
+    // Bloc pris par la fin et tiré tout à gauche : on borne, on ne sort pas.
+    const p = apercuDeplacement(DEB, FIN, 0, 240);
+    expect(p.startMinutes).toBeGreaterThanOrEqual(CALENDAR_START_HOUR * 60);
+    expect(p.endMinutes - p.startMinutes).toBe(FIN - DEB);
+  });
+
+  it("sans écart fourni, se comporte comme avant", () => {
+    expect(apercuDeplacement(DEB, FIN, 11 * 60).startMinutes).toBe(11 * 60);
+  });
+});

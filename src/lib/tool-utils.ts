@@ -338,3 +338,39 @@ export function formatLastSmsReminder(sentAt: string): string {
   if (isToday) return `Dernier rappel envoyé aujourd'hui à ${time}`;
   return `Dernier rappel envoyé le ${format(date, "d MMM yyyy")} à ${time}`;
 }
+
+/**
+ * Numéro interne déjà porté par un autre outil, ou `null`.
+ *
+ * Le numéro interne est ce qui est gravé ou collé sur l'outil : c'est par lui
+ * qu'on le retrouve au magasin. Deux outils qui le partagent rendent
+ * l'inventaire inutilisable — on ne sait plus lequel est sorti.
+ *
+ * Rend l'outil fautif, pas un booléen, pour que le message puisse le NOMMER.
+ * « Le numéro OUT-001 est déjà porté par la scie ronde Makita » se corrige ;
+ * « ce numéro est déjà utilisé » oblige à fouiller la liste.
+ *
+ * La comparaison ignore la casse et les espaces de bord : « out-001 » et
+ * « OUT-001 » désignent le même outil sur le plancher. Un numéro vide n'est
+ * jamais un conflit — il est facultatif, et plusieurs outils peuvent ne pas
+ * en avoir.
+ */
+export function outilAvecLeMemeNumero<T extends { id: string; name: string; internalNumber?: string | null }>(
+  outils: readonly T[],
+  numero: string | null | undefined,
+  exclureId?: string,
+): T | null {
+  const cible = (numero ?? "").trim().toLowerCase();
+  if (!cible) return null;
+
+  return (
+    outils.find(
+      (o) => o.id !== exclureId && (o.internalNumber ?? "").trim().toLowerCase() === cible,
+    ) ?? null
+  );
+}
+
+/** Message nommant l'outil qui bloque le numéro interne. */
+export function refusDeNumeroInterne(numero: string, outil: { name: string }): string {
+  return `Le numéro interne « ${numero.trim()} » est déjà porté par « ${outil.name} ». Choisissez-en un autre, ou corrigez celui de l'autre outil.`;
+}
