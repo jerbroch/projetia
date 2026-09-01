@@ -21,8 +21,11 @@ import {
   type BillingCycle,
   type SubscriptionTier,
 } from "@/lib/billing/tiers";
+import { ContactBlock } from "@/components/shared/contact-block";
+import type { Coordonnees } from "@/lib/coordonnees";
 
 interface ChoosePlanClientProps {
+  coordonnees: Coordonnees;
   companyName: string;
   /** Palier actuellement payé, s'il y en a un */
   currentTier?: SubscriptionTier | null;
@@ -40,6 +43,7 @@ interface ChoosePlanClientProps {
 }
 
 export function ChoosePlanClient({
+  coordonnees,
   companyName,
   currentTier = null,
   currentCycle = null,
@@ -308,6 +312,26 @@ export function ChoosePlanClient({
             </form>
           </CardContent>
         )}
+      </Card>
+
+      {/*
+        Nous joindre, au bas de la page des tarifs.
+
+        C'est ici que la question se pose le plus fort : l'entrepreneur est
+        devant un montant mensuel, seul, et il se demande qui répond si ça
+        tourne mal. La réponse doit être sous ses yeux à ce moment-là, pas
+        dans un menu qu'il faudrait aller chercher.
+      */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Une question sur les tarifs&nbsp;?</CardTitle>
+          <CardDescription>
+            Vous parlez à la personne qui construit l&apos;application.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ContactBlock coordonnees={coordonnees} compact />
+        </CardContent>
       </Card>
     </div>
   );

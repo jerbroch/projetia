@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, CalendarDays, Hammer, Wrench } from "lucide-react";
+import { LogOut, CalendarDays, Hammer, Wrench, Phone} from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
 import type { Company, User } from "@/types";
@@ -11,6 +11,9 @@ const NAV_ITEMS = [
   { href: "/terrain", label: "Aujourd'hui", icon: Hammer, exact: true },
   { href: "/terrain/horaire", label: "Mon horaire", icon: CalendarDays },
   { href: "/terrain/outils", label: "Mes outils", icon: Wrench },
+  // Joindre SON employeur, pas nous. Dans la barre du bas, comme le reste :
+  // sur un chantier, on ne fouille pas dans des menus.
+  { href: "/terrain/aide", label: "Joindre", icon: Phone },
 ];
 
 interface FieldLayoutProps {

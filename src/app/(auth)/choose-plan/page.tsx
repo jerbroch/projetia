@@ -4,6 +4,7 @@ import { companyHasAppAccess } from "@/lib/access-control";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isSuperAdminUser } from "@/lib/platform/super-admin";
 import { requireVerifiedUser, getTenantContext } from "@/lib/session";
+import { coordonneesDuSoutien } from "@/lib/coordonnees";
 import { getCompanySubscriptionSummary } from "@/lib/billing/company-subscription";
 
 interface ChoosePlanPageProps {
@@ -76,6 +77,7 @@ export default async function ChoosePlanPage({ searchParams }: ChoosePlanPagePro
 
   return (
     <ChoosePlanClient
+      coordonnees={coordonneesDuSoutien()}
       companyName={ctx.company.name}
       currentTier={subscription?.tier ?? null}
       currentCycle={subscription?.cycle ?? null}
