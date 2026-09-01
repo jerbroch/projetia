@@ -46,8 +46,17 @@ export function FieldImportBanner({ jobId, onImported }: { jobId: string; onImpo
   /** « 27,5 h » et non « 27.5 h » : le reste de l'application est en fr-CA. */
   const heures = (n: number) => n.toLocaleString("fr-CA", { maximumFractionDigits: 2 });
 
+  /**
+   * Un écart POSITIF est une bonne nouvelle, pas une alerte.
+   *
+   * Il s'affichait en rouge, comme un dépassement de budget. Mais ces heures-là
+   * ont été notées au chantier, donc elles se facturent : ce sont précisément
+   * celles qu'un entrepreneur ne facturait pas avant, faute de les avoir
+   * écrites. Un écart négatif est neutre — le chantier a pris moins de temps
+   * que prévu, il n'y a rien à signaler.
+   */
   const ecartClasse =
-    resume.ecart > 0 ? "text-destructive" : resume.ecart < 0 ? "text-emerald-600" : "text-muted-foreground";
+    resume.ecart > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground";
 
   return (
     <div className="mb-4 rounded-lg border bg-muted/30 p-3">
