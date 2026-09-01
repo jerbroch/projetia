@@ -205,6 +205,7 @@ export const config = {
     "/heures/:path*",
     "/payments/:path*",
     "/settings/:path*",
+    "/aide/:path*",
     "/outillage/:path*",
     "/terrain/:path*",
     "/onboarding/:path*",

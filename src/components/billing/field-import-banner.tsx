@@ -106,10 +106,16 @@ export function FieldImportBanner({ jobId, onImported }: { jobId: string; onImpo
 
       {confirmation && (
         <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+          {/*
+            Le pluriel était fabriqué en collant « ont » à « sera », ce qui
+            donnait « seraont ». Une phrase construite morceau par morceau finit
+            toujours par produire ce genre de chose : on écrit les deux formes
+            en toutes lettres.
+          */}
           <p className="font-medium text-destructive">
-            {aEcraser.length} ligne{aEcraser.length > 1 ? "s" : ""} que vous avez corrigée
-            {aEcraser.length > 1 ? "s" : ""} sera{aEcraser.length > 1 ? "ont" : ""} remplacée
-            {aEcraser.length > 1 ? "s" : ""} :
+            {aEcraser.length > 1
+              ? `${aEcraser.length} lignes que vous avez corrigées seront remplacées :`
+              : "Une ligne que vous avez corrigée sera remplacée :"}
           </p>
           <ul className="mt-1 list-inside list-disc text-muted-foreground">
             {aEcraser.map((d) => (

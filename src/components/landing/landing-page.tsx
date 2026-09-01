@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { ConstructionIosLogo } from "@/components/brand/construction-ios-logo";
+import { ContactBlock } from "@/components/shared/contact-block";
+import { coordonneesDuSoutien } from "@/lib/coordonnees";
 import { InteractiveDemo } from "@/components/landing/interactive-demo";
 import { Button } from "@/components/ui/button";
 
@@ -121,6 +123,30 @@ export function LandingPage() {
               <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
                 <Link href="/login">Se connecter</Link>
               </Button>
+            </div>
+          </div>
+        </section>
+
+        {/*
+          Nous joindre, avant le pied de page.
+
+          Un entrepreneur qui hésite devant 89,99 $/mois veut d'abord savoir
+          qu'il y a quelqu'un derrière. Un formulaire de contact ne répond pas
+          à cette question — un numéro qu'on peut composer tout de suite, oui.
+        */}
+        <section id="nous-joindre" className="border-t bg-muted/30">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                Une question avant de vous lancer&nbsp;?
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+                Vous parlez à la personne qui construit l&apos;application, pas à
+                un service. Appelez, écrivez — on vous répond.
+              </p>
+            </div>
+            <div className="mx-auto mt-8 max-w-md">
+              <ContactBlock coordonnees={coordonneesDuSoutien()} />
             </div>
           </div>
         </section>

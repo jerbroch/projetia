@@ -17,6 +17,7 @@ import {
   Wrench,
   Clock,
   X,
+  LifeBuoy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,9 @@ const navigation = [
   { name: "Outillage", href: "/outillage", icon: Wrench },
   { name: "Paiements", href: "/payments", icon: CreditCard },
   { name: "Paramètres", href: "/settings", icon: Settings },
+  // Dans le menu principal, pas dans les réglages : un entrepreneur bloqué un
+  // mardi matin ne pense pas à fouiller les paramètres pour trouver un numéro.
+  { name: "Nous joindre", href: "/aide", icon: LifeBuoy },
 ];
 
 interface SidebarProps {

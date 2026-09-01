@@ -155,6 +155,7 @@ export const TENANT_PREFIXES = [
   "/payments",
   "/heures",
   "/settings",
+  "/aide",
   "/terrain",
 ];
 

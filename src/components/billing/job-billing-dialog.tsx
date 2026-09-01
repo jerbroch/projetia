@@ -22,6 +22,7 @@ import {
   canViewBillingPrices,
   DEFAULT_MATERIAL_MARGIN,
 } from "@/lib/billing-utils";
+import { messageLignesAZero } from "@/lib/lignes-a-zero";
 import {
   createDemoBillingLine,
   createDemoBillingSheet,
@@ -492,12 +493,43 @@ export function JobBillingDialog({
     });
   }
 
+  /**
+   * Confirmation en attente avant d'émettre avec des lignes à 0 $.
+   *
+   * Un zéro est parfois voulu — matériel fourni par le client, reprise sous
+   * garantie, extra offert — donc on ne bloque pas. Mais un zéro oublié part
+   * chez le client : douze paquets de bardeau facturés zéro dollar. On nomme
+   * ce qui part à zéro, et on laisse trancher.
+   */
+  const [zeroAConfirmer, setZeroAConfirmer] = useState<string | null>(null);
+
   function handleGenerateInvoice() {
     if (isDemo) {
       setMessage("Facture FA-DEMO-001 créée (mode démo).");
       onInvoiceGenerated?.("FA-DEMO-001");
       return;
     }
+    const alerte = messageLignesAZero(
+      (sheet?.lines ?? []).map((l) => ({
+        description: l.description,
+        quantity: l.quantity,
+        unitSellPrice: l.unitSellPrice,
+        lineTotal: l.lineTotal,
+      })),
+      sheet?.total ?? 0,
+    );
+    if (alerte && !zeroAConfirmer) {
+      setZeroAConfirmer(alerte);
+      return;
+    }
+    setZeroAConfirmer(null);
+    emettre();
+  }
+
+  function emettre() {
+    // Refermer la confirmation AVANT d'émettre : la laisser ouverte donnerait
+    // à croire que rien n'a été fait, et invite à cliquer une seconde fois.
+    setZeroAConfirmer(null);
     startTransition(async () => {
       const result = await generateInvoiceFromBillingAction(event.id);
       if (!result.success) setError(result.error);
@@ -939,6 +971,23 @@ export function JobBillingDialog({
           )}
         </DialogFooter>
       </DialogContent>
+      <Dialog open={zeroAConfirmer !== null} onOpenChange={(o) => !o && setZeroAConfirmer(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Des lignes partent à 0 $</DialogTitle>
+            <DialogDescription>{zeroAConfirmer}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setZeroAConfirmer(null)} disabled={isPending}>
+              Corriger les prix
+            </Button>
+            <Button onClick={emettre} disabled={isPending}>
+              Émettre quand même
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Dialog>
   );
 }
