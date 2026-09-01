@@ -146,3 +146,20 @@ export function seatWarningMessage(
 
   return null;
 }
+
+/**
+ * Le même refus, quand la fiche employé vient malgré tout d'être créée.
+ *
+ * Créer un employé « avec accès » se fait en deux temps : la fiche d'abord,
+ * l'invitation ensuite. Si les places manquent, la fiche existe déjà — mais le
+ * message ne parlait que des places. L'employeur en concluait que rien ne
+ * s'était passé, et recommençait.
+ *
+ * On le dit donc explicitement, et on nomme la personne : « la fiche de Luc
+ * Gagnon a été créée » se vérifie d'un coup d'œil dans la liste.
+ */
+export function refusAvecFicheCreee(message: string, nomEmploye: string): string {
+  const nom = nomEmploye.trim();
+  const qui = nom ? `La fiche de ${nom} a été créée` : "La fiche employé a été créée";
+  return `${qui}, sans accès à l'application. ${message}`;
+}

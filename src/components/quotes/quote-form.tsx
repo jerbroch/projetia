@@ -18,6 +18,10 @@ import {
   avertissementDeModification,
   regimeDeModification,
 } from "@/lib/modification-de-soumission";
+import {
+  avertissementSoumissionAZero,
+  refusDeValiditePassee,
+} from "@/lib/validations-douces";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -97,6 +101,22 @@ export function QuoteForm({
       return;
     }
 
+    // Une soumission qui expire avant d'être lue n'a aucun sens : le client
+    // clique et découvre un document périmé. Ici on refuse.
+    const validite = refusDeValiditePassee(form.validUntil);
+    if (validite) {
+      setError(validite);
+      return;
+    }
+
+    // Un montant nul est parfois voulu — devis gratuit, reprise — donc on
+    // avertit sans interdire. Mais on le dit AVANT que le client le reçoive.
+    const zero = avertissementSoumissionAZero(Number(form.amount) || 0);
+    if (zero && !avertissement) {
+      setAvertissement(zero);
+      return;
+    }
+
     // Une soumission déjà partie reste visible au MÊME lien : la modifier
     // change ce que le client voit, sans qu'il en soit averti. On le dit
     // avant d'écrire, pas après.
@@ -167,7 +187,9 @@ export function QuoteForm({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Le client verra vos modifications</DialogTitle>
+          <DialogTitle>
+            {avertissement?.includes("0 $") ? "Cette soumission est à 0 $" : "Le client verra vos modifications"}
+          </DialogTitle>
           <DialogDescription>{avertissement}</DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">

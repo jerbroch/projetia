@@ -10,7 +10,13 @@ import {
 } from "@/lib/actions/billing-field-import";
 
 /**
- * Bandeau de tête de la feuille : prévu, réel, écart — et ce qui n'y est pas.
+ * Bandeau de tête de la feuille : soumissionné, réel, écart — et ce qui n'y
+ * est pas.
+ *
+ * « SOUMISSIONNÉ » ET NON « PRÉVU ». L'écran /heures affiche déjà un « prévu »
+ * qui désigne autre chose : la durée des calls tracés au calendrier. Ici le
+ * chiffre vient de l'estimation de la soumission. Deux chiffres justes, deux
+ * sens différents — le même mot pour les deux ne pouvait qu'embrouiller.
  *
  * Il répond à trois questions qu'on se pose devant une facture de chantier :
  * combien on avait estimé, combien a réellement été travaillé, et si des
@@ -63,7 +69,7 @@ export function FieldImportBanner({ jobId, onImported }: { jobId: string; onImpo
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
           <span>
-            Prévu <strong>{heures(resume.prevu)} h</strong>
+            Soumissionné <strong>{heures(resume.prevu)} h</strong>
           </span>
           <span>
             Réel <strong>{heures(resume.reel)} h</strong>

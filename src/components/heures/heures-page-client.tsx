@@ -26,7 +26,13 @@ import type { Company, User } from "@/types";
 
 interface HeuresPageClientProps {
   lignes: LigneHeures[];
-  /** Heures planifiées, pour la colonne « Prévu ». */
+  /**
+   * Heures planifiées au calendrier, pour la colonne « Planifié ».
+   *
+   * PAS le même « prévu » que celui du bandeau de facturation, qui vient de
+   * l'estimation de la SOUMISSION. Ici c'est la durée des calls tracés. Deux
+   * chiffres justes, deux sens différents — d'où deux mots.
+   */
   prevues?: LigneHeures[];
   company: Company;
   user: User;
@@ -138,7 +144,7 @@ export function HeuresPageClient({
               <CardContent>
                 <p className="text-2xl font-bold">{formatHeures(total)}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  prévu&nbsp;: {formatHeures(totalPrevu)}
+                  planifié&nbsp;: {formatHeures(totalPrevu)}
                 </p>
               </CardContent>
             </Card>
@@ -193,7 +199,7 @@ export function HeuresPageClient({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Employé</TableHead>
-                      <TableHead className="text-right">Prévu</TableHead>
+                      <TableHead className="text-right">Planifié</TableHead>
                       <TableHead className="text-right">Réel</TableHead>
                       <TableHead className="text-right">Écart</TableHead>
                     </TableRow>
@@ -243,7 +249,7 @@ export function HeuresPageClient({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Chantier</TableHead>
-                      <TableHead className="text-right">Prévu</TableHead>
+                      <TableHead className="text-right">Planifié</TableHead>
                       <TableHead className="text-right">Réel</TableHead>
                       <TableHead className="text-right">Écart</TableHead>
                     </TableRow>

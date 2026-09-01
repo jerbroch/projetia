@@ -59,6 +59,7 @@ import {
   prefillDepuisSoumission,
   soumissionsProposables,
 } from "@/lib/prefill-travail-depuis-soumission";
+import { avertissementDateEloignee, libelleClient } from "@/lib/validations-douces";
 
 export function ScheduleEventForm({
   open,
@@ -275,6 +276,17 @@ export function ScheduleEventForm({
                   onChange={(e) => updateField("date", e.target.value)}
                   required
                 />
+                {/*
+                  Un chantier planifié l'an prochain existe ; un chantier en
+                  1999 est une faute de frappe. On avertit au-delà d'un an, dans
+                  les deux sens, sans bloquer — un contrat pluriannuel se
+                  planifie.
+                */}
+                {avertissementDateEloignee(form.date) && (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {avertissementDateEloignee(form.date)}
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Type de travail</Label>
@@ -383,7 +395,7 @@ export function ScheduleEventForm({
                   <SelectContent>
                     {customers.map((customer) => (
                       <SelectItem key={customer.id} value={customer.id}>
-                        {customer.company} — {customer.name}
+                        {libelleClient(customer)}
                       </SelectItem>
                     ))}
                   </SelectContent>
