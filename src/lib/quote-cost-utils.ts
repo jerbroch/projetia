@@ -28,6 +28,12 @@ export interface QuoteTotals {
  * elle vaut 9,975 % et porte sur le prix de vente hors TPS. Cumuler les deux
  * revenait à facturer 10,479 % : 50,40 $ de trop sur une soumission de
  * 10 000 $, alors que le document remis au client annonce « TVQ 9,975 % ».
+ *
+ * LES TAUX SONT RELUS EN DIRECT, VOLONTAIREMENT. Contrairement aux prix de
+ * main-d'œuvre — figés dans chaque document à l'écriture — les taxes ne sont
+ * pas un choix de l'entrepreneur : elles sont fixées par le gouvernement. Si
+ * la TVQ change, les documents doivent suivre. Décision de Jérôme, 1er
+ * septembre 2026. Ne pas « corriger » en figeant les taxes.
  */
 export function calculateQuoteTotals(
   subtotal: number,

@@ -75,7 +75,7 @@ export function LandingPage() {
                 Une demi-heure de plus ici, un coude de cuivre là. Personne ne les note,
                 alors personne ne les facture. Voici un chantier de deux salles de bain à
                 Lévis, suivi de la soumission au paiement — et les{" "}
-                <span className="font-semibold text-foreground">568,56&nbsp;$</span> qui
+                <span className="font-semibold text-foreground">742,17&nbsp;$</span> qui
                 seraient normalement passés dans le beurre.
               </p>
               <div className="mt-6 text-left">
