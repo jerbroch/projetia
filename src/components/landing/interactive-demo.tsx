@@ -248,13 +248,13 @@ function FactureMockup() {
       </div>
       <div className="flex items-end justify-between gap-3">
         <p className="max-w-[52%] text-[11px] font-medium leading-snug text-emerald-700 dark:text-emerald-400">
-          568,51 $ que vous auriez oubliés de facturer.
+          568,56 $ que vous auriez oubliés de facturer.
         </p>
         <div className="w-44 space-y-1">
           <LigneTotal libelle="Sous-total" montant={argent(6970.5)} />
           <LigneTotal libelle="TPS 5 %" montant={argent(348.53)} />
-          <LigneTotal libelle="TVQ 9,975 %" montant={argent(695.26)} />
-          <LigneTotal libelle="Total" montant={argent(8014.29)} fort />
+          <LigneTotal libelle="TVQ 9,975 %" montant={argent(695.31)} />
+          <LigneTotal libelle="Total" montant={argent(8014.34)} fort />
         </div>
       </div>
     </div>
@@ -268,9 +268,9 @@ function PaiementMockup() {
         <p className="text-[11px] text-muted-foreground">Facture FA-2026-0288</p>
         <p className="mt-0.5 text-sm font-semibold text-foreground">Marie Gagnon</p>
         <div className="my-3 space-y-1">
-          <LigneTotal libelle="Total de la facture" montant={argent(8014.29)} />
+          <LigneTotal libelle="Total de la facture" montant={argent(8014.34)} />
           <LigneTotal libelle="Dépôt déjà reçu" montant={`− ${argent(2233.73)}`} />
-          <LigneTotal libelle="Solde à payer" montant={argent(5780.56)} fort />
+          <LigneTotal libelle="Solde à payer" montant={argent(5780.61)} fort />
         </div>
         <div className="rounded-lg bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground">
           Payer par Interac
@@ -312,7 +312,7 @@ const chapters = [
     title: "La facture",
     description: "Elle se monte toute seule à partir des heures réellement faites.",
     caption:
-      "48 heures prévues, 53,5 heures faites. Les 5,5 heures de plus sont facturées parce qu'elles ont été notées sur le chantier : 568,51 $ que vous auriez perdus.",
+      "48 heures prévues, 53,5 heures faites. Les 5,5 heures de plus sont facturées parce qu'elles ont été notées sur le chantier : 568,56 $ que vous auriez perdus.",
     icon: Receipt,
     Mockup: FactureMockup,
   },
