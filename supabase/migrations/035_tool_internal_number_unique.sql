@@ -29,7 +29,7 @@ WITH doublons AS (
     AND btrim(internal_number) <> ''
 )
 UPDATE tools t
-SET internal_number = t.internal_number || ' (doublon ' || d.rang || ')'
+SET internal_number = btrim(t.internal_number) || ' (doublon ' || d.rang || ')'
 FROM doublons d
 WHERE t.id = d.id AND d.rang > 1;
 

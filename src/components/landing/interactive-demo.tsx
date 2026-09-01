@@ -3,185 +3,281 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Calendar,
-  CheckCircle2,
   CreditCard,
   FileText,
   Pause,
   Play,
   Receipt,
-  Users,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STEP_DURATION_MS = 6500;
 const TICK_MS = 40;
 
-function ClientsMockup() {
-  const clients = [
-    { name: "Marie Tremblay", project: "Rénovation cuisine", status: "Actif" },
-    { name: "J. Bouchard Inc.", project: "Extension garage", status: "Actif" },
-    { name: "Alain Roy", project: "Toiture", status: "En attente" },
+/**
+ * Un seul chantier suivi du début à la fin, avec de vrais chiffres.
+ *
+ * L'argument de vente tient en une phrase : les heures saisies au chantier
+ * remontent seules dans la facture. La version précédente racontait
+ * « client → soumission → planification → facturation → paiement », ce que
+ * fait n'importe quel logiciel de gestion, et ne le disait nulle part.
+ *
+ * Les montants sont ceux d'une réfection de plomberie résidentielle à Lévis,
+ * validés par un entrepreneur. Taxes du Québec : TPS 5 %, TVQ 9,975 %.
+ */
+
+/** Montant en dollars canadiens, écrit à la québécoise. */
+function argent(n: number): string {
+  return `${n.toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+}
+
+function LigneTotal({
+  libelle,
+  montant,
+  fort = false,
+}: {
+  libelle: string;
+  montant: string;
+  fort?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-baseline justify-between",
+        fort ? "border-t pt-1.5 text-sm font-bold text-foreground" : "text-xs text-muted-foreground"
+      )}
+    >
+      <span>{libelle}</span>
+      <span className={cn("tabular-nums", fort && "text-base")}>{montant}</span>
+    </div>
+  );
+}
+
+function SoumissionMockup() {
+  const lignes = [
+    { d: "Plombier — taux régulier", q: "24 h", p: 95, t: 2280 },
+    { d: "Apprenti", q: "24 h", p: 62, t: 1488 },
+    { d: "Chauffe-eau 60 gal Giant", q: "1", p: 1245, t: 1245 },
+    { d: "Tuyauterie PEX et raccords", q: "1", p: 685, t: 685 },
+    { d: "Robinetterie Moen", q: "2", p: 389, t: 778 },
   ];
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-foreground">Clients</span>
-        <span className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
-          + Nouveau client
+    <div className="flex h-full flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold text-foreground">SO-2026-0141</span>
+        <span className="text-[11px] text-muted-foreground">
+          Marie Gagnon — 118, rue Saint-Joseph, Lévis
         </span>
       </div>
-      <div className="h-8 rounded-md border bg-muted/40" />
+      <div className="flex-1 overflow-hidden rounded-lg border">
+        <table className="w-full text-[11px]">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>
+              <th className="px-2 py-1.5 text-left font-medium">Description</th>
+              <th className="px-2 py-1.5 text-right font-medium">Qté</th>
+              <th className="px-2 py-1.5 text-right font-medium">Prix</th>
+              <th className="px-2 py-1.5 text-right font-medium">Total</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {lignes.map((l) => (
+              <tr key={l.d}>
+                <td className="truncate px-2 py-1.5 text-foreground">{l.d}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{l.q}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                  {argent(l.p)}
+                </td>
+                <td className="px-2 py-1.5 text-right font-medium tabular-nums text-foreground">
+                  {argent(l.t)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <p className="max-w-[48%] text-[11px] leading-snug text-muted-foreground">
+          Dépôt de 30 % à l&apos;acceptation&nbsp;:{" "}
+          <span className="font-semibold text-foreground">{argent(2233.73)}</span>
+        </p>
+        <div className="w-44 space-y-1">
+          <LigneTotal libelle="Sous-total" montant={argent(6476)} />
+          <LigneTotal libelle="TPS 5 %" montant={argent(323.8)} />
+          <LigneTotal libelle="TVQ 9,975 %" montant={argent(645.98)} />
+          <LigneTotal libelle="Total" montant={argent(7445.78)} fort />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CalendrierMockup() {
+  // Deux hommes sur le même call, à des heures différentes : c'est le point.
+  const lignes = [
+    { nom: "Marc Tremblay", metier: "Plombier", debut: "7 h 00", fin: "15 h 30", gauche: 8, largeur: 46 },
+    { nom: "Luc Gagnon", metier: "Apprenti", debut: "9 h 00", fin: "17 h 00", gauche: 22, largeur: 44 },
+  ];
+  return (
+    <div className="flex h-full flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold text-foreground">Mercredi 16 septembre</span>
+        <span className="text-[11px] text-muted-foreground">Réfection plomberie — Gagnon</span>
+      </div>
+      <div className="flex gap-1 pl-[104px] text-[10px] text-muted-foreground">
+        {["6 h", "9 h", "12 h", "15 h", "18 h"].map((h) => (
+          <span key={h} className="flex-1">
+            {h}
+          </span>
+        ))}
+      </div>
       <div className="flex flex-1 flex-col gap-2">
-        {clients.map((c) => (
-          <div
-            key={c.name}
-            className="flex items-center gap-3 rounded-lg border bg-background px-3 py-2.5"
-          >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-              {c.name
-                .split(" ")
-                .map((p) => p[0])
-                .slice(0, 2)
-                .join("")}
+        {lignes.map((l) => (
+          <div key={l.nom} className="flex items-center gap-2">
+            <div className="w-24 shrink-0">
+              <p className="truncate text-[11px] font-medium text-foreground">{l.nom}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{l.metier}</p>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">{c.name}</p>
-              <p className="truncate text-xs text-muted-foreground">{c.project}</p>
+            <div className="relative h-9 flex-1 rounded-md border bg-muted/30">
+              <div
+                className="absolute inset-y-0.5 flex items-center rounded bg-primary/85 px-2 text-[10px] font-medium text-primary-foreground"
+                style={{ left: `${l.gauche}%`, width: `${l.largeur}%` }}
+              >
+                {l.debut} – {l.fin}
+              </div>
             </div>
+          </div>
+        ))}
+      </div>
+      <p className="rounded-md bg-muted/50 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+        Caméra d&apos;inspection RIDGID (OUT-014) sortie au nom de Marc
+      </p>
+    </div>
+  );
+}
+
+function TerrainMockup() {
+  // Trois gestes, pas un de plus. Un entrepreneur qui trouve ça compliqué ne
+  // croira jamais que ses hommes s'en serviront.
+  return (
+    <div className="flex h-full items-center justify-center gap-5">
+      <div className="w-[168px] shrink-0 rounded-[1.4rem] border-4 border-foreground/80 bg-background p-2.5 shadow-lg">
+        <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-foreground/30" />
+        <p className="text-[10px] font-semibold text-foreground">Réfection plomberie</p>
+        <p className="text-[9px] text-muted-foreground">Gagnon — Lévis</p>
+        <div className="my-2 rounded-lg bg-primary/10 py-2.5 text-center">
+          <p className="text-lg font-bold tabular-nums text-primary">8 h 30</p>
+          <p className="text-[9px] text-muted-foreground">démarré à 7 h 02</p>
+        </div>
+        <div className="rounded-lg bg-primary py-2 text-center text-[11px] font-semibold text-primary-foreground">
+          Arrêter
+        </div>
+        <div className="mt-1.5 rounded-lg border py-1.5 text-center text-[10px] text-foreground">
+          + Matériau
+        </div>
+      </div>
+      <ol className="space-y-2.5">
+        {[
+          "Il ouvre son téléphone",
+          "Il part le chronomètre",
+          "C'est tout.",
+        ].map((t, i) => (
+          <li key={t} className="flex items-center gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
+              {i + 1}
+            </span>
             <span
               className={cn(
-                "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                c.status === "Actif"
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                "text-sm text-foreground",
+                i === 2 && "font-semibold"
               )}
             >
-              {c.status}
+              {t}
             </span>
-          </div>
+          </li>
         ))}
-      </div>
+        <li className="pt-1 text-[11px] leading-snug text-muted-foreground">
+          Le coude ½ po ajouté sur place — 38 $ — entre aussi dans la facture.
+        </li>
+      </ol>
     </div>
   );
 }
 
-function QuoteMockup() {
-  const lines = [
-    { label: "Démolition existante", amount: "450 $" },
-    { label: "Matériaux et fournitures", amount: "2 100 $" },
-    { label: "Main-d'œuvre (3 jours)", amount: "1 800 $" },
+function FactureMockup() {
+  const lignes = [
+    { d: "Plombier", prevu: "24 h", reel: "27,5 h", ecart: "+3,5 h" },
+    { d: "Apprenti", prevu: "24 h", reel: "26 h", ecart: "+2 h" },
+    { d: "Matériaux", prevu: argent(2708), reel: argent(2746), ecart: "+38,00 $" },
   ];
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Soumission #1042</p>
-          <p className="text-xs text-muted-foreground">Marie Tremblay — Rénovation cuisine</p>
-        </div>
-        <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-medium text-blue-600 dark:text-blue-400">
-          Envoyée
+    <div className="flex h-full flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-semibold text-foreground">FA-2026-0288</span>
+        <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+          remplie depuis le terrain
         </span>
       </div>
-      <div className="flex-1 rounded-lg border bg-background p-3">
-        <div className="space-y-2">
-          {lines.map((l) => (
-            <div key={l.label} className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{l.label}</span>
-              <span className="font-medium text-foreground">{l.amount}</span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center justify-between border-t pt-2">
-          <span className="text-sm font-semibold text-foreground">Total</span>
-          <span className="text-sm font-semibold text-foreground">4 350 $</span>
-        </div>
-      </div>
-      <div className="rounded-md bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
-        Acceptée en ligne par le client
-      </div>
-    </div>
-  );
-}
-
-function ScheduleMockup() {
-  const days = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
-  const blocks: Record<string, { label: string; color: string }[]> = {
-    Lun: [{ label: "Éq. A · Tremblay", color: "bg-primary/15 text-primary" }],
-    Mar: [{ label: "Éq. A · Tremblay", color: "bg-primary/15 text-primary" }],
-    Mer: [{ label: "Éq. B · Bouchard", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" }],
-    Jeu: [{ label: "Éq. B · Bouchard", color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" }],
-    Ven: [{ label: "Éq. A · Roy", color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" }],
-  };
-  return (
-    <div className="flex h-full flex-col gap-3">
-      <p className="text-sm font-semibold text-foreground">Planification — cette semaine</p>
-      <div className="grid flex-1 grid-cols-5 gap-2">
-        {days.map((d) => (
-          <div key={d} className="flex flex-col gap-2 rounded-lg border bg-background p-2">
-            <span className="text-center text-[10px] font-medium text-muted-foreground">{d}</span>
-            {blocks[d].map((b) => (
-              <div
-                key={b.label}
-                className={cn("rounded-md px-1.5 py-2 text-center text-[10px] font-medium", b.color)}
-              >
-                {b.label}
-              </div>
+      <div className="flex-1 overflow-hidden rounded-lg border">
+        <table className="w-full text-[11px]">
+          <thead className="bg-muted/50 text-muted-foreground">
+            <tr>
+              <th className="px-2 py-1.5 text-left font-medium">Soumissionné</th>
+              <th className="px-2 py-1.5 text-right font-medium">Prévu</th>
+              <th className="px-2 py-1.5 text-right font-medium">Réel</th>
+              <th className="px-2 py-1.5 text-right font-medium">Écart</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {lignes.map((l) => (
+              <tr key={l.d}>
+                <td className="px-2 py-1.5 text-foreground">{l.d}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                  {l.prevu}
+                </td>
+                <td className="px-2 py-1.5 text-right font-medium tabular-nums text-foreground">
+                  {l.reel}
+                </td>
+                <td className="px-2 py-1.5 text-right font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {l.ecart}
+                </td>
+              </tr>
             ))}
-          </div>
-        ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-end justify-between gap-3">
+        <p className="max-w-[52%] text-[11px] font-medium leading-snug text-emerald-700 dark:text-emerald-400">
+          568,51 $ que vous auriez oubliés de facturer.
+        </p>
+        <div className="w-44 space-y-1">
+          <LigneTotal libelle="Sous-total" montant={argent(6970.5)} />
+          <LigneTotal libelle="TPS 5 %" montant={argent(348.53)} />
+          <LigneTotal libelle="TVQ 9,975 %" montant={argent(695.26)} />
+          <LigneTotal libelle="Total" montant={argent(8014.29)} fort />
+        </div>
       </div>
     </div>
   );
 }
 
-function InvoiceMockup() {
+function PaiementMockup() {
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Facture #2201</p>
-          <p className="text-xs text-muted-foreground">Généré depuis la soumission #1042</p>
+    <div className="flex h-full flex-col items-center justify-center gap-3">
+      <div className="w-full max-w-xs rounded-xl border bg-background p-4 shadow-sm">
+        <p className="text-[11px] text-muted-foreground">Facture FA-2026-0288</p>
+        <p className="mt-0.5 text-sm font-semibold text-foreground">Marie Gagnon</p>
+        <div className="my-3 space-y-1">
+          <LigneTotal libelle="Total de la facture" montant={argent(8014.29)} />
+          <LigneTotal libelle="Dépôt déjà reçu" montant={`− ${argent(2233.73)}`} />
+          <LigneTotal libelle="Solde à payer" montant={argent(5780.56)} fort />
         </div>
-        <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-          Payée
-        </span>
-      </div>
-      <div className="flex-1 rounded-lg border bg-background p-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Travaux réalisés</span>
-          <span className="font-medium text-foreground">4 350 $</span>
+        <div className="rounded-lg bg-primary py-2.5 text-center text-sm font-semibold text-primary-foreground">
+          Payer par Interac
         </div>
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Dépôt reçu</span>
-          <span className="font-medium text-foreground">- 1 000 $</span>
-        </div>
-        <div className="mt-3 flex items-center justify-between border-t pt-2">
-          <span className="text-sm font-semibold text-foreground">Solde dû</span>
-          <span className="text-sm font-semibold text-foreground">3 350 $</span>
-        </div>
-      </div>
-      <div className="rounded-md bg-primary/10 px-3 py-2 text-center text-xs font-medium text-primary">
-        Envoyée automatiquement au client
-      </div>
-    </div>
-  );
-}
-
-function PaymentMockup() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-4">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
-        <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-      </div>
-      <div className="text-center">
-        <p className="text-lg font-semibold text-foreground">Paiement reçu — 3 350 $</p>
-        <p className="text-xs text-muted-foreground">Par carte de crédit · Interac disponible</p>
-      </div>
-      <div className="flex w-full max-w-[220px] items-center gap-2 rounded-md border bg-background px-3 py-2">
-        <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-          <div className="h-full w-full rounded-full bg-emerald-500" />
-        </div>
-        <span className="text-[10px] font-medium text-muted-foreground">100 %</span>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          Virement Interac ou carte — déposé dans votre compte
+        </p>
       </div>
     </div>
   );
@@ -189,39 +285,44 @@ function PaymentMockup() {
 
 const chapters = [
   {
-    title: "Clients",
-    description: "Centralisez vos contacts, projets et historique client.",
-    caption: "Marie vous appelle pour rénover sa cuisine. Sa fiche client est créée en 10 secondes.",
-    icon: Users,
-    Mockup: ClientsMockup,
-  },
-  {
-    title: "Soumissions",
-    description: "Créez et envoyez des soumissions professionnelles en quelques clics.",
-    caption: "Vous lui envoyez une soumission détaillée. Marie l'accepte et la signe en ligne, sans papier.",
+    title: "La soumission",
+    description: "Main-d'œuvre et matériaux, ligne par ligne, taxes du Québec incluses.",
+    caption:
+      "Marie veut refaire deux salles de bain. Vous chiffrez 48 heures et 2 708 $ de matériel : 7 445,78 $, dépôt de 30 % à l'acceptation.",
     icon: FileText,
-    Mockup: QuoteMockup,
+    Mockup: SoumissionMockup,
   },
   {
-    title: "Planification",
-    description: "Organisez les équipes et les chantiers dans un calendrier partagé.",
-    caption: "Vous assignez une équipe et bloquez les dates. Tout le monde voit le chantier au même endroit.",
+    title: "Le calendrier",
+    description: "Vos hommes assignés au chantier, chacun à ses heures.",
+    caption:
+      "Marc entre à 7 h, Luc à 9 h. Chacun sa plage sur le même chantier, et la caméra d'inspection part au nom de Marc.",
     icon: Calendar,
-    Mockup: ScheduleMockup,
+    Mockup: CalendrierMockup,
   },
   {
-    title: "Facturation",
-    description: "Générez vos factures à partir des travaux réalisés.",
-    caption: "Les travaux sont terminés : la facture se génère automatiquement à partir de la soumission.",
+    title: "Le terrain",
+    description: "Vos hommes saisissent leurs heures depuis leur téléphone.",
+    caption:
+      "Marc part le chronomètre en arrivant. Il fera 8 h 30 au lieu de 8 h — et cette demi-heure-là est maintenant notée.",
+    icon: Smartphone,
+    Mockup: TerrainMockup,
+  },
+  {
+    title: "La facture",
+    description: "Elle se monte toute seule à partir des heures réellement faites.",
+    caption:
+      "48 heures prévues, 53,5 heures faites. Les 5,5 heures de plus sont facturées parce qu'elles ont été notées sur le chantier : 568,51 $ que vous auriez perdus.",
     icon: Receipt,
-    Mockup: InvoiceMockup,
+    Mockup: FactureMockup,
   },
   {
-    title: "Paiement",
-    description: "Encaissez en ligne par carte ou Interac selon vos préférences.",
-    caption: "Marie paie en ligne par carte ou Interac. L'argent est déposé et le dossier est fermé.",
+    title: "Le paiement",
+    description: "Interac ou carte, déposé dans votre compte.",
+    caption:
+      "Marie règle le solde de 5 780,56 $ par Interac. Le dossier se ferme, et vous n'avez rien retapé depuis la soumission.",
     icon: CreditCard,
-    Mockup: PaymentMockup,
+    Mockup: PaiementMockup,
   },
 ] as const;
 
