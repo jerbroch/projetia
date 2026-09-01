@@ -13,6 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  avertissementDoublonClient,
+  clientDuMemeNom,
+  libelleClient,
+} from "@/lib/validations-douces";
 import type { Customer } from "@/types";
 
 /**
@@ -73,6 +78,8 @@ export function CustomerPicker({
     });
   }
 
+  const doublon = clientDuMemeNom(customers, brouillon.name);
+
   async function creerEtChoisir() {
     setErreur(null);
     if (!brouillon.name.trim()) {
@@ -109,6 +116,16 @@ export function CustomerPicker({
           </Button>
         </div>
         {erreur && <p className="text-sm text-destructive">{erreur}</p>}
+        {/*
+          Deux « Construction Tremblay » différents, ça arrive : on avertit
+          sans bloquer. Mais l'avertissement NOMME l'existant et donne de quoi
+          les distinguer — sans courriel ni téléphone, il ne servirait à rien.
+        */}
+        {doublon && (
+          <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-800 dark:text-amber-300">
+            {avertissementDoublonClient(doublon)}
+          </p>
+        )}
         <div className="space-y-2">
           <Label htmlFor="nouveauNom">Nom *</Label>
           <Input
@@ -200,7 +217,7 @@ export function CustomerPicker({
           <SelectContent>
             {customers.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.name}
+                {libelleClient(c)}
                 {c.email ? "" : " — sans courriel"}
               </SelectItem>
             ))}
