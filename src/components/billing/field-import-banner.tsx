@@ -43,6 +43,9 @@ export function FieldImportBanner({ jobId, onImported }: { jobId: string; onImpo
     });
   }
 
+  /** « 27,5 h » et non « 27.5 h » : le reste de l'application est en fr-CA. */
+  const heures = (n: number) => n.toLocaleString("fr-CA", { maximumFractionDigits: 2 });
+
   const ecartClasse =
     resume.ecart > 0 ? "text-destructive" : resume.ecart < 0 ? "text-emerald-600" : "text-muted-foreground";
 
@@ -51,16 +54,16 @@ export function FieldImportBanner({ jobId, onImported }: { jobId: string; onImpo
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-sm">
           <span>
-            Prévu <strong>{resume.prevu} h</strong>
+            Prévu <strong>{heures(resume.prevu)} h</strong>
           </span>
           <span>
-            Réel <strong>{resume.reel} h</strong>
+            Réel <strong>{heures(resume.reel)} h</strong>
           </span>
           <span className={ecartClasse}>
             Écart{" "}
             <strong>
               {resume.ecart > 0 ? "+" : ""}
-              {resume.ecart} h
+              {heures(resume.ecart)} h
             </strong>
           </span>
         </div>

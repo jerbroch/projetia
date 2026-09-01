@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Receipt } from "lucide-react";
 import { RecordPaymentDialog } from "@/components/payments/record-payment-dialog";
+import { QuickInvoiceDialog } from "@/components/invoices/quick-invoice-dialog";
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-import type { Company, Invoice, ProfileRole, ScheduleEvent, User } from "@/types";
+import type { Company, Customer, Invoice, ProfileRole, ScheduleEvent, User } from "@/types";
 
 /** Une facture annulée ou déjà soldée n'attend plus de paiement. */
 function attendPaiement(invoice: Invoice): boolean {
@@ -29,6 +30,7 @@ function attendPaiement(invoice: Invoice): boolean {
 
 interface InvoicesPageClientProps {
   invoices: Invoice[];
+  customers: Customer[];
   scheduleEvents: ScheduleEvent[];
   company: Company;
   user: User;
@@ -60,6 +62,7 @@ function resolveInvoiceJob(invoice: Invoice, events: ScheduleEvent[]): ScheduleE
 
 export function InvoicesPageClient({
   invoices,
+  customers,
   scheduleEvents,
   company,
   user,
@@ -72,6 +75,7 @@ export function InvoicesPageClient({
   const [billingOpen, setBillingOpen] = useState(false);
   const [billingEvent, setBillingEvent] = useState<ScheduleEvent | undefined>();
   const [billingError, setBillingError] = useState("");
+  const [factureRapideOuverte, setFactureRapideOuverte] = useState(false);
 
   const eventsByInvoiceId = useMemo(() => {
     const map = new Map<string, ScheduleEvent>();
@@ -120,7 +124,7 @@ export function InvoicesPageClient({
         title="Factures"
         description="Gérez la facturation et suivez les paiements"
         action={
-          <Button>
+          <Button onClick={() => setFactureRapideOuverte(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nouvelle facture
           </Button>
@@ -297,6 +301,14 @@ export function InvoicesPageClient({
           onBillingUpdated={() => router.refresh()}
         />
       )}
+          <QuickInvoiceDialog
+        open={factureRapideOuverte}
+        onOpenChange={setFactureRapideOuverte}
+        customers={customers}
+        company={company}
+        onCreated={() => router.refresh()}
+      />
+
     </DashboardLayout>
   );
 }
