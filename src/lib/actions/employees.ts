@@ -31,6 +31,7 @@ function parseEmployeeForm(formData: FormData) {
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
     trade: formData.get("trade"),
+    roleId: formData.get("roleId") || undefined,
     email: formData.get("email") || undefined,
     mobilePhone: formData.get("mobilePhone") || undefined,
     truckNumber: formData.get("truckNumber") || undefined,
@@ -49,6 +50,7 @@ function toEmployeeInput(parsed: NonNullable<ReturnType<typeof parseEmployeeForm
     firstName: parsed.firstName,
     lastName: parsed.lastName,
     trade: parsed.trade,
+    roleId: parsed.roleId || null,
     // Enregistré en minuscules : une adresse est insensible à la casse, et
     // « PART-@X.TEST » affiché en majuscules sème le doute sans rien apporter.
     // L'unicité s'appuie déjà sur lower(email) — le stockage suit la règle.

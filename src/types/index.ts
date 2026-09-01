@@ -372,6 +372,8 @@ export interface Employee {
   firstName: string;
   lastName: string;
   trade: string;
+  /** Niveau dans l'entreprise. Distinct de `trade`, qui est le métier. */
+  roleId?: string | null;
   mobilePhone: string;
   email: string;
   truckNumber: string;
@@ -634,4 +636,21 @@ export interface JobEmployeeShift {
   employeeId: string;
   startAt: string;
   endAt: string;
+}
+
+/**
+ * Niveau d'un employé DANS SON ENTREPRISE — senior, apprenti, contremaître…
+ *
+ * Distinct de `Employee.trade`, qui est le métier : couvreur, électricien,
+ * paysagiste. Le niveau sert à proposer un salaire ; le métier dit ce que la
+ * personne fait.
+ */
+export interface EmployeeRole {
+  id: string;
+  companyId: string;
+  name: string;
+  /** Salaire VERSÉ proposé. `null` = jamais renseigné, à distinguer de zéro. */
+  defaultHourlyRate: number | null;
+  sortOrder: number;
+  isActive: boolean;
 }

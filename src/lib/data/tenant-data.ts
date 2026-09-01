@@ -777,6 +777,7 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
     firstName: formatPersonName(String(row.first_name)),
     lastName: formatPersonName(String(row.last_name)),
     trade: String(row.trade ?? ""),
+    roleId: row.role_id ? String(row.role_id) : null,
     mobilePhone: String(row.phone ?? ""),
     email: String(row.email ?? ""),
     truckNumber: String(row.truck_number ?? ""),
@@ -1057,6 +1058,7 @@ export async function createEmployeeForCompany(
     department?: string;
     hireDate?: string;
     hourlyRate?: number;
+    roleId?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -1066,6 +1068,7 @@ export async function createEmployeeForCompany(
       company_id: companyId,
       first_name: input.firstName,
       last_name: input.lastName,
+      role_id: input.roleId ?? null,
       email: input.email || null,
       phone: input.phone || null,
       trade: input.trade || null,
@@ -1097,6 +1100,7 @@ export async function updateEmployeeForCompany(
     department?: string;
     hireDate?: string;
     hourlyRate?: number;
+    roleId?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -1104,6 +1108,7 @@ export async function updateEmployeeForCompany(
 
   if (input.firstName !== undefined) updates.first_name = input.firstName;
   if (input.lastName !== undefined) updates.last_name = input.lastName;
+  if (input.roleId !== undefined) updates.role_id = input.roleId || null;
   if (input.email !== undefined) updates.email = input.email || null;
   if (input.phone !== undefined) updates.phone = input.phone || null;
   if (input.trade !== undefined) updates.trade = input.trade || null;
