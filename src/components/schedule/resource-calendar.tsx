@@ -11,6 +11,7 @@ import {
   subDays,
   subWeeks,
 } from "date-fns";
+import { fr } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Phone, User } from "lucide-react";
 import type { Employee, ScheduleEvent } from "@/types";
 import { getEmployeeFullName, getEmployeeInitials } from "@/lib/employee-utils";
@@ -238,7 +239,7 @@ export function ResourceCalendar({
           <Button variant="outline" size="sm" onClick={() => onDateChange(new Date())}>Aujourd&apos;hui</Button>
           <Button variant="outline" size="icon" onClick={navigateForward}><ChevronRight className="h-4 w-4" /></Button>
           <h2 className="min-w-[180px] text-lg font-semibold">
-            {view === "day" ? format(currentDate, "EEEE d MMMM yyyy", { locale: undefined }) : `Semaine du ${format(weekDays[0], "d MMM")} au ${format(weekDays[6], "d MMM yyyy")}`}
+            {view === "day" ? format(currentDate, "EEEE d MMMM yyyy", { locale: fr }) : `Semaine du ${format(weekDays[0], "d MMM", { locale: fr })} au ${format(weekDays[6], "d MMM yyyy", { locale: fr })}`}
           </h2>
         </div>
         <div className="flex gap-2">
@@ -290,7 +291,7 @@ export function ResourceCalendar({
                     className="absolute top-0 border-r border-border/60 bg-muted/20 px-2 py-2 text-xs font-semibold"
                     style={{ left: index * dayWidth, width: dayWidth, height: "100%" }}
                   >
-                    {format(day, "EEE d")}
+                    {format(day, "EEE d", { locale: fr })}
                   </div>
                 ))}
                 <div className="relative h-10">

@@ -5,6 +5,7 @@ import {
   parseISO,
   setHours,
 } from "date-fns";
+import { fr } from "date-fns/locale";
 import {
   calendarDayKey,
   isoToZonedDateKey,
@@ -272,7 +273,7 @@ export function getHourMarkers(view: CalendarView, weekDays: Date[]): { label: s
   weekDays.forEach((day, dayIndex) => {
     const dayOffset = dayIndex * getDayTimelineWidth();
     markers.push({
-      label: format(day, "EEE d"),
+      label: format(day, "EEE d", { locale: fr }),
       left: dayOffset,
     });
     for (let hour = CALENDAR_START_HOUR; hour < CALENDAR_END_HOUR; hour += 4) {

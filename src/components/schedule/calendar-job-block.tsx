@@ -54,7 +54,7 @@ export function CalendarJobBlock({
   getEmployeeIdFromClientY,
   getLeftFromClientX,
 }: CalendarJobBlockProps) {
-  const interaction = useRef<{ mode: "move" | "resize" | "resize-start"; startX: number; startMinutes: number; endMinutes: number; moved: boolean } | null>(null);
+  const interaction = useRef<{ mode: "move" | "resize" | "resize-start"; startX: number; startMinutes: number; endMinutes: number; moved: boolean; ecartDeSaisie: number } | null>(null);
 
   /**
    * Aperçu du geste en cours.
@@ -94,7 +94,11 @@ export function CalendarJobBlock({
     e.stopPropagation();
     const startMinutes = isoToZonedMinutes(event.start);
     const endMinutes = isoToZonedMinutes(event.end);
-    interaction.current = { mode: "move", startX: e.clientX, startMinutes, endMinutes, moved: false };
+    // Combien de minutes séparent le début du call du point que la main
+    // saisit. C'est cet écart qu'on rendait au relâchement, faisant sauter le
+    // bloc en avant ; on le retient pour le soustraire.
+    const ecartDeSaisie = getMinutesFromClientX(e.clientX) - startMinutes;
+    interaction.current = { mode: "move", startX: e.clientX, startMinutes, endMinutes, moved: false, ecartDeSaisie };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -110,7 +114,7 @@ export function CalendarJobBlock({
     e.stopPropagation();
     const startMinutes = isoToZonedMinutes(event.start);
     const endMinutes = isoToZonedMinutes(event.end);
-    interaction.current = { mode, startX: e.clientX, startMinutes, endMinutes, moved: false };
+    interaction.current = { mode, startX: e.clientX, startMinutes, endMinutes, moved: false, ecartDeSaisie: 0 };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
 
@@ -142,8 +146,15 @@ export function CalendarJobBlock({
     }
 
     setApercu({
-      ...apercuDeplacement(state.startMinutes, state.endMinutes, getMinutesFromClientX(e.clientX)),
-      left: getLeftFromClientX(e.clientX),
+      ...apercuDeplacement(
+        state.startMinutes,
+        state.endMinutes,
+        getMinutesFromClientX(e.clientX),
+        state.ecartDeSaisie,
+      ),
+      // Le fantôme doit suivre le bloc, pas le curseur : sans ce recul il
+      // s'afficherait sous la main alors que le call se posera plus tôt.
+      left: getLeftFromClientX(e.clientX) - (state.ecartDeSaisie / 60) * HOUR_WIDTH,
     });
   }
 
@@ -175,7 +186,7 @@ export function CalendarJobBlock({
       return;
     }
 
-    const newStartMinutes = clampMinutes(getMinutesFromClientX(e.clientX));
+    const newStartMinutes = clampMinutes(getMinutesFromClientX(e.clientX) - state.ecartDeSaisie);
     const targetEmployeeId = getEmployeeIdFromClientY(e.clientY);
     onMove(event, rowEmployeeId, targetEmployeeId, newStartMinutes, e.clientX);
   }

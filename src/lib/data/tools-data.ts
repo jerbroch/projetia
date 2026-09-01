@@ -500,3 +500,27 @@ export function checkAssignmentOverlap(
   }
   return null;
 }
+
+/**
+ * Liste minimale servant à vérifier l'unicité d'un numéro interne.
+ *
+ * Volontairement séparée de `getToolsWithDetails` : cette vérification tourne
+ * à chaque enregistrement de fiche, et n'a besoin ni des assignations, ni des
+ * employés, ni des rappels SMS.
+ */
+export async function numerosInternesDeLEntreprise(
+  companyId: string,
+): Promise<Array<{ id: string; name: string; internalNumber: string }>> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tools")
+    .select("id, name, internal_number")
+    .eq("company_id", companyId);
+
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    internalNumber: String(row.internal_number ?? ""),
+  }));
+}
