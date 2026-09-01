@@ -25,13 +25,13 @@ test.describe("4. Planification", () => {
     const title = `Appel E2E ${Date.now()}`;
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10000 });
-    await dialog.getByLabel("Job Title").fill(title);
+    await dialog.getByLabel("Titre du travail").fill(title);
 
-    const customerSelect = dialog.getByLabel("Select Customer");
+    const customerSelect = dialog.getByLabel("Client", { exact: true });
     await customerSelect.click();
     await page.getByRole("option").first().click();
 
-    await dialog.getByRole("button", { name: "Create Job" }).click();
+    await dialog.getByRole("button", { name: "Créer le travail" }).click();
     await expect(dialog).toBeHidden({ timeout: 20000 });
     await expect(page.locator("[data-event-id]").filter({ hasText: title })).toBeVisible({
       timeout: 20000,
