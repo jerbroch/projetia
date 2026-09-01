@@ -5,7 +5,14 @@ import {
   acceptPublicQuoteAction,
   rejectPublicQuoteAction,
 } from "@/lib/actions/public-quote";
-import { calculateQuoteTotals, canClientRespond, getQuoteLineItems, normalizePublicQuote } from "@/lib/quote-utils";
+import {
+  calculateQuoteTotals,
+  canClientRespond,
+  getQuoteLineItems,
+  montantDuDepot,
+  normalizePublicQuote,
+} from "@/lib/quote-utils";
+import { formatCurrency } from "@/lib/utils";
 import { QuoteTemplate } from "@/components/quotes/quote-template";
 import type { Company, Quote } from "@/types";
 
@@ -44,7 +51,7 @@ export function PublicQuoteClient({
           status: nextStatus,
           acceptedAt: new Date().toISOString(),
           depositAmount: quote.depositRequired
-            ? Math.round(totals.total * ((quote.depositPercentage ?? 20) / 100) * 100) / 100
+            ? montantDuDepot(subtotal, quote.depositPercentage ?? 20, company)
             : quote.depositAmount,
         });
         if (quote.depositRequired) setDepositStep(true);
@@ -116,7 +123,7 @@ export function PublicQuoteClient({
             Pour finaliser l&apos;acceptation, veuillez verser un dépôt de{" "}
             <strong>
               {quote.depositAmount != null && Number.isFinite(Number(quote.depositAmount))
-                ? `$${Number(quote.depositAmount).toFixed(2)}`
+                ? formatCurrency(Number(quote.depositAmount))
                 : ""}
             </strong>
             .
