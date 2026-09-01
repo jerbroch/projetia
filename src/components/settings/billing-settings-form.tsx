@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmployeeRolesTable } from "@/components/settings/employee-roles-table";
 import { LaborTemplatesTable } from "@/components/settings/labor-templates-table";
 import type { Company, LaborRateTemplate } from "@/types";
 
@@ -164,6 +165,19 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
               });
             }}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Rôles de vos employés</CardTitle>
+          <CardDescription>
+            Le niveau de chacun dans votre entreprise, et le salaire que vous
+            lui versez. Sert à pré-remplir les fiches employés.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmployeeRolesTable disabled={isDemo} />
         </CardContent>
       </Card>
 

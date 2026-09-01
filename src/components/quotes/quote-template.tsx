@@ -72,6 +72,26 @@ export function QuoteTemplate({
           <p className="text-sm text-muted-foreground">
             Date : {formatDate(quote.createdAt)}
           </p>
+          {/*
+            Date de dernière modification, visible par le CLIENT.
+
+            Une soumission envoyée reste consultable au même lien : si
+            l'entrepreneur la modifie, le client voit un nouveau montant sans
+            savoir que quelque chose a changé. Cette ligne le lui dit.
+
+            La condition porte sur l'ENVOI, pas sur la création : ce qui
+            compte, c'est qu'elle ait bougé APRÈS que le client l'a reçue.
+            Retoucher un brouillon dix fois avant de l'envoyer ne le regarde
+            pas — et un seuil de temps depuis la création aurait masqué une
+            vraie modification faite dans la minute suivant l'envoi.
+          */}
+          {quote.sentAt &&
+            quote.updatedAt &&
+            new Date(quote.updatedAt).getTime() > new Date(quote.sentAt).getTime() && (
+              <p className="text-sm font-medium text-amber-700">
+                Modifiée le {formatDate(quote.updatedAt)}
+              </p>
+            )}
           <Badge variant="secondary" className="mt-2">
             {statusLabel}
           </Badge>

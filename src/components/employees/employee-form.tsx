@@ -9,6 +9,8 @@ import {
   getDefaultEmployeeFormValues,
   type EmployeeFormValues,
 } from "@/lib/employee-utils";
+import { listerRolesAction } from "@/lib/actions/employee-roles";
+import type { EmployeeRole } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -45,6 +47,7 @@ function toFormData(form: EmployeeFormValues): FormData {
   formData.set("firstName", form.firstName);
   formData.set("lastName", form.lastName);
   formData.set("trade", form.trade);
+  formData.set("roleId", form.roleId);
   formData.set("email", form.email);
   formData.set("mobilePhone", form.mobilePhone);
   formData.set("truckNumber", form.truckNumber);
@@ -70,6 +73,13 @@ export function EmployeeForm({
 }: EmployeeFormProps) {
   const canManageAccess = membershipRole === "owner" || membershipRole === "admin";
   const [form, setForm] = useState<EmployeeFormValues>(() => getDefaultEmployeeFormValues(employee));
+  const [roles, setRoles] = useState<EmployeeRole[]>([]);
+  useEffect(() => {
+    void listerRolesAction().then((r) => setRoles(r.roles));
+  }, []);
+  const roleSansSalaire = Boolean(
+    form.roleId && roles.find((r) => r.id === form.roleId)?.defaultHourlyRate == null,
+  );
   const [error, setError] = useState("");
   // Vrai quand le refus vient d'un courriel déjà pris : on propose alors de le
   // transférer, plutôt que d'obliger à vider l'autre fiche puis revenir.
@@ -175,7 +185,54 @@ export function EmployeeForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="trade">Métier</Label>
-              <Input id="trade" value={form.trade} onChange={(e) => updateField("trade", e.target.value)} required />
+              <Input id="trade" value={form.trade} onChange={(e) => updateField("trade", e.target.value)} required placeholder="Couvreur, électricien, paysagiste…" />
+            </div>
+            {/*
+              Le RÔLE est le niveau dans l'entreprise ; le MÉTIER, juste
+              au-dessus, dit ce que la personne fait. Deux informations
+              différentes : un couvreur peut être apprenti ou contremaître.
+
+              Choisir un rôle propose son salaire, sans l'imposer : le champ
+              reste modifiable par employé, parce que deux personnes du même
+              niveau ne sont pas toujours payées pareil.
+            */}
+            <div className="space-y-2">
+              <Label htmlFor="roleId">Rôle</Label>
+              <Select
+                value={form.roleId || "aucun"}
+                onValueChange={(v) => {
+                  const roleId = v === "aucun" ? "" : v;
+                  const role = roles.find((r) => r.id === roleId);
+                  setForm((f) => ({
+                    ...f,
+                    roleId,
+                    // Le salaire du rôle ne s'impose pas : il ne remplit que
+                    // si le champ est encore vide, pour ne jamais écraser un
+                    // montant que l'employeur vient de saisir.
+                    hourlyRate:
+                      role?.defaultHourlyRate != null && !f.hourlyRate.trim()
+                        ? String(role.defaultHourlyRate)
+                        : f.hourlyRate,
+                  }));
+                }}
+              >
+                <SelectTrigger id="roleId"><SelectValue placeholder="Aucun" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="aucun">Aucun</SelectItem>
+                  {roles.filter((r) => r.isActive).map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.name}
+                      {r.defaultHourlyRate == null ? " — sans salaire" : ` — ${r.defaultHourlyRate} $/h`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {roleSansSalaire && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Ce rôle n&apos;a pas de salaire par défaut. Entrez-le ci-dessous,
+                  ou réglez-le dans Paramètres pour les prochaines fiches.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="truckNumber">Numéro de camion</Label>

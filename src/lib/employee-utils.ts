@@ -17,6 +17,7 @@ export function isEmployeeSchedulable(employee: Employee): boolean {
 }
 
 export interface EmployeeFormValues {
+  roleId: string;
   firstName: string;
   lastName: string;
   trade: string;
@@ -35,6 +36,7 @@ export interface EmployeeFormValues {
 export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormValues {
   if (employee) {
     return {
+      roleId: employee.roleId ?? "",
       firstName: employee.firstName,
       lastName: employee.lastName,
       trade: employee.trade,
@@ -55,6 +57,7 @@ export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormV
   }
 
   return {
+    roleId: "",
     firstName: "",
     lastName: "",
     trade: "",
@@ -66,7 +69,10 @@ export function getDefaultEmployeeFormValues(employee?: Employee): EmployeeFormV
     notes: "",
     department: "Field",
     hireDate: format(new Date(), "yyyy-MM-dd"),
-    hourlyRate: "35",
+    // Vide, et non 35 $/h : un salaire codé en dur est faux pour tout le monde
+    // sauf celui qui l'a écrit, et il s'enregistre sans qu'on le remarque.
+    // Choisir un rôle le remplit ; sinon l'employeur le saisit.
+    hourlyRate: "",
     grantAppAccess: false,
   };
 }

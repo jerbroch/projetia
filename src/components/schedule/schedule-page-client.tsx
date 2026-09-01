@@ -41,10 +41,20 @@ import {
 } from "@/lib/schedule-utils";
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { CloseWorkDialog } from "@/components/workflow/close-work-dialog";
-import type { Company, Customer, Employee, ProfileRole, ScheduleEvent, ToolListItem, User } from "@/types";
+import type {
+  Company,
+  Customer,
+  Employee,
+  ProfileRole,
+  Quote,
+  ScheduleEvent,
+  ToolListItem,
+  User,
+} from "@/types";
 import type { JobShift } from "@/lib/job-shifts";
 
 interface SchedulePageClientProps {
+  quotes?: Quote[];
   initialEvents: ScheduleEvent[];
   initialCustomers: Customer[];
   initialEmployees: Employee[];
@@ -85,6 +95,7 @@ function buildScheduleJobFormData(event: ScheduleEvent, isEdit: boolean): FormDa
 }
 
 export function SchedulePageClient({
+  quotes = [],
   initialEvents,
   initialCustomers,
   initialEmployees,
@@ -419,6 +430,7 @@ export function SchedulePageClient({
       />
 
       <ScheduleEventForm
+        quotes={quotes}
         open={formOpen}
         onOpenChange={setFormOpen}
         mode={formMode}

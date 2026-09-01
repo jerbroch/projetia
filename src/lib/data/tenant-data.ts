@@ -256,6 +256,7 @@ export function mapQuoteRow(row: Record<string, unknown>): Quote {
     status: row.status as Quote["status"],
     validUntil: String(row.valid_until ?? ""),
     createdAt: String(row.created_at),
+    updatedAt: row.updated_at ? String(row.updated_at) : undefined,
     publicToken: row.public_token ? String(row.public_token) : undefined,
     sentAt: row.sent_at ? String(row.sent_at) : undefined,
     viewedAt: row.viewed_at ? String(row.viewed_at) : undefined,
@@ -776,6 +777,7 @@ export function mapEmployeeRow(row: Record<string, unknown>): Employee {
     firstName: formatPersonName(String(row.first_name)),
     lastName: formatPersonName(String(row.last_name)),
     trade: String(row.trade ?? ""),
+    roleId: row.role_id ? String(row.role_id) : null,
     mobilePhone: String(row.phone ?? ""),
     email: String(row.email ?? ""),
     truckNumber: String(row.truck_number ?? ""),
@@ -1056,6 +1058,7 @@ export async function createEmployeeForCompany(
     department?: string;
     hireDate?: string;
     hourlyRate?: number;
+    roleId?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -1065,6 +1068,7 @@ export async function createEmployeeForCompany(
       company_id: companyId,
       first_name: input.firstName,
       last_name: input.lastName,
+      role_id: input.roleId ?? null,
       email: input.email || null,
       phone: input.phone || null,
       trade: input.trade || null,
@@ -1096,6 +1100,7 @@ export async function updateEmployeeForCompany(
     department?: string;
     hireDate?: string;
     hourlyRate?: number;
+    roleId?: string | null;
   }
 ) {
   const supabase = await createClient();
@@ -1103,6 +1108,7 @@ export async function updateEmployeeForCompany(
 
   if (input.firstName !== undefined) updates.first_name = input.firstName;
   if (input.lastName !== undefined) updates.last_name = input.lastName;
+  if (input.roleId !== undefined) updates.role_id = input.roleId || null;
   if (input.email !== undefined) updates.email = input.email || null;
   if (input.phone !== undefined) updates.phone = input.phone || null;
   if (input.trade !== undefined) updates.trade = input.trade || null;

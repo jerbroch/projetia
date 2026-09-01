@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo} from "react";
 import { Trash2, Receipt, Wrench } from "lucide-react";
-import type { Customer, Employee, ScheduleEvent } from "@/types";
+import type { Customer, Employee, ScheduleEvent,
+  Quote,
+} from "@/types";
 import { canSubmitJobStatus } from "@/lib/job-workflow";
 import {
   buildScheduleEvent,
@@ -42,6 +44,8 @@ interface ScheduleEventFormProps {
   formDefaults?: ScheduleFormDefaults;
   customers: Customer[];
   employees: Employee[];
+  /** Pour partir d'une soumission existante plutôt que de tout retaper. */
+  quotes?: Quote[];
   companyId: string;
   onSave: (event: ScheduleEvent, newCustomer?: Customer) => void;
   onCancelJob: (eventId: string) => void;
@@ -49,6 +53,12 @@ interface ScheduleEventFormProps {
   onBilling?: (event: ScheduleEvent) => void;
   onCloseWork?: (event: ScheduleEvent) => void;
 }
+
+import {
+  libelleDeSoumission,
+  prefillDepuisSoumission,
+  soumissionsProposables,
+} from "@/lib/prefill-travail-depuis-soumission";
 
 export function ScheduleEventForm({
   open,
@@ -58,6 +68,7 @@ export function ScheduleEventForm({
   formDefaults,
   customers,
   employees,
+  quotes = [],
   companyId,
   onSave,
   onCancelJob,
@@ -76,6 +87,42 @@ export function ScheduleEventForm({
       setError("");
     }
   }, [open, event, formDefaults]);
+
+  const proposables = useMemo(() => soumissionsProposables(quotes), [quotes]);
+  const [soumissionChoisie, setSoumissionChoisie] = useState<string>("");
+
+  /**
+   * Reprend une soumission existante dans le formulaire.
+   *
+   * L'entrepreneur qui part du calendrier retapait le titre, le client,
+   * l'adresse et la description qu'il venait d'écrire dans sa soumission.
+   * Chaque champ retapé est une occasion de se tromper.
+   *
+   * Ne remplace QUE les champs vides ou ceux que la soumission renseigne :
+   * une date et des heures déjà choisies au calendrier ne bougent pas.
+   */
+  function reprendreSoumission(quoteId: string) {
+    const q = proposables.find((x) => x.id === quoteId);
+    if (!q) return;
+    setSoumissionChoisie(quoteId);
+    const p = prefillDepuisSoumission(q, customers);
+    setForm((f) => ({
+      ...f,
+      title: p.title || f.title,
+      description: p.description || f.description,
+      customerId: p.customerId ?? f.customerId,
+      customerName: p.customerName || f.customerName,
+      customerEmail: p.customerEmail || f.customerEmail,
+      customerPhone: p.customerPhone || f.customerPhone,
+      jobSiteAddress: p.jobSiteAddress || f.jobSiteAddress,
+      billingAddress: p.billingAddress || f.billingAddress,
+    }));
+  }
+
+  const heuresPrevues = useMemo(() => {
+    const q = proposables.find((x) => x.id === soumissionChoisie);
+    return q ? prefillDepuisSoumission(q, customers).estimatedHours : undefined;
+  }, [soumissionChoisie, proposables, customers]);
 
   function updateField<K extends keyof ScheduleFormValues>(key: K, value: ScheduleFormValues[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -167,6 +214,32 @@ export function ScheduleEventForm({
         <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+          )}
+
+          {mode === "create" && proposables.length > 0 && (
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+              <Label htmlFor="soumissionSource">Partir d&apos;une soumission</Label>
+              <Select value={soumissionChoisie} onValueChange={reprendreSoumission}>
+                <SelectTrigger id="soumissionSource">
+                  <SelectValue placeholder="Aucune — saisie manuelle" />
+                </SelectTrigger>
+                <SelectContent>
+                  {proposables.map((q) => (
+                    <SelectItem key={q.id} value={q.id}>
+                      {libelleDeSoumission(q)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {soumissionChoisie && (
+                <p className="text-xs text-muted-foreground">
+                  Titre, client, adresses et description repris de la soumission.
+                  {heuresPrevues != null && heuresPrevues > 0 && (
+                    <> Heures chiffrées&nbsp;: <strong>{heuresPrevues.toLocaleString("fr-CA")} h</strong>.</>
+                  )}
+                </p>
+              )}
+            </div>
           )}
 
           <div className="space-y-4">

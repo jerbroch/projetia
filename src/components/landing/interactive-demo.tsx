@@ -214,59 +214,62 @@ function CalendrierMockup() {
 
 function TerrainMockup() {
   // Copié sur /terrain/calls/[id] : ce sont les vrais boutons, dans cet ordre.
+  //
+  // Le téléphone est BORNÉ à la hauteur de la zone, comme les tableaux des
+  // autres étapes. Dessiné à taille fixe, il faisait 287 px dans un cadre de
+  // 256 px sur mobile — il débordait, et écrasait le reste de l'étape sur
+  // bureau. Les cinq maquettes doivent se ressembler.
   return (
-    <div className="flex h-full items-center justify-center gap-5">
-      <div className="w-[188px] shrink-0 rounded-[1.4rem] border-4 border-foreground/80 bg-background p-2.5 shadow-lg">
-        <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-foreground/30" />
-        <p className="text-[11px] font-semibold leading-tight text-foreground">
-          Réfection plomberie — 2 sdb
-        </p>
-        <p className="text-[10px] text-muted-foreground">Marie Gagnon · Lévis</p>
+    <div className="flex h-full items-center justify-center gap-4 sm:gap-6">
+      <div className="flex h-full max-h-full shrink-0 items-center">
+        <div className="w-[116px] overflow-hidden rounded-[1.1rem] border-[3px] border-foreground/80 bg-background p-1.5 shadow-md sm:w-[132px] sm:p-2">
+          <div className="mx-auto mb-1.5 h-0.5 w-6 rounded-full bg-foreground/30" />
+          <p className="text-[9px] font-semibold leading-tight text-foreground sm:text-[10px]">
+            Réfection plomberie
+          </p>
+          <p className="text-[8px] text-muted-foreground sm:text-[9px]">Marie Gagnon</p>
 
-        <p className="mt-2 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-          Statut du call
-        </p>
-        <div className="mt-1 space-y-1">
-          <div className="rounded-md border py-1 text-center text-[10px] text-muted-foreground">
-            Je suis en route
+          <p className="mt-1.5 text-[7px] font-medium uppercase tracking-wide text-muted-foreground sm:text-[8px]">
+            Statut du call
+          </p>
+          <div className="mt-0.5 space-y-0.5">
+            <div className="rounded border py-0.5 text-center text-[8px] text-muted-foreground sm:text-[9px]">
+              Je suis en route
+            </div>
+            <div className="rounded bg-primary py-1 text-center text-[9px] font-semibold text-primary-foreground sm:text-[10px]">
+              Commencer les travaux
+            </div>
+            <div className="rounded border py-0.5 text-center text-[8px] text-muted-foreground sm:text-[9px]">
+              Travaux terminés
+            </div>
           </div>
-          <div className="rounded-md bg-primary py-1.5 text-center text-[11px] font-semibold text-primary-foreground">
-            Commencer les travaux
-          </div>
-          <div className="rounded-md border py-1 text-center text-[10px] text-muted-foreground">
-            Travaux terminés
-          </div>
-        </div>
 
-        <p className="mt-2 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
-          Mes heures
-        </p>
-        <div className="mt-1 flex gap-1">
-          <div className="flex-1 rounded border px-1.5 py-1 text-[10px] text-foreground">8,5</div>
-          <div className="rounded border px-1.5 py-1 text-[10px] text-muted-foreground">h</div>
-        </div>
-        <div className="mt-1 rounded-md bg-primary/10 py-1 text-center text-[10px] font-medium text-primary">
-          Ajouter les heures
-        </div>
-        <div className="mt-1 rounded-md border py-1 text-center text-[10px] text-foreground">
-          Ajouter le matériau
+          <p className="mt-1.5 text-[7px] font-medium uppercase tracking-wide text-muted-foreground sm:text-[8px]">
+            Mes heures
+          </p>
+          <div className="mt-0.5 flex gap-1">
+            <div className="flex-1 rounded border px-1 py-0.5 text-[9px] text-foreground sm:text-[10px]">8,5</div>
+            <div className="rounded border px-1 py-0.5 text-[9px] text-muted-foreground sm:text-[10px]">h</div>
+          </div>
+          <div className="mt-0.5 rounded bg-primary/10 py-0.5 text-center text-[8px] font-medium text-primary sm:text-[9px]">
+            Ajouter les heures
+          </div>
+          <div className="mt-0.5 rounded border py-0.5 text-center text-[8px] text-foreground sm:text-[9px]">
+            Ajouter le matériau
+          </div>
         </div>
       </div>
 
-      <ol className="space-y-3">
-        {[
-          "Il ouvre son call",
-          "Commencer les travaux",
-          "Ses heures et son matériel",
-        ].map((t, i) => (
-          <li key={t} className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+      <ol className="min-w-0 flex-1 space-y-2 sm:space-y-3">
+        {["Il ouvre son call", "Commencer les travaux", "Ses heures et son matériel"].map((t, i) => (
+          <li key={t} className="flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground sm:h-7 sm:w-7 sm:text-xs">
               {i + 1}
             </span>
-            <span className="text-sm font-medium text-foreground">{t}</span>
+            <span className="text-xs font-medium text-foreground sm:text-sm">{t}</span>
           </li>
         ))}
-        <li className="max-w-[15rem] pt-1 text-xs leading-snug text-muted-foreground">
+        <li className="pt-0.5 text-[11px] leading-snug text-muted-foreground sm:text-xs">
           8,5 h au lieu des 8 prévues, et un coude ½ po pris dans le camion — les
           deux entrent dans la facture sans que personne les retape.
         </li>

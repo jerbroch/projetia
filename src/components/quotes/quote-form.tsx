@@ -13,6 +13,11 @@ import {
   QUOTE_STATUS_LABELS,
   type QuoteFormValues,
 } from "@/lib/quote-utils";
+import { CustomerPicker } from "@/components/shared/customer-picker";
+import {
+  avertissementDeModification,
+  regimeDeModification,
+} from "@/lib/modification-de-soumission";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -77,16 +82,9 @@ export function QuoteForm({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handleCustomerSelect(customerId: string) {
-    const customer = customers.find((c) => c.id === customerId);
-    if (!customer) return;
-    setForm((prev) => ({
-      ...prev,
-      customerId,
-      customerName: customer.name,
-      customerEmail: customer.email || prev.customerEmail,
-    }));
-  }
+
+  /** Avertissement en attente : l'enregistrement reprend si l'utilisateur confirme. */
+  const [avertissement, setAvertissement] = useState<string | null>(null);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -99,6 +97,19 @@ export function QuoteForm({
       return;
     }
 
+    // Une soumission déjà partie reste visible au MÊME lien : la modifier
+    // change ce que le client voit, sans qu'il en soit averti. On le dit
+    // avant d'écrire, pas après.
+    if (mode === "edit" && quote && regimeDeModification(quote) === "avertir" && !avertissement) {
+      setAvertissement(avertissementDeModification(quote));
+      return;
+    }
+    setAvertissement(null);
+
+    enregistrer();
+  }
+
+  function enregistrer() {
     startTransition(async () => {
       if (isDemo) {
         const quoteNumber =
@@ -149,6 +160,27 @@ export function QuoteForm({
   }
 
   return (
+    <>
+    <Dialog
+      open={avertissement !== null}
+      onOpenChange={(o) => !o && setAvertissement(null)}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Le client verra vos modifications</DialogTitle>
+          <DialogDescription>{avertissement}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => setAvertissement(null)} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button onClick={enregistrer} disabled={isPending}>
+            Enregistrer quand même
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -184,43 +216,33 @@ export function QuoteForm({
               placeholder="Détails des travaux..."
             />
           </div>
-          {customers.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="customerSelect">Client existant</Label>
-              <Select
-                value={form.customerId || undefined}
-                onValueChange={handleCustomerSelect}
-              >
-                <SelectTrigger id="customerSelect">
-                  <SelectValue placeholder="Sélectionner un client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          {/*
+            Un seul chemin pour entrer un client.
+
+            Il y avait ici un menu « Client existant » ET des champs nom /
+            courriel séparés : deux façons concurrentes, dont l'une écrasait
+            l'autre en silence. Et aucun moyen de créer un client sans quitter
+            la soumission — donc sans perdre ce qu'on venait de saisir.
+          */}
           <div className="space-y-2">
-            <Label htmlFor="customerName">Nom du client</Label>
-            <Input
-              id="customerName"
-              value={form.customerName}
-              onChange={(e) => updateField("customerName", e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">Courriel du client</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={form.customerEmail}
-              onChange={(e) => updateField("customerEmail", e.target.value)}
-              placeholder="client@exemple.com"
+            <Label>Client</Label>
+            <CustomerPicker
+              customers={customers}
+              value={{
+                id: form.customerId || undefined,
+                name: form.customerName,
+                email: form.customerEmail,
+                phone: "",
+                address: "",
+              }}
+              onChange={(c) =>
+                setForm((f) => ({
+                  ...f,
+                  customerId: c.id ?? "",
+                  customerName: c.name,
+                  customerEmail: c.email,
+                }))
+              }
             />
           </div>
           {open && (
@@ -336,5 +358,6 @@ export function QuoteForm({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

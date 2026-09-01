@@ -33,13 +33,12 @@ test.describe("3. Soumissions", () => {
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("Titre").fill(title);
 
-    const customerSelect = dialog.getByLabel("Client existant");
-    if (await customerSelect.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await customerSelect.click();
-      await page.getByRole("option", { name: clientName, exact: true }).click();
-    } else {
-      await dialog.getByLabel("Nom du client").fill(clientName);
-    }
+    // Un seul chemin pour entrer un client depuis que CustomerPicker a
+    // remplacé le menu « Client existant » ET les champs nom/courriel séparés.
+    // Le choix pré-remplit tout : il n'y a plus rien à retaper.
+    await dialog.getByLabel("Client", { exact: true }).click();
+    await page.getByRole("option", { name: clientName, exact: true }).click();
+    await expect(dialog.getByText(clientName)).toBeVisible({ timeout: 10000 });
 
     const amountInput = dialog.getByLabel("Montant ($)");
     await amountInput.click();

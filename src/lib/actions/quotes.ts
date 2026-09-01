@@ -1,5 +1,10 @@
 "use server";
 
+import {
+  refusDeModification,
+  regimeDeModification,
+} from "@/lib/modification-de-soumission";
+
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/admin";
@@ -26,6 +31,7 @@ import {
   mapQuoteRow,
   sendQuoteForCompany,
   updateQuoteForCompany,
+  getQuoteById,
 } from "@/lib/data/tenant-data";
 import { requireTenantContext } from "@/lib/session";
 import { quoteFormSchema, quoteIdSchema, sendQuoteSchema } from "@/lib/validations/quotes";
@@ -169,6 +175,14 @@ export async function updateQuoteAction(formData: FormData): Promise<QuoteAction
   const parsed = parseQuoteForm(formData);
   if (!parsed.success) {
     return safeError(parsed.error.errors[0]?.message ?? "Données invalides");
+  }
+
+  // Une soumission acceptée est un accord ; un dépôt payé, de l'argent reçu.
+  // Le refus est posé ICI et pas seulement à l'écran : une boîte de dialogue
+  // se contourne, une action serveur non.
+  const existante = await getQuoteById(ctx.company.id, idParsed.data.id, false);
+  if (existante && regimeDeModification(existante) === "refuser") {
+    return safeError(refusDeModification(existante));
   }
 
   const { data, error } = await updateQuoteForCompany(

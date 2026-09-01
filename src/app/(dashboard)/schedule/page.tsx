@@ -3,6 +3,7 @@ import {
   getCustomers,
   getEmployees,
   getScheduleEvents,
+  getQuotes,
 } from "@/lib/data/tenant-data";
 import { getShiftsForJobs } from "@/lib/data/job-shifts-data";
 import { getToolsWithDetails } from "@/lib/data/tools-data";
@@ -15,10 +16,11 @@ interface SchedulePageProps {
 export default async function SchedulePage({ searchParams }: SchedulePageProps) {
   const ctx = await requireTenantContext();
   const { date, eventId } = await searchParams;
-  const [events, customers, employees] = await Promise.all([
+  const [events, customers, employees, quotes] = await Promise.all([
     getScheduleEvents(ctx.company.id, ctx.isDemo),
     getCustomers(ctx.company.id, ctx.isDemo),
     getEmployees(ctx.company.id, ctx.isDemo),
+    getQuotes(ctx.company.id, ctx.isDemo),
   ]);
   const tools = await getToolsWithDetails(ctx.company.id, ctx.isDemo, employees);
   // Les plages par employé. Vide en démo, et vide tant qu'aucune n'est tracée :
@@ -30,6 +32,7 @@ export default async function SchedulePage({ searchParams }: SchedulePageProps) 
       initialEvents={events}
       initialCustomers={customers}
       initialEmployees={employees}
+      quotes={quotes}
       tools={tools}
       company={ctx.company}
       user={ctx.user}
