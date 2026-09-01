@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LaborTemplatesTable } from "@/components/settings/labor-templates-table";
 import type { Company, LaborRateTemplate } from "@/types";
 
 interface BillingSettingsFormProps {
@@ -149,63 +150,20 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
         <CardHeader>
           <CardTitle>Taux de main-d&apos;œuvre</CardTitle>
           <CardDescription>
-            Modèles configurables (ex. 1 compagnon, 2 compagnons) — utilisés lors de la facturation
+            Ce que coûte une heure de travail, et ce que vous la facturez. Modifiable
+            directement dans le tableau.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {displayTemplates.map((t) => (
-            <div key={t.id} className="rounded-lg border p-3 text-sm">
-              <p className="font-medium">{t.name}</p>
-              <p className="text-muted-foreground">
-                Coût {t.costPerHr > 0 ? `${t.costPerHr}$/h` : "À configurer"} · Facturation{" "}
-                {formatLaborBillRate(t.billRate)} · {RATE_TYPE_LABELS[t.rateType]}
-              </p>
-            </div>
-          ))}
-
-          {!isDemo && (
-            <form onSubmit={handleSaveTemplate} className="space-y-3 rounded-lg border p-4">
-              <p className="text-sm font-medium">Ajouter / modifier un modèle</p>
-              <input type="hidden" name="sortOrder" value={displayTemplates.length + 1} />
-              <input type="hidden" name="rateType" value={rateType} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="lrtName">Nom</Label>
-                  <Input id="lrtName" name="name" placeholder="2 compagnons" required />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="workerCount">Nombre de travailleurs</Label>
-                  <Input id="workerCount" name="workerCount" type="number" min="1" defaultValue="1" />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="costPerHr">Coût ($/h)</Label>
-                  <Input id="costPerHr" name="costPerHr" type="number" step="0.01" defaultValue="45" />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="billRate">Taux facturé ($/h)</Label>
-                  <Input id="billRate" name="billRate" type="number" step="0.01" defaultValue="85" />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="rateType">Type</Label>
-                  <Select value={rateType} onValueChange={setRateType}>
-                    <SelectTrigger id="rateType">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="regular">Régulier</SelectItem>
-                      <SelectItem value="overtime">Temps et demi</SelectItem>
-                      <SelectItem value="double_time">Temps double</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button type="submit" disabled={isPending}>
-                {(isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Plus className="mr-2 h-4 w-4" />
-                Enregistrer le modèle
-              </Button>
-            </form>
-          )}
+          <LaborTemplatesTable
+            templates={displayTemplates}
+            disabled={isDemo}
+            onChanged={() => {
+              void loadBillingSettingsAction().then((r) => {
+                if (r.success && r.data) setTemplates(r.data.laborTemplates);
+              });
+            }}
+          />
         </CardContent>
       </Card>
 
