@@ -201,6 +201,8 @@ export interface Quote {
   status: QuoteStatus;
   validUntil: string;
   createdAt: string;
+  /** Dernière écriture. Sert à dire au client qu'une soumission envoyée a bougé. */
+  updatedAt?: string;
   publicToken?: string;
   sentAt?: string;
   viewedAt?: string;

@@ -13,6 +13,10 @@ import {
   QUOTE_STATUS_LABELS,
   type QuoteFormValues,
 } from "@/lib/quote-utils";
+import {
+  avertissementDeModification,
+  regimeDeModification,
+} from "@/lib/modification-de-soumission";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -88,6 +92,9 @@ export function QuoteForm({
     }));
   }
 
+  /** Avertissement en attente : l'enregistrement reprend si l'utilisateur confirme. */
+  const [avertissement, setAvertissement] = useState<string | null>(null);
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) {
@@ -99,6 +106,19 @@ export function QuoteForm({
       return;
     }
 
+    // Une soumission déjà partie reste visible au MÊME lien : la modifier
+    // change ce que le client voit, sans qu'il en soit averti. On le dit
+    // avant d'écrire, pas après.
+    if (mode === "edit" && quote && regimeDeModification(quote) === "avertir" && !avertissement) {
+      setAvertissement(avertissementDeModification(quote));
+      return;
+    }
+    setAvertissement(null);
+
+    enregistrer();
+  }
+
+  function enregistrer() {
     startTransition(async () => {
       if (isDemo) {
         const quoteNumber =
@@ -149,6 +169,27 @@ export function QuoteForm({
   }
 
   return (
+    <>
+    <Dialog
+      open={avertissement !== null}
+      onOpenChange={(o) => !o && setAvertissement(null)}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Le client verra vos modifications</DialogTitle>
+          <DialogDescription>{avertissement}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => setAvertissement(null)} disabled={isPending}>
+            Annuler
+          </Button>
+          <Button onClick={enregistrer} disabled={isPending}>
+            Enregistrer quand même
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
@@ -336,5 +377,6 @@ export function QuoteForm({
         </form>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

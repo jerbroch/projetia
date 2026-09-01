@@ -256,6 +256,7 @@ export function mapQuoteRow(row: Record<string, unknown>): Quote {
     status: row.status as Quote["status"],
     validUntil: String(row.valid_until ?? ""),
     createdAt: String(row.created_at),
+    updatedAt: row.updated_at ? String(row.updated_at) : undefined,
     publicToken: row.public_token ? String(row.public_token) : undefined,
     sentAt: row.sent_at ? String(row.sent_at) : undefined,
     viewedAt: row.viewed_at ? String(row.viewed_at) : undefined,
