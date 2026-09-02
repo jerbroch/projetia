@@ -1,4 +1,5 @@
 import { test, expect, tenantAuth } from "../fixtures/base";
+import { COURRIEL_LIVRE } from "../helpers/adresses-de-test";
 import { ensureDashboardAccess } from "../helpers/auth";
 import { archiveJobRow, invoiceCustomerCell, quoteNumberCell, tableCell } from "../helpers/locators";
 import { clickQuickStatusIfEnabled, resetSeedJobIfNeeded } from "../helpers/schedule";
@@ -80,7 +81,7 @@ test.describe("11. Parcours métier complet", () => {
     });
 
     await page.getByRole("button", { name: "Envoyer la facture" }).click();
-    await page.getByLabel("Destinataire").fill("e2e-invoice@test.local");
+    await page.getByLabel("Destinataire").fill(COURRIEL_LIVRE);
     await page.getByRole("button", { name: "Envoyer" }).click();
     await expect(page.getByText(/Facture envoyée|envoyée à/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: "Envoyer la facture" })).toHaveCount(0);
