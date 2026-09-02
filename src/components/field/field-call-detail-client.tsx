@@ -22,6 +22,7 @@ import {
 } from "@/lib/field-permissions";
 import { formatFieldJobDate, formatFieldJobTime } from "@/lib/field-schedule-utils";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { PiecesJointesSection } from "@/components/shared/pieces-jointes-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -257,6 +258,12 @@ export function FieldCallDetailClient({
               Enregistrer les notes
             </Button>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <PiecesJointesSection scheduledJobId={job.id} compact />
         </CardContent>
       </Card>
 

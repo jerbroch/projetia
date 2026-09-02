@@ -56,6 +56,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FieldImportBanner } from "@/components/billing/field-import-banner";
+import { PiecesJointesSection } from "@/components/shared/pieces-jointes-section";
 import { changerGabaritLigneAction } from "@/lib/actions/billing-field-import";
 import { formatCurrency } from "@/lib/utils";
 import type {
@@ -615,9 +616,10 @@ export function JobBillingDialog({
         ) : (
           <>
             <Tabs defaultValue="labor">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="labor">Main-d&apos;œuvre</TabsTrigger>
                 <TabsTrigger value="material">Matériel</TabsTrigger>
+                <TabsTrigger value="pieces">Pièces jointes</TabsTrigger>
               </TabsList>
 
               <TabsContent value="labor" className="space-y-4">
@@ -876,6 +878,10 @@ export function JobBillingDialog({
                   laborTemplates={laborTemplates}
                   onChangeTemplate={appliquerGabarit}
                 />
+              </TabsContent>
+
+              <TabsContent value="pieces" className="space-y-4">
+                <PiecesJointesSection scheduledJobId={event.id} />
               </TabsContent>
             </Tabs>
 

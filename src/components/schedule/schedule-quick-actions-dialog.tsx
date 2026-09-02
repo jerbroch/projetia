@@ -47,6 +47,7 @@ import type { Company, ProfileRole, ScheduleEvent } from "@/types";
 import { JobShiftsEditor } from "@/components/schedule/job-shifts-editor";
 import type { JobShift } from "@/lib/job-shifts";
 import { JobToolsSection } from "@/components/schedule/job-tools-section";
+import { PiecesJointesSection } from "@/components/shared/pieces-jointes-section";
 import type { Employee, ToolListItem } from "@/types";
 
 interface ScheduleQuickActionsDialogProps {
@@ -291,6 +292,8 @@ export function ScheduleQuickActionsDialog({
             tools={tools}
             onAssigned={onShiftsChanged}
           />
+
+          <PiecesJointesSection scheduledJobId={selectedEvent.id} compact />
         </div>
 
         {(fieldStatusButtons.length > 0 || showCloseWork || adminActions.length > 0) && (
