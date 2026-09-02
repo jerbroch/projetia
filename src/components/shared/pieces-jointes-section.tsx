@@ -64,7 +64,10 @@ export function PiecesJointesSection({
 
     let compte = pieces.length;
     for (const brut of Array.from(fichiers)) {
-      const refus = refusDePieceJointe(brut, compte);
+      // Le poids d'une photo se juge APRÈS compression : une photo d'iPhone de
+      // 5,8 Mo en fait 162 Ko une fois réduite. La refuser sur son poids
+      // d'arrivée reviendrait à refuser une photo parfaitement acceptable.
+      const refus = refusDePieceJointe(brut, compte, true);
       if (refus) {
         setErreur(refus);
         break;

@@ -4,6 +4,7 @@ import {
   MAX_PAR_CALL,
   poidsLisible,
   refusDePieceJointe,
+  TAILLE_MAX_AVANT_COMPRESSION,
   TAILLE_MAX_OCTETS,
   TYPES_ACCEPTES,
 } from "./pieces-jointes";
@@ -72,6 +73,30 @@ describe("refusDePieceJointe", () => {
   it("accepte exactement le plafond, refuse un octet de plus", () => {
     expect(refusDePieceJointe(f("a.pdf", "application/pdf", TAILLE_MAX_OCTETS), 0)).toBeNull();
     expect(refusDePieceJointe(f("a.pdf", "application/pdf", TAILLE_MAX_OCTETS + 1), 0)).not.toBeNull();
+  });
+
+  // Une photo d'iPhone de 5,8 Mo devient 162 Ko après compression. La juger sur
+  // son poids d'arrivée reviendrait à refuser une photo parfaitement bonne.
+  it("laisse passer une grosse photo avant compression", () => {
+    const grosse = f("chantier.jpg", "image/jpeg", 22 * 1024 * 1024);
+    expect(refusDePieceJointe(grosse, 0, true)).toBeNull();
+    expect(refusDePieceJointe(grosse, 0)).not.toBeNull();
+  });
+
+  it("arrête quand même une photo absurde avant le canvas", () => {
+    const enorme = f("brut.jpg", "image/jpeg", TAILLE_MAX_AVANT_COMPRESSION + 1);
+    expect(refusDePieceJointe(enorme, 0, true)).toContain("brut.jpg");
+  });
+
+  // Un PDF ne se compresse pas : son plafond ne bouge pas d'un octet.
+  it("n'élargit pas le plafond des documents", () => {
+    const gros = f("plan.pdf", "application/pdf", 22 * 1024 * 1024);
+    expect(refusDePieceJointe(gros, 0, true)).not.toBeNull();
+    expect(refusDePieceJointe(gros, 0, true)).toBe(refusDePieceJointe(gros, 0));
+  });
+
+  it("refuse le mauvais type même avant compression", () => {
+    expect(refusDePieceJointe(f("clip.mp4", "video/mp4", 1000), 0, true)).toContain("clip.mp4");
   });
 });
 

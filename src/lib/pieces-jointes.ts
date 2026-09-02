@@ -7,6 +7,20 @@
  */
 
 export const TAILLE_MAX_OCTETS = 15 * 1024 * 1024;
+
+/**
+ * Plafond appliqué à une PHOTO avant compression.
+ *
+ * Une photo d'iPhone sort à 2 ou 3 Mo, et une compressée à 200 Ko : la refuser
+ * sur son poids d'origine reviendrait à refuser une photo que le téléphone
+ * allait réduire de 97 %. Le plafond de 15 Mo s'applique donc au fichier
+ * RÉELLEMENT téléversé, après compression.
+ *
+ * Mais on ne dessine pas n'importe quoi dans un canvas : un fichier de 80 Mo
+ * ferait tomber l'onglet sur un vieux téléphone. Cinquante mégaoctets laissent
+ * passer toutes les photos d'appareil, et arrêtent le reste avant le canvas.
+ */
+export const TAILLE_MAX_AVANT_COMPRESSION = 50 * 1024 * 1024;
 export const MAX_PAR_CALL = 20;
 export const COTE_LONG_PHOTO = 1600;
 
@@ -65,6 +79,13 @@ export function poidsLisible(octets: number): string {
 export function refusDePieceJointe(
   fichier: { name: string; type: string; size: number },
   dejaPresentes: number,
+  /**
+   * Vrai quand le fichier n'est pas encore passé par la compression. Une photo
+   * bénéficie alors du plafond large : c'est son poids d'arrivée qui compte,
+   * pas celui de départ. Un document, lui, ne se compresse pas — son plafond
+   * est le même dans les deux cas.
+   */
+  avantCompression = false,
 ): string | null {
   if (dejaPresentes >= MAX_PAR_CALL) {
     return `Ce call a déjà ${MAX_PAR_CALL} pièces jointes, le maximum. Retirez-en une avant d'en ajouter.`;
@@ -75,8 +96,11 @@ export function refusDePieceJointe(
     return `« ${fichier.name} » n'est pas d'un type accepté. Photos et documents seulement : ${vus}.`;
   }
 
-  if (fichier.size > TAILLE_MAX_OCTETS) {
-    return `« ${fichier.name} » pèse ${poidsLisible(fichier.size)}. Le maximum est de ${poidsLisible(TAILLE_MAX_OCTETS)}.`;
+  const plafond =
+    avantCompression && estUneImage(fichier.type) ? TAILLE_MAX_AVANT_COMPRESSION : TAILLE_MAX_OCTETS;
+
+  if (fichier.size > plafond) {
+    return `« ${fichier.name} » pèse ${poidsLisible(fichier.size)}. Le maximum est de ${poidsLisible(plafond)}.`;
   }
 
   if (fichier.size === 0) {
