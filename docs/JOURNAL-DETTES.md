@@ -108,3 +108,44 @@ Le coût est une étape de build supplémentaire dans `e2e.yml`.
 de démarrage — les deux sont indépendants.
 
 **Décision de Jérôme le 2 septembre 2026 :** noter, corriger plus tard.
+
+---
+
+## 4. Le calendrier affiche un jour et en filtre un autre, hors du Québec
+
+**Trouvé le 2 septembre 2026, en cherchant pourquoi six épreuves tombaient
+sur la CI à 22 h 55.**
+
+Le calendrier place les travaux avec `SCHEDULE_TIMEZONE`
+(`America/Montreal`) — `getEventDayKey` et `calendarDayKey` convertissent
+toutes deux dans ce fuseau. Mais le jour **affiché en titre** vient d'un
+`new Date()` lu dans le fuseau du navigateur.
+
+Pour un entrepreneur québécois, les deux coïncident toujours. Sur un
+navigateur réglé sur UTC, ils divergent **entre 20 h et minuit, heure du
+Québec** :
+
+| | Valeur |
+|---|---|
+| Heure réelle | 2 sept. 22 h 55 (Montréal) = 3 sept. 02 h 55 (UTC) |
+| Titre affiché | jeudi **3** septembre |
+| Jour réellement filtré | **2** septembre |
+| Travaux visibles | aucun |
+
+**Pourquoi rien n'est cassé pour les clients.** Ils sont tous au Québec, et
+leur navigateur aussi. Les deux calculs donnent la même date, toujours.
+
+**Ce que ça a coûté.** Six épreuves tombées d'un coup, toutes sur
+`[data-event-id]` introuvable, avec un symptôme qui ressemble exactement à
+une régression du code livré. Vérifié en relançant la même épreuve sur
+`main`, sans aucune modification : elle tombe pareil. Le harnais tourne
+maintenant avec `TZ=America/Montreal`, ce qui règle la CI sans toucher au
+produit.
+
+**La correction attendue.** Dériver la date courante du calendrier dans
+`SCHEDULE_TIMEZONE` plutôt que dans le fuseau du navigateur, de sorte que le
+titre et le filtre disent toujours la même chose. Le jour où un utilisateur
+consultera son horaire depuis un autre fuseau — en voyage, ou un fournisseur
+hors province — il verra un calendrier vide sans comprendre pourquoi.
+
+**Décision de Jérôme le 2 septembre 2026 :** noter, corriger plus tard.
