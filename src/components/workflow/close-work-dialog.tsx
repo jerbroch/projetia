@@ -108,6 +108,8 @@ export function CloseWorkDialog({
   }
 
   const canClose = canSubmitJobStatus(event.status);
+  /** Une feuille vide empêche la fermeture : c'est elle qui deviendra la facture. */
+  const feuilleVide = !isDemo && lineCount === 0;
 
   return (
     <>
@@ -158,7 +160,7 @@ export function CloseWorkDialog({
               </div>
 
               <div className="rounded-lg border p-3 text-sm">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-medium">Facturation terrain</p>
                     <p className="text-muted-foreground">
@@ -166,10 +168,30 @@ export function CloseWorkDialog({
                       {billingTotal > 0 && ` · ${formatCurrency(billingTotal)}`}
                     </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setBillingOpen(true)}>
+                  <Button
+                    type="button"
+                    variant={feuilleVide ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setBillingOpen(true)}
+                  >
                     Saisir heures / matériel
                   </Button>
                 </div>
+
+                {/*
+                  LE REFUS DOIT ÊTRE DIT, ET AVANT LE CLIC.
+                  Le bouton « Fermer le travail » était simplement grisé quand la
+                  feuille était vide. Rien ne reliait le « 0 ligne » affiché
+                  ci-dessus au bouton qui ne répondait pas : on croyait à une
+                  panne. C'est le même défaut que le statut « envoyée » posé sans
+                  envoi — l'écran laissait deviner au lieu de dire.
+                */}
+                {feuilleVide && (
+                  <p className="mt-3 border-t pt-3 text-muted-foreground">
+                    Ajoutez au moins une ligne d&apos;heures ou de matériel avant de fermer.
+                    C&apos;est cette feuille qui deviendra la facture.
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -179,7 +201,7 @@ export function CloseWorkDialog({
               Annuler
             </Button>
             {canClose && (
-              <Button onClick={handleSubmit} disabled={isPending || (!isDemo && lineCount === 0)}>
+              <Button onClick={handleSubmit} disabled={isPending || feuilleVide}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Fermer le travail
               </Button>
