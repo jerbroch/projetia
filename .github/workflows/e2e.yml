@@ -18,9 +18,23 @@ on:
     - cron: "0 7 * * *"
   workflow_dispatch:
 
+# UN SEUL PASSAGE À LA FOIS, TOUTES BRANCHES CONFONDUES.
+#
+# Le groupe portait sur la branche. Deux passages pouvaient donc tourner
+# ensemble — celui de `main` après une fusion et celui d'une branche — sur LA
+# MÊME base de développement. Le 3 septembre 2026, le premier à finir a purgé
+# l'entreprise du second : dix-sept épreuves sont tombées avec
+# `customers_company_id_fkey`, un symptôme qui ne désigne pas sa cause.
+#
+# Le verrou de `e2e/run-lock.ts` ne pouvait rien : c'est un fichier local, et
+# deux coureurs GitHub ne partagent aucun disque.
+#
+# `cancel-in-progress: false` : le second passage ATTEND au lieu d'être annulé.
+# Annuler ferait perdre le résultat d'une PR pour la seule raison qu'une autre
+# a été poussée entre-temps.
 concurrency:
-  group: e2e-${{ github.ref }}
-  cancel-in-progress: true
+  group: e2e-base-de-developpement
+  cancel-in-progress: false
 
 jobs:
   playwright:
