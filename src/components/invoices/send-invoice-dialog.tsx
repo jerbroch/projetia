@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ScheduleEvent } from "@/types";
+import type { Company, ScheduleEvent } from "@/types";
+import Link from "next/link";
+import { LIEN_REGLAGES_INTERAC, messageInteracARemplir } from "@/lib/interac-a-remplir";
 
 interface SendInvoiceDialogProps {
   open: boolean;
@@ -24,6 +26,8 @@ interface SendInvoiceDialogProps {
   job?: ScheduleEvent;
   /** Nom du client, quand il ne vient pas d'un call. */
   customerName?: string;
+  /** Sert à prévenir quand aucune coordonnée de paiement n'est configurée. */
+  company?: Pick<Company, "interac">;
   invoiceId: string;
   invoiceNumber: string;
   companyName: string;
@@ -37,6 +41,7 @@ export function SendInvoiceDialog({
   onOpenChange,
   job,
   customerName,
+  company,
   invoiceId,
   invoiceNumber,
   companyName,
@@ -109,6 +114,25 @@ export function SendInvoiceDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
+          )}
+
+          {/*
+            Même motif que les taux de main-d'œuvre à zéro : les coordonnées de
+            paiement arrivent vides à l'inscription, et un réglage vide qui ne
+            dit rien laisse partir une facture que le client ne saura pas payer.
+            L'avertissement ne bloque pas — on peut se faire payer par chèque ou
+            comptant, l'application ne le sait pas.
+          */}
+          {company && messageInteracARemplir(company) && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
+              <p>{messageInteracARemplir(company)}</p>
+              <Link
+                href={LIEN_REGLAGES_INTERAC}
+                className="mt-1 inline-block font-medium underline underline-offset-2"
+              >
+                Régler mes coordonnées dans Paramètres → Paiement Interac
+              </Link>
+            </div>
           )}
           <div className="space-y-2">
             <Label htmlFor="invoiceEmail">Destinataire</Label>

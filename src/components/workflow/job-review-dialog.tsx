@@ -269,6 +269,7 @@ export function JobReviewDialog({
           invoiceId={invoiceId}
           invoiceNumber={invoiceNumber ?? ""}
           companyName={company.name}
+          company={company}
           defaultEmail={currentEvent.customerEmail ?? ""}
           isDemo={isDemo}
           onSent={(sentTo) => {

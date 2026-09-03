@@ -488,6 +488,7 @@ export function ScheduleQuickActionsDialog({
           invoiceId={invoiceId}
           invoiceNumber={invoiceNumber ?? ""}
           companyName={company.name}
+          company={company}
           defaultEmail={selectedEvent.customerEmail ?? ""}
           isDemo={isDemo}
           onSent={(sentTo) => {

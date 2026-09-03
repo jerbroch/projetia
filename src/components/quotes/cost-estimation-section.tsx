@@ -357,7 +357,7 @@ export function CostEstimationSection({
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
             <p>{messageGabaritsARemplir(laborTemplates)}</p>
             <Link
-              href="/settings?section=taux"
+              href="/settings#taux"
               className="mt-1 inline-block font-medium underline underline-offset-2"
             >
               Régler mes taux dans Paramètres → Taux de main-d&apos;œuvre

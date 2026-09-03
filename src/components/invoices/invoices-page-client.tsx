@@ -338,6 +338,7 @@ export function InvoicesPageClient({
           invoiceId={factureAEnvoyer.id}
           invoiceNumber={factureAEnvoyer.invoiceNumber}
           companyName={company.name}
+          company={company}
           defaultEmail={
             customers.find((c) => c.id === factureAEnvoyer.customerId)?.email ?? ""
           }

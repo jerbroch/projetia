@@ -39,7 +39,7 @@ export function InteracSettingsForm({ company }: InteracSettingsFormProps) {
   }
 
   return (
-    <Card>
+    <Card id="interac" className="scroll-mt-24">
       <CardHeader>
         <CardTitle>Paiement Interac</CardTitle>
         <CardDescription>

@@ -147,7 +147,7 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card id="taux" className="scroll-mt-24">
         <CardHeader>
           <CardTitle>Taux de main-d&apos;œuvre</CardTitle>
           <CardDescription>
