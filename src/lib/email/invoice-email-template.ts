@@ -28,6 +28,11 @@ export interface InvoiceEmailTemplateInput {
   dueDate?: string | null;
   customMessage?: string | null;
   interacBlock?: string | null;
+  /**
+   * Vignettes des photos du chantier, liées par `content_id`. Voir
+   * `vignettes-chantier.ts` pour la raison du CID plutôt que du lien.
+   */
+  photos?: Array<{ contentId: string; alt: string; urlPleineTaille: string | null }>;
 }
 
 const PLATFORM_NAME = "Construction iOS";
@@ -97,38 +102,93 @@ function lineItemsTable(items: InvoiceEmailLineItem[]): string {
   `.trim();
 }
 
+/**
+ * « COMMENT PAYER » — des étapes, pas une liste de champs.
+ *
+ * Le bloc énumérait destinataire, courriel, question et réponse. Il ne disait
+ * NULLE PART quoi écrire dans le message du virement. Sans référence, dix
+ * virements reçus le même jour sont dix devinettes : l'entrepreneur passe
+ * l'après-midi à rapprocher des montants.
+ *
+ * Le numéro de facture est donc la pièce maîtresse, mis en évidence et prêt à
+ * recopier. Il s'affiche MÊME SANS INTERAC : quel que soit le mode de paiement,
+ * c'est lui qui permet le rapprochement.
+ */
 export function buildInteracEmailBlock(input: {
   email?: string | null;
   recipientName?: string | null;
   securityQuestion?: string | null;
   securityAnswer?: string | null;
   instructions?: string | null;
+  /** Le numéro que le client doit inscrire au message du virement. */
+  invoiceNumber?: string | null;
 }): string | null {
-  if (!input.email) return null;
+  const numero = input.invoiceNumber ? escapeHtml(input.invoiceNumber) : null;
+  if (!input.email && !numero) return null;
 
-  const parts = [
-    `<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#111827;">Paiement par virement Interac</p>`,
-    `<p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;"><strong>Destinataire :</strong> ${escapeHtml(input.recipientName ?? input.email)}</p>`,
-    `<p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;"><strong>Courriel :</strong> ${escapeHtml(input.email)}</p>`,
-  ];
+  const titre = `<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#111827;">Comment payer</p>`;
 
-  if (input.securityQuestion) {
-    parts.push(
-      `<p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;"><strong>Question de sécurité :</strong> ${escapeHtml(input.securityQuestion)}</p>`
+  const etapes: string[] = [];
+
+  if (input.email) {
+    etapes.push(
+      etape(
+        1,
+        "Ouvrez un virement Interac depuis votre institution bancaire.",
+        null,
+      ),
+      etape(
+        2,
+        `Envoyez-le à <strong>${escapeHtml(input.email)}</strong>` +
+          (input.recipientName ? ` (${escapeHtml(input.recipientName)})` : ""),
+        input.securityQuestion
+          ? `Question de sécurité : <strong>${escapeHtml(input.securityQuestion)}</strong>` +
+              (input.securityAnswer ? `<br />Réponse : <strong>${escapeHtml(input.securityAnswer)}</strong>` : "")
+          : null,
+      ),
     );
   }
-  if (input.securityAnswer) {
-    parts.push(
-      `<p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;"><strong>Réponse :</strong> ${escapeHtml(input.securityAnswer)}</p>`
-    );
-  }
-  if (input.instructions) {
-    parts.push(
-      `<p style="margin:8px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(input.instructions)}</p>`
+
+  if (numero) {
+    // La ligne la plus importante du courriel, du point de vue de
+    // l'entrepreneur : sans elle, il ne sait pas de qui vient l'argent.
+    etapes.push(
+      etape(
+        etapes.length + 1,
+        "Dans le <strong>message</strong> du virement, écrivez&nbsp;:",
+        null,
+        `<div style="margin:8px 0 0 0;padding:10px 14px;background:#ffffff;border:2px dashed #2563eb;border-radius:6px;text-align:center;">
+           <span style="font-family:'Courier New',Courier,monospace;font-size:20px;font-weight:700;letter-spacing:1px;color:#1d4ed8;">${numero}</span>
+         </div>
+         <p style="margin:6px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;">C'est ce qui nous permet d'associer votre paiement à cette facture.</p>`,
+      ),
     );
   }
 
-  return `<div style="margin-top:20px;padding:16px;background-color:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">${parts.join("")}</div>`;
+  const instructions = input.instructions
+    ? `<p style="margin:12px 0 0 0;padding-top:12px;border-top:1px solid #bfdbfe;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(input.instructions)}</p>`
+    : "";
+
+  return `<div style="margin-top:20px;padding:16px;background-color:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">${titre}${etapes.join("")}${instructions}</div>`;
+}
+
+/** Une étape numérotée. En tableau : les puces CSS ne survivent pas à Outlook. */
+function etape(rang: number, texte: string, precision: string | null, extra?: string): string {
+  const detail = precision
+    ? `<p style="margin:4px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#4b5563;">${precision}</p>`
+    : "";
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 10px 0;">
+    <tr>
+      <td width="26" valign="top" style="padding-top:1px;">
+        <div style="width:22px;height:22px;line-height:22px;border-radius:11px;background:#2563eb;color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:700;text-align:center;">${rang}</div>
+      </td>
+      <td valign="top" style="padding-left:8px;">
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#111827;">${texte}</p>
+        ${detail}
+        ${extra ?? ""}
+      </td>
+    </tr>
+  </table>`;
 }
 
 export function buildInvoiceEmailSubject(
@@ -197,6 +257,7 @@ export function buildInvoiceEmailHtml(input: InvoiceEmailTemplateInput): string 
           ${workDesc}
           ${lineItemsTable(input.lineItems)}
           ${totalsBlock}
+          ${photosEmailBlock(input.photos ?? [])}
           ${input.interacBlock ?? ""}
         </td></tr>
         <tr><td align="center" style="padding:16px 24px;border-top:1px solid #e5e7eb;background:#fafafa;">
@@ -207,6 +268,45 @@ export function buildInvoiceEmailHtml(input: InvoiceEmailTemplateInput): string 
   </table>
 </body>
 </html>`.trim();
+}
+
+/**
+ * La grille de photos, en tableau et non en flex : les logiciels de messagerie
+ * ne connaissent pas la mise en page moderne. Deux colonnes, ce qui donne des
+ * vignettes lisibles sur téléphone comme sur écran.
+ *
+ * Chaque vignette est un lien vers la pleine taille, et porte un texte de
+ * remplacement qui la décrit. Une ligne d'introduction annonce le nombre de
+ * photos : elle reste lisible même quand aucune image ne s'affiche.
+ */
+export function photosEmailBlock(
+  photos: Array<{ contentId: string; alt: string; urlPleineTaille: string | null }>,
+): string {
+  if (!photos.length) return "";
+
+  const cellules = photos.map((p) => {
+    const img = `<img src="cid:${escapeHtml(p.contentId)}" alt="${escapeHtml(p.alt)}" width="252" style="display:block;width:100%;max-width:252px;height:auto;border:0;border-radius:6px;" />`;
+    const contenu = p.urlPleineTaille
+      ? `<a href="${escapeHtml(p.urlPleineTaille)}" style="text-decoration:none;">${img}</a>`
+      : img;
+    return `<td width="50%" style="padding:4px;vertical-align:top;">${contenu}</td>`;
+  });
+
+  const rangees: string[] = [];
+  for (let i = 0; i < cellules.length; i += 2) {
+    const paire = cellules.slice(i, i + 2);
+    if (paire.length === 1) paire.push('<td width="50%" style="padding:4px;"></td>');
+    rangees.push(`<tr>${paire.join("")}</tr>`);
+  }
+
+  const compte = photos.length === 1 ? "1 photo du chantier" : `${photos.length} photos du chantier`;
+
+  return `
+  <div style="margin:20px 0 0 0;padding-top:16px;border-top:1px solid #e5e7eb;">
+    <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#111827;">Le travail accompli</p>
+    <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#6b7280;">${compte} — cliquez une photo pour la voir en grand.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rangees.join("")}</table>
+  </div>`;
 }
 
 /** Client-facing line items — sell price only, no cost/margin */

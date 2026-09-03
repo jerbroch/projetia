@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extensionPour,
+  messageDoublon,
   MAX_PAR_CALL,
   poidsLisible,
   refusDePieceJointe,
@@ -109,5 +110,15 @@ describe("extensionPour", () => {
 
   it("retombe sur bin plutôt que de deviner", () => {
     expect(extensionPour("application/inconnu")).toBe("bin");
+  });
+});
+
+describe("messageDoublon", () => {
+  it("nomme le fichier et rassure sur ce qui est gardé", () => {
+    const m = messageDoublon("chantier.jpg");
+    expect(m).toContain("chantier.jpg");
+    expect(m).toContain("déjà sur ce call");
+    // Un gars qui tape deux fois avec des gants mouillés n'a pas fauté.
+    expect(m).toContain("rien n'a été perdu");
   });
 });

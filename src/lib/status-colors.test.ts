@@ -34,8 +34,9 @@ describe("schedule status colors", () => {
     expect(getScheduleStatusBlockClassName("completed")).toContain("green");
   });
 
-  it("uses violet for paid", () => {
-    expect(getScheduleStatusBlockClassName("paid")).toContain("violet");
+  it("garde le violet sur la pastille d'un call payé", () => {
+    // Le bloc du calendrier, lui, se retire : voir la série ci-dessous.
+    expect(getScheduleStatusBadgeClassName("paid")).toContain("violet");
   });
 
   it("uses strikethrough for cancelled", () => {
@@ -62,5 +63,26 @@ describe("schedule status colors", () => {
   it("falls back to scheduled styling for unknown schedule keys at runtime", () => {
     const fallback = getScheduleStatusAppearance("scheduled");
     expect(getScheduleStatusAppearance("scheduled")).toEqual(fallback);
+  });
+});
+
+describe("un call fini se retire visuellement", () => {
+  it("grise le call payé sans le barrer", () => {
+    const paye = getScheduleStatusBlockClassName("paid");
+    expect(paye).toContain("opacity-");
+    expect(paye).toContain("muted");
+    // Barré voudrait dire « annulé ». Le travail a été fait et payé.
+    expect(paye).not.toContain("line-through");
+  });
+
+  it("garde le texte barré pour un call annulé", () => {
+    expect(getScheduleStatusBlockClassName("cancelled")).toContain("line-through");
+  });
+
+  it("laisse les calls en cours au premier plan", () => {
+    const enCours = ["scheduled", "en-route", "in-progress", "ready-to-invoice", "invoice-sent"] as const;
+    enCours.forEach((s) => {
+      expect(getScheduleStatusBlockClassName(s)).not.toContain("opacity-");
+    });
   });
 });

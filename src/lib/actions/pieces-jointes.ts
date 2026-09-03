@@ -4,12 +4,14 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import {
   extensionPour,
+  messageDoublon,
   refusDePieceJointe,
   REFUS_SUPPRESSION_EMPLOYE,
 } from "@/lib/pieces-jointes";
 import { requireTenantContext } from "@/lib/session";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { isFieldWorkerRole } from "@/lib/field-permissions";
+import { createHash } from "node:crypto";
 
 const COMPARTIMENT = "pieces-jointes";
 /** Assez pour qu'un client revienne voir sa facture, pas un lien permanent. */
@@ -101,7 +103,9 @@ export async function listerPiecesJointesAction(input: {
 
 export async function televerserPieceJointeAction(
   formData: FormData,
-): Promise<{ success: boolean; error?: string }> {
+  // `doublon` distingue « déjà là » d'un vrai échec : l'écran doit passer au
+  // fichier suivant au lieu d'interrompre tout le lot.
+): Promise<{ success: boolean; error?: string; doublon?: boolean }> {
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return { success: false, error: "Indisponible en mode démo." };
   if (!isSupabaseConfigured()) return { success: false, error: "Supabase n'est pas configuré." };
@@ -145,10 +149,28 @@ export async function televerserPieceJointeAction(
   );
   if (refus) return { success: false, error: refus };
 
+  const octets = Buffer.from(await fichier.arrayBuffer());
+
+  // L'EMPREINTE SE CALCULE ICI, sur les octets réellement reçus. La calculer
+  // dans le navigateur reviendrait à croire ce que le client raconte, et deux
+  // téléversements simultanés se croiseraient sans se voir.
+  const empreinte = createHash("sha256").update(octets).digest("hex");
+
+  if (scheduledJobId) {
+    const { data: dejaLa } = await admin
+      .from("job_attachments")
+      .select("id")
+      .eq("company_id", ctx.company.id)
+      .eq("scheduled_job_id", scheduledJobId)
+      .eq("content_hash", empreinte)
+      .maybeSingle();
+    if (dejaLa) return { success: false, error: messageDoublon(fichier.name), doublon: true };
+  }
+
   const chemin = `${ctx.company.id}/${scheduledJobId ?? invoiceId}/${randomUUID()}.${extensionPour(fichier.type)}`;
   const { error: erreurEnvoi } = await admin.storage
     .from(COMPARTIMENT)
-    .upload(chemin, Buffer.from(await fichier.arrayBuffer()), {
+    .upload(chemin, octets, {
       contentType: fichier.type,
       upsert: false,
     });
@@ -164,6 +186,7 @@ export async function televerserPieceJointeAction(
     scheduled_job_id: scheduledJobId,
     invoice_id: invoiceId,
     storage_path: chemin,
+    content_hash: empreinte,
     file_name: fichier.name,
     mime_type: fichier.type,
     size_bytes: fichier.size,

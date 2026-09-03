@@ -81,6 +81,26 @@ test.describe("15. Pièces jointes", () => {
     expect(Number(pieces![0].size_bytes)).toBeLessThan(15 * 1024 * 1024);
   });
 
+  test("la même photo deux fois : la seconde est refusée, et ça se dit", async ({ page }) => {
+    await loginWithCredentials(page, fieldCtx.email, fieldCtx.password);
+    await page.waitForURL(/\/terrain/, { timeout: 30000 });
+    await page.goto(`/terrain/calls/${fieldCtx.jobId}`);
+    await expect(page.getByRole("heading", { name: /Pièces jointes/ })).toBeVisible({ timeout: 15000 });
+
+    // La première photo a été déposée par l'épreuve précédente. On redépose
+    // EXACTEMENT le même fichier — le geste d'un gars qui tape deux fois.
+    await page.getByLabel("Choisir des fichiers").setInputFiles(PHOTO);
+
+    await expect(page.getByText(/est déjà sur ce call/)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/rien n'a été perdu/)).toBeVisible();
+
+    const admin = createE2EAdmin();
+    const { data: pieces } = await admin
+      .from("job_attachments").select("id").eq("scheduled_job_id", fieldCtx.jobId);
+    expect(pieces).toHaveLength(1);
+    console.log("DOUBLON >>> la seconde est refusée, la première est intacte");
+  });
+
   test("l'employé ne peut pas supprimer, même en contournant l'écran", async () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;

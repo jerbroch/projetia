@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { PiecesJointesSection } from "@/components/shared/pieces-jointes-section";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { ProfileRole, Quote, ScheduleEvent } from "@/types";
 
@@ -299,6 +300,14 @@ export function ArchiveJobDetailDialog({
               </div>
             </>
           )}
+
+          {/*
+            Les photos font partie de l'archive au même titre que la facture.
+            Une archive qui ne garde que les chiffres ne prouve pas le travail ;
+            c'est justement ce que les photos servent à établir.
+          */}
+          <Separator />
+          <PiecesJointesSection scheduledJobId={event.id} compact />
 
           {billingTotal != null && billingTotal > 0 && (
             <>

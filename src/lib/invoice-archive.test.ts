@@ -26,7 +26,7 @@ describe("filterActiveInvoices", () => {
       employeeIds: [],
       employeeNames: [],
       location: "",
-      status: "completed",
+      status: "paid",
       type: "job",
     },
     {

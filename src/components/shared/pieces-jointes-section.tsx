@@ -63,6 +63,7 @@ export function PiecesJointesSection({
     setErreur(null);
 
     let compte = pieces.length;
+    const doublons: string[] = [];
     for (const brut of Array.from(fichiers)) {
       // Le poids d'une photo se juge APRÈS compression : une photo d'iPhone de
       // 5,8 Mo en fait 162 Ko une fois réduite. La refuser sur son poids
@@ -94,6 +95,11 @@ export function PiecesJointesSection({
       if (priseLe) fd.set("priseLe", priseLe);
 
       const r = await televerserPieceJointeAction(fd);
+      if (r.doublon) {
+        // Déjà là n'est pas un échec : on prévient et on passe à la suivante.
+        doublons.push(r.error ?? `« ${brut.name} » est déjà sur ce call.`);
+        continue;
+      }
       if (!r.success) {
         setErreur(r.error ?? "Le téléversement a échoué.");
         break;
@@ -102,6 +108,7 @@ export function PiecesJointesSection({
     }
 
     setEnCours(null);
+    if (doublons.length) setErreur(doublons.join(" "));
     if (camera.current) camera.current.value = "";
     if (galerie.current) galerie.current.value = "";
     recharger();

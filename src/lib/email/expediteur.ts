@@ -35,11 +35,26 @@ export function adresseDeReponse(courrielEntreprise?: string | null): string | u
  * Le corps commun d'un envoi Resend. `reply_to` est omis quand il n'y a pas
  * d'adresse valable — un champ vide vaudrait moins que pas de champ.
  */
+export interface PieceLiee {
+  filename: string;
+  /** Contenu encodé en base64. */
+  content: string;
+  /** Référencé par `<img src="cid:…">` dans le HTML. */
+  content_id: string;
+  content_type?: string;
+}
+
 export function corpsResend(input: {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  /**
+   * Images liées au courriel. Elles ne comptent PAS dans les 102 Ko à partir
+   * desquels Gmail tronque le HTML, et Outlook les affiche — il ne bloque que
+   * les images distantes.
+   */
+  pieces?: PieceLiee[];
 }): Record<string, unknown> {
   const corps: Record<string, unknown> = {
     from: adresseExpediteur(),
@@ -48,5 +63,6 @@ export function corpsResend(input: {
     html: input.html,
   };
   if (input.replyTo) corps.reply_to = [input.replyTo];
+  if (input.pieces?.length) corps.attachments = input.pieces;
   return corps;
 }

@@ -39,8 +39,18 @@ export const SCHEDULE_STATUS_APPEARANCE: Record<ScheduleStatus, ScheduleStatusAp
     blockClassName: "bg-teal-600/90 border-teal-700 text-white",
     badgeClassName: "border-transparent bg-teal-100 text-teal-800",
   },
+  /**
+   * PAYÉ SE RETIRE VISUELLEMENT, SANS DISPARAÎTRE.
+   *
+   * Un call payé reste à sa date — un travail fait mardi appartient au mardi,
+   * et l'effacer trouerait l'historique. Mais il est fini : au même poids
+   * visuel que les autres, il se confondait avec ce qui reste à faire.
+   *
+   * Pas de texte barré, contrairement à « annulé » : le travail a été fait et
+   * payé. C'est un aboutissement, pas un renoncement.
+   */
   paid: {
-    blockClassName: "bg-violet-600/90 border-violet-700 text-white",
+    blockClassName: "bg-muted/80 border-border text-muted-foreground opacity-60",
     badgeClassName: "border-transparent bg-violet-100 text-violet-800",
   },
   cancelled: {
