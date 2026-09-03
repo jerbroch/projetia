@@ -26,7 +26,6 @@ import {
   canApproveBilling,
   canApproveJobStatus,
   canGenerateInvoiceStatus,
-  canSendInvoiceEmailStatus,
   canSendInvoiceToClient,
 } from "@/lib/job-workflow";
 import { getJobDisplayNumber } from "@/lib/job-utils";
@@ -55,6 +54,7 @@ export function JobReviewDialog({
   const [currentEvent, setCurrentEvent] = useState(event);
   const [invoiceId, setInvoiceId] = useState<string | undefined>();
   const [invoiceNumber, setInvoiceNumber] = useState<string | undefined>();
+  const [invoiceSentAt, setInvoiceSentAt] = useState<string | null>(null);
   const [billingTotal, setBillingTotal] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -76,6 +76,7 @@ export function JobReviewDialog({
             setBillingTotal(result.data.sheet?.total ?? null);
             setInvoiceId(result.data.invoiceId);
             setInvoiceNumber(result.data.invoiceNumber);
+            setInvoiceSentAt(result.data.invoiceSentAt ?? null);
           }
         });
       }
@@ -225,10 +226,14 @@ export function JobReviewDialog({
                   Générer la facture
                 </Button>
               )}
-              {canInvoice &&
-                invoiceId &&
-                canSendInvoiceEmailStatus(currentEvent.status) &&
-                currentEvent.status !== "invoice-sent" && (
+              {/*
+                La condition portait avant sur le STATUT du call, et elle se
+                contredisait : cette fenêtre ne s'ouvrait que sur un call non
+                encore approuvé, alors que l'envoi exigeait un call déjà
+                approuvé. Ce qui compte est qu'une facture existe et ne soit pas
+                encore partie.
+              */}
+              {canInvoice && invoiceId && !invoiceSentAt && (
                   <Button onClick={() => setSendOpen(true)}>
                     <Mail className="mr-2 h-4 w-4" />
                     Envoyer la facture
@@ -267,6 +272,7 @@ export function JobReviewDialog({
           defaultEmail={currentEvent.customerEmail ?? ""}
           isDemo={isDemo}
           onSent={(sentTo) => {
+            setInvoiceSentAt(new Date().toISOString());
             const updated = {
               ...currentEvent,
               status: "invoice-sent" as const,

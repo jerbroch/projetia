@@ -66,15 +66,25 @@ export function canSubmitJobForReview(role: ProfileRole): boolean {
   return role !== "accountant";
 }
 
+/**
+ * Un call qui attend la vérification du bureau.
+ *
+ * LA MARQUE DE SOUMISSION N'EST PLUS EXIGÉE. Elle l'était, et ça créait un
+ * cul-de-sac complet : un call passé en « terminé » sans être passé par la
+ * fenêtre de fermeture n'apparaissait ni ici, ni sur /reviews, ni nulle part
+ * ailleurs — donc aucun bouton d'approbation n'existait pour lui — pendant que
+ * la génération de facture, elle, refusait en RÉCLAMANT cette approbation. Le
+ * travail était terminé et impossible à facturer.
+ *
+ * `submitted_for_review_at` reste écrite et reste utile : elle dit QUI a fermé
+ * le chantier et QUAND. Elle ne commande simplement plus l'accès à
+ * l'approbation. Un travail terminé et non approuvé est à vérifier, point.
+ */
 export function isPendingReviewJob(
   event: Pick<ScheduleEvent, "status" | "submittedForReviewAt" | "approvedAt">
 ): boolean {
   if (event.status === "pending-review") return true;
-  return (
-    event.status === "completed" &&
-    Boolean(event.submittedForReviewAt) &&
-    !event.approvedAt
-  );
+  return event.status === "completed" && !event.approvedAt;
 }
 
 export function isReadyToInvoiceJob(event: Pick<ScheduleEvent, "status">): boolean {
@@ -131,11 +141,18 @@ export function getFieldQuickStatusButtonOrder(role: ProfileRole): JobWorkflowSt
   return canUseFieldQuickStatus(role) ? [...FIELD_QUICK_STATUS_BUTTON_ORDER] : [];
 }
 
-/** Admin-only quick-status targets (office workflow) */
+/**
+ * Statuts que le bureau peut poser à la main.
+ *
+ * `invoice-sent` N'Y EST PLUS. Il n'est posé que par `sendInvoiceEmailAction`,
+ * après un envoi réel. Un bouton « Facture envoyée » qui n'envoie rien permet
+ * de déclarer envoyée une facture que personne n'a reçue — et de la marquer
+ * payée par-dessus. C'est arrivé sur FA-2026-007 : le call disait « payé », la
+ * facture était en brouillon, et aucun courriel n'était jamais parti.
+ */
 export const ADMIN_QUICK_STATUSES: JobWorkflowStatus[] = [
   "pending-review",
   "ready-to-invoice",
-  "invoice-sent",
   "paid",
 ];
 

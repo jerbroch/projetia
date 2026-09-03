@@ -513,7 +513,9 @@ export async function generateInvoiceFromBillingAction(
   const job = await getScheduledJobById(ctx.company.id, jobId, false);
   if (!job) return fail("Travail introuvable.");
   if (!canGenerateInvoiceStatus(job.status)) {
-    return fail("Ce travail doit être approuvé avant la génération de facture.");
+    return fail(
+      "Ce travail doit d'abord être approuvé. Ouvrez le call et cliquez « Vérifier et approuver »."
+    );
   }
 
   const sheet = await getJobBillingSheet(ctx.company.id, jobId);
@@ -745,6 +747,12 @@ export async function getBillingSummaryForJobAction(jobId: string): Promise<
     sheet: JobBillingSheet | null;
     invoiceNumber?: string;
     invoiceId?: string;
+    /**
+     * Quand le courriel est RÉELLEMENT parti. C'est la seule source qui vaille
+     * pour décider d'offrir « Envoyer » : le statut du call pouvait dire
+     * « facture envoyée » sans qu'aucun courriel n'existe.
+     */
+    invoiceSentAt?: string | null;
   }>
 > {
   const ctx = await requireTenantContext();
@@ -756,7 +764,7 @@ export async function getBillingSummaryForJobAction(jobId: string): Promise<
   const supabase = await createClient();
   const { data } = await supabase
     .from("invoices")
-    .select("id, invoice_number")
+    .select("id, invoice_number, sent_at")
     .eq("id", sheet.invoiceId)
     .maybeSingle();
 
@@ -766,6 +774,7 @@ export async function getBillingSummaryForJobAction(jobId: string): Promise<
       sheet,
       invoiceId: data ? String(data.id) : undefined,
       invoiceNumber: data ? String(data.invoice_number) : undefined,
+      invoiceSentAt: data?.sent_at ? String(data.sent_at) : null,
     },
   };
 }

@@ -20,7 +20,10 @@ import type { ScheduleEvent } from "@/types";
 interface SendInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  job: ScheduleEvent;
+  /** Absent pour une facture rapide, qui n'a pas de call derrière elle. */
+  job?: ScheduleEvent;
+  /** Nom du client, quand il ne vient pas d'un call. */
+  customerName?: string;
   invoiceId: string;
   invoiceNumber: string;
   companyName: string;
@@ -33,6 +36,7 @@ export function SendInvoiceDialog({
   open,
   onOpenChange,
   job,
+  customerName,
   invoiceId,
   invoiceNumber,
   companyName,
@@ -40,6 +44,7 @@ export function SendInvoiceDialog({
   isDemo,
   onSent,
 }: SendInvoiceDialogProps) {
+  const nomClient = job?.customerName ?? customerName ?? "";
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -48,14 +53,14 @@ export function SendInvoiceDialog({
 
   useEffect(() => {
     if (open) {
-      setEmail(defaultEmail ?? job.customerEmail ?? "");
+      setEmail(defaultEmail ?? job?.customerEmail ?? "");
       setSubject(buildInvoiceEmailSubject({ invoiceNumber, companyName }));
       setMessage(
-        `Bonjour${job.customerName ? ` ${job.customerName}` : ""},\n\nVeuillez trouver ci-joint votre facture ${invoiceNumber}.\n\nMerci de votre confiance,\n${companyName}`
+        `Bonjour${nomClient ? ` ${nomClient}` : ""},\n\nVeuillez trouver ci-joint votre facture ${invoiceNumber}.\n\nMerci de votre confiance,\n${companyName}`
       );
       setError("");
     }
-  }, [open, defaultEmail, job.customerEmail, job.customerName, invoiceNumber, companyName]);
+  }, [open, defaultEmail, job?.customerEmail, nomClient, invoiceNumber, companyName]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,7 +77,7 @@ export function SendInvoiceDialog({
 
     startTransition(async () => {
       const result = await sendInvoiceEmailAction({
-        jobId: job.id,
+        jobId: job?.id ?? null,
         invoiceId,
         recipientEmail: email.trim(),
         subject: subject.trim(),

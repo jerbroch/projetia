@@ -46,6 +46,20 @@ jobs:
       # accumulerait comme la production l'a fait — 151 entreprises en 8 jours.
       E2E_CLEANUP_SEED: "true"
       CI: "true"
+      # LE COUREUR DOIT VIVRE À L'HEURE DU QUÉBEC.
+      #
+      # Le calendrier place les travaux d'après `SCHEDULE_TIMEZONE`
+      # (America/Montreal), mais le jour affiché vient d'un `new Date()` lu dans
+      # le fuseau du navigateur. Pour un entrepreneur québécois, les deux
+      # coïncident toujours. Sur un coureur en UTC, ils divergent entre 20 h et
+      # minuit, heure du Québec : le calendrier filtre le 2 septembre pendant
+      # qu'il affiche le 3, et plus aucun travail n'apparaît.
+      #
+      # Six épreuves sont tombées ainsi le 2 septembre à 22 h 55. Vérifié :
+      # elles tombent aussi sur `main`, sans aucune modification — le défaut est
+      # celui du harnais, pas du code livré. La suite doit donc tourner dans le
+      # fuseau de ceux qui se servent du produit.
+      TZ: "America/Montreal"
 
     steps:
       - uses: actions/checkout@v5
