@@ -36,6 +36,7 @@ import {
 import { requireTenantContext } from "@/lib/session";
 import { quoteFormSchema, quoteIdSchema, sendQuoteSchema } from "@/lib/validations/quotes";
 import type { Quote, QuoteCostEstimation } from "@/types";
+import { adresseDeReponse } from "@/lib/email/expediteur";
 
 export type QuoteActionResult =
   | { success: true; quote: Quote }
@@ -278,6 +279,9 @@ export async function sendQuoteAction(formData: FormData): Promise<SendQuoteResu
   const publicUrl = getPublicQuoteUrl(token, origin);
   const emailResult = await sendQuoteEmail({
     to: parsed.data.recipientEmail,
+    // Le client répond à L'ENTREPRISE, jamais à l'expéditeur : le domaine
+    // d'envoi n'a pas de MX et ferait rebondir la réponse en silence.
+    replyTo: adresseDeReponse(ctx.company.email),
     companyName: ctx.company.name,
     companyLogoUrl: ctx.company.logoUrl,
     primaryColor: ctx.company.primaryColor,

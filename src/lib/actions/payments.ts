@@ -12,6 +12,7 @@ import {
 } from "@/lib/billing/payment-recording";
 import { buildInteracEmailBlock } from "@/lib/email/invoice-email-template";
 import { sendReceiptEmail } from "@/lib/email/send-receipt";
+import { adresseDeReponse } from "@/lib/email/expediteur";
 
 export interface RecordPaymentInput {
   invoiceId: string;
@@ -143,6 +144,7 @@ export async function recordInvoicePaymentAction(
   const receipt = await maybeSendReceipt({
     companyId: ctx.company.id,
     companyName: ctx.company.name,
+    companyEmail: ctx.company.email,
     companyLogoUrl: ctx.company.logoUrl,
     primaryColor: ctx.company.primaryColor,
     invoiceId: invoice.id,
@@ -176,6 +178,8 @@ function isSchemaNotReady(message: string): boolean {
 interface ReceiptContext {
   companyId: string;
   companyName: string;
+  /** Courriel de l'entreprise : c'est là que le client doit répondre. */
+  companyEmail?: string | null;
   companyLogoUrl?: string | null;
   primaryColor?: string | null;
   invoiceId: string;
@@ -246,6 +250,9 @@ async function maybeSendReceipt(
 
   const result = await sendReceiptEmail({
     to,
+    // Le domaine d'envoi n'a pas de MX : une réponse à l'expéditeur
+    // rebondirait sans que personne ne l'apprenne.
+    replyTo: adresseDeReponse(ctx.companyEmail),
     companyName: ctx.companyName,
     companyLogoUrl: ctx.companyLogoUrl,
     primaryColor: ctx.primaryColor,

@@ -23,6 +23,7 @@ import {
   normaliserCourriel,
   refusCourrielEnDouble,
 } from "@/lib/employee-email-uniqueness";
+import { adresseDeReponse } from "@/lib/email/expediteur";
 
 export type EmployeeAccessResult =
   | { success: true; employee: Employee; notice?: string }
@@ -461,6 +462,7 @@ export async function sendEmployeeInvitationAction(
     // lien qu'on vient de fabriquer.
     const envoi = await sendEmployeeInvitationEmail({
       to: normalizedEmail,
+      replyTo: adresseDeReponse(ctx.company.email),
       firstName: employee.first_name ? String(employee.first_name) : null,
       ...brandingDeLEntreprise(ctx),
       actionLink: linkData.properties.action_link,

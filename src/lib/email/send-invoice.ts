@@ -3,10 +3,13 @@ import {
   buildInvoiceEmailSubject,
   type InvoiceEmailTemplateInput,
 } from "@/lib/email/invoice-email-template";
+import { corpsResend } from "@/lib/email/expediteur";
 
 export interface SendInvoiceEmailInput extends InvoiceEmailTemplateInput {
   to: string;
   subject?: string;
+  /** Adresse à laquelle le client doit répondre — celle de l'entreprise. */
+  replyTo?: string;
 }
 
 export interface SendInvoiceEmailResult {
@@ -17,7 +20,6 @@ export interface SendInvoiceEmailResult {
 
 export async function sendInvoiceEmail(input: SendInvoiceEmailInput): Promise<SendInvoiceEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "ConstructionIOS <onboarding@resend.dev>";
 
   const subject = input.subject ?? buildInvoiceEmailSubject(input);
   const html = buildInvoiceEmailHtml(input);
@@ -34,12 +36,9 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput): Promise<Se
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from,
-        to: [input.to],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(
+        corpsResend({ to: input.to, subject, html, replyTo: input.replyTo }),
+      ),
     });
 
     if (!res.ok) {

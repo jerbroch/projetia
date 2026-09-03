@@ -3,9 +3,12 @@ import {
   buildEmployeeInvitationSubject,
   type EmployeeInvitationEmailInput,
 } from "@/lib/email/employee-invitation-template";
+import { corpsResend } from "@/lib/email/expediteur";
 
 export interface SendEmployeeInvitationInput extends EmployeeInvitationEmailInput {
   to: string;
+  /** Adresse à laquelle le client doit répondre — celle de l'entreprise. */
+  replyTo?: string;
 }
 
 export interface SendEmployeeInvitationResult {
@@ -25,7 +28,6 @@ export async function sendEmployeeInvitationEmail(
   input: SendEmployeeInvitationInput,
 ): Promise<SendEmployeeInvitationResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "ConstructionIOS <onboarding@resend.dev>";
 
   if (!apiKey) {
     console.info("[invitation employé] RESEND_API_KEY absente — lien pour", input.to, ":", input.actionLink);
@@ -39,12 +41,14 @@ export async function sendEmployeeInvitationEmail(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from,
-        to: [input.to],
-        subject: buildEmployeeInvitationSubject(input),
-        html: buildEmployeeInvitationHtml(input),
-      }),
+      body: JSON.stringify(
+        corpsResend({
+          to: input.to,
+          subject: buildEmployeeInvitationSubject(input),
+          html: buildEmployeeInvitationHtml(input),
+          replyTo: input.replyTo,
+        }),
+      ),
     });
 
     if (!res.ok) {
