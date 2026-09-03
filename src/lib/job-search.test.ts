@@ -52,7 +52,7 @@ const archivedEvents: ScheduleEvent[] = [
     employeeIds: ["emp-1"],
     employeeNames: ["Jean Tremblay"],
     location: "1420 Oak Street",
-    status: "completed",
+    status: "paid",
     type: "job",
     quoteId: "quote-1",
     jobNumber: "CON-2026-0001",
@@ -101,22 +101,26 @@ const archivedEvents: ScheduleEvent[] = [
 ];
 
 describe("getArchivedJobs", () => {
-  it("returns only completed, cancelled, or legacy pending-review jobs sorted by date desc", () => {
+  it("ne rend que ce qui est fini, du plus récent au plus ancien", () => {
     const archived = getArchivedJobs(archivedEvents);
     expect(archived).toHaveLength(2);
     expect(archived[0]?.id).toBe("evt-1");
     expect(archived[1]?.id).toBe("evt-2");
   });
 
-  it("includes legacy pending-review jobs closed before completed archival fix", () => {
-    const legacyPendingReview: ScheduleEvent = {
-      ...archivedEvents[0]!,
-      id: "evt-legacy",
-      status: "pending-review",
-      submittedForReviewAt: "2026-02-01T17:30:00",
-    };
-    const archived = getArchivedJobs([...archivedEvents, legacyPendingReview]);
-    expect(archived.map((event) => event.id)).toContain("evt-legacy");
+  // Un travail fait mais pas encore facturé attend l'entrepreneur : sa place
+  // est dans « À vérifier », pas aux archives.
+  it("laisse dehors un travail qui attend encore une action", () => {
+    const enAttente: ScheduleEvent[] = [
+      { ...archivedEvents[0]!, id: "evt-a-verifier", status: "completed" },
+      { ...archivedEvents[0]!, id: "evt-a-facturer", status: "ready-to-invoice" },
+      { ...archivedEvents[0]!, id: "evt-envoyee", status: "invoice-sent" },
+    ];
+    const archived = getArchivedJobs([...archivedEvents, ...enAttente]);
+    const ids = archived.map((event) => event.id);
+    expect(ids).not.toContain("evt-a-verifier");
+    expect(ids).not.toContain("evt-a-facturer");
+    expect(ids).not.toContain("evt-envoyee");
   });
 });
 

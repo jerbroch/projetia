@@ -132,5 +132,16 @@ export function extensionPour(mime: string): string {
  * touche simplement AUCUNE rangée. Sans ce message, l'employé cliquerait et
  * croirait à un bogue.
  */
+/**
+ * Message quand la même photo est déposée deux fois sur le même call.
+ *
+ * Il PRÉVIENT, il ne gronde pas : taper deux fois sur « Prendre une photo »
+ * avec des gants mouillés n'est pas une faute. Et il dit ce qui a été gardé,
+ * pour qu'on ne cherche pas ce qui manque.
+ */
+export function messageDoublon(nomFichier: string): string {
+  return `« ${nomFichier} » est déjà sur ce call. La première est conservée, rien n'a été perdu.`;
+}
+
 export const REFUS_SUPPRESSION_EMPLOYE =
   "Seul votre employeur peut retirer une pièce jointe. C'est ce qui rend les photos valables comme preuve du travail accompli.";

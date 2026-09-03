@@ -57,11 +57,26 @@ describe("resolveJobNumberType", () => {
 });
 
 describe("isArchivedJob", () => {
-  it("includes completed, cancelled, and legacy pending-review jobs", () => {
-    expect(isArchivedJob({ status: "completed" })).toBe(true);
+  it("archive ce qui est encaissé ou abandonné", () => {
+    expect(isArchivedJob({ status: "paid" })).toBe(true);
     expect(isArchivedJob({ status: "cancelled" })).toBe(true);
-    expect(isArchivedJob({ status: "pending-review" })).toBe(true);
-    expect(isArchivedJob({ status: "scheduled" })).toBe(false);
+  });
+
+  // C'était le défaut : un travail fait mais pas encore facturé était rangé aux
+  // archives, pendant qu'un call payé restait indéfiniment dans le courant.
+  it("n'archive PAS un travail qui attend encore une action", () => {
+    expect(isArchivedJob({ status: "completed" })).toBe(false);
+    expect(isArchivedJob({ status: "pending-review" })).toBe(false);
     expect(isArchivedJob({ status: "ready-to-invoice" })).toBe(false);
+    expect(isArchivedJob({ status: "invoice-sent" })).toBe(false);
+    expect(isArchivedJob({ status: "scheduled" })).toBe(false);
+  });
+
+  // L'archivage suit le paiement, sans bouton de plus : c'est la même règle qui
+  // décide, et elle ne dépend que du statut.
+  it("suit le paiement sans geste supplémentaire", () => {
+    const call = { status: "invoice-sent" as const };
+    expect(isArchivedJob(call)).toBe(false);
+    expect(isArchivedJob({ ...call, status: "paid" as const })).toBe(true);
   });
 });

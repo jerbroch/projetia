@@ -57,10 +57,12 @@ test.describe("11. Parcours métier complet", () => {
 
     await closeWorkFromSchedule(page, "Travaux E2E terminés — parcours complet");
 
+    // Un travail fermé n'est PAS une archive : il attend la vérification du
+    // bureau. Les archives ne gardent que ce qui est encaissé ou abandonné.
     await page.goto("/archives");
     await ensureDashboardAccess(page);
     await page.getByLabel("Rechercher dans les archives").fill(E2E_SEED_MARKER);
-    await expect(archiveJobRow(page, activeSeed.customerName)).toBeVisible({ timeout: 20000 });
+    await expect(archiveJobRow(page, activeSeed.customerName)).toHaveCount(0);
 
     await page.goto(`/reviews?jobId=${activeSeed.scheduledJobId}`);
     await ensureDashboardAccess(page);
@@ -106,10 +108,14 @@ test.describe("11. Parcours métier complet", () => {
     });
     await expect(invoiceCustomerCell(page, activeSeed.customerName)).toBeVisible({ timeout: 15000 });
 
+    // ET C'EST LE PAIEMENT QUI ARCHIVE, sans bouton de plus.
     await page.goto("/archives");
     await ensureDashboardAccess(page);
     await page.getByLabel("Rechercher dans les archives").fill(E2E_SEED_MARKER);
     const archivedRow = archiveJobRow(page, activeSeed.customerName);
+    await expect(archivedRow).toBeVisible({ timeout: 20000 });
+    console.log("ARCHIVE >>> le call payé y est entré tout seul");
+
     if (await archivedRow.isVisible({ timeout: 5000 }).catch(() => false)) {
       await archivedRow.click();
       const restoreBtn = page.getByRole("button", { name: "Restaurer" });

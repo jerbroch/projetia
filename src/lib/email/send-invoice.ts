@@ -3,11 +3,13 @@ import {
   buildInvoiceEmailSubject,
   type InvoiceEmailTemplateInput,
 } from "@/lib/email/invoice-email-template";
-import { corpsResend } from "@/lib/email/expediteur";
+import { corpsResend, type PieceLiee } from "@/lib/email/expediteur";
 
 export interface SendInvoiceEmailInput extends InvoiceEmailTemplateInput {
   to: string;
   subject?: string;
+  /** Vignettes des photos du chantier, prêtes pour Resend. */
+  pieces?: PieceLiee[];
   /** Adresse à laquelle le client doit répondre — celle de l'entreprise. */
   replyTo?: string;
 }
@@ -37,7 +39,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput): Promise<Se
         "Content-Type": "application/json",
       },
       body: JSON.stringify(
-        corpsResend({ to: input.to, subject, html, replyTo: input.replyTo }),
+        corpsResend({ to: input.to, subject, html, replyTo: input.replyTo, pieces: input.pieces }),
       ),
     });
 

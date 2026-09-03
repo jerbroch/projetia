@@ -18,16 +18,25 @@ export const JOB_NUMBER_TYPE_LABELS: Record<JobNumberType, string> = {
   service_call: "Bon de travail",
 };
 
-/** Jobs in Archives — field work done or cancelled; invoice workflow stays in Factures */
-export const ARCHIVE_STATUSES: ScheduleEvent["status"][] = ["completed", "cancelled"];
-
-/** Legacy close-work rows stored pending-review before completed archival fix */
-export const LEGACY_ARCHIVE_STATUSES: ScheduleEvent["status"][] = ["pending-review"];
+/**
+ * Ce qui est FINI, et rien d'autre.
+ *
+ * La règle regardait `completed` et `pending-review` : un travail fait mais
+ * PAS ENCORE FACTURÉ était rangé aux archives, pendant qu'un call payé restait
+ * indéfiniment dans le courant. Les archives de Jérôme contenaient zéro call
+ * alors que deux étaient encaissés.
+ *
+ * C'était cohérent quand « terminé » voulait dire « classé ». Depuis que
+ * `completed` signifie « à vérifier », un travail dans cet état attend une
+ * action de l'entrepreneur — ce n'est pas une archive, c'est une tâche. Il vit
+ * maintenant dans « À vérifier », et nulle part ailleurs.
+ *
+ * Encaissé ou abandonné : voilà ce qui se range.
+ */
+export const ARCHIVE_STATUSES: ScheduleEvent["status"][] = ["paid", "cancelled"];
 
 export function isArchivedJob(event: Pick<ScheduleEvent, "status">): boolean {
-  return (
-    ARCHIVE_STATUSES.includes(event.status) || LEGACY_ARCHIVE_STATUSES.includes(event.status)
-  );
+  return ARCHIVE_STATUSES.includes(event.status);
 }
 
 export function resolveJobNumberType(event: Pick<ScheduleEvent, "jobNumberType" | "quoteId">): JobNumberType {

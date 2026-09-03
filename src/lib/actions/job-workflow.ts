@@ -24,6 +24,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { requireTenantContext } from "@/lib/session";
 import type { ScheduleEvent } from "@/types";
 import { adresseDeReponse } from "@/lib/email/expediteur";
+import { photosDuCallPourFacture } from "@/lib/email/photos-pour-facture";
 
 export type WorkflowActionResult<T = void> =
   | { success: true; data?: T }
@@ -203,8 +204,11 @@ export async function sendInvoiceEmailAction(input: {
           securityQuestion: interac.securityQuestion,
           securityAnswer: interac.securityAnswer,
           instructions: interac.instructions,
+          invoiceNumber: String(invoice.invoice_number),
         })
-      : null;
+      : // Même sans Interac, le client doit savoir quoi inscrire en référence :
+        // c'est ce qui permet de rapprocher un paiement d'une facture.
+        buildInteracEmailBlock({ invoiceNumber: String(invoice.invoice_number) });
 
   const depositApplied =
     invoice.deposit_applied != null ? Number(invoice.deposit_applied) : 0;
@@ -212,8 +216,17 @@ export async function sendInvoiceEmailAction(input: {
   const invoiceTotal = Number(invoice.amount);
   const balanceDue = Math.max(0, invoiceTotal - paidAmount);
 
+  // Les photos du chantier partent AVEC la facture, en images liées. Une
+  // facture accompagnée du travail accompli ne se conteste pas.
+  const photos = await photosDuCallPourFacture(
+    ctx.company.id,
+    job?.id ?? (invoice.scheduled_job_id ? String(invoice.scheduled_job_id) : null),
+  );
+
   const emailResult = await sendInvoiceEmail({
     to: recipient,
+    photos: photos.pourLeGabarit,
+    pieces: photos.pieces,
     // Le client répond à L'ENTREPRISE. Le domaine d'envoi ne sait qu'envoyer :
     // une réponse à l'expéditeur rebondirait, et l'entrepreneur ne le saurait
     // jamais — c'est ainsi qu'on perd un contrat sans l'apprendre.
