@@ -42,6 +42,21 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_ROLE_KEY }}
       E2E_SUPABASE_REF: ${{ secrets.DEV_SUPABASE_REF }}
       E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+      # L'ENVOI DE COURRIEL EST ÉPROUVÉ POUR DE VRAI.
+      #
+      # Sans cette clé, `sendInvoiceEmail` se replie sur la console : la facture
+      # est marquée envoyée alors qu'aucun courriel ne quitte la machine. Le
+      # parcours passait donc au vert sans jamais éprouver l'envoi — ce qui est
+      # précisément le défaut corrigé dans le produit.
+      #
+      # Les destinataires sont les boîtes d'essai de Resend
+      # (`delivered@resend.dev`), qui ne comptent pas comme de vrais rebonds.
+      #
+      # RESEND_FROM_EMAIL n'est VOLONTAIREMENT pas posée : l'expéditeur retombe
+      # sur `onboarding@resend.dev`. Le trafic d'épreuve reste ainsi hors du
+      # domaine vérifié de l'entreprise, dont la réputation d'expédition sert à
+      # livrer de vraies soumissions à de vrais clients.
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       # Systématique en CI : sans nettoyage, la base de développement
       # accumulerait comme la production l'a fait — 151 entreprises en 8 jours.
       E2E_CLEANUP_SEED: "true"
