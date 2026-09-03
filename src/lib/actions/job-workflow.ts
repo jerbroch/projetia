@@ -13,7 +13,6 @@ import {
   canApproveBilling,
   canApproveJobStatus,
   canRestoreArchivedJob,
-  canSendInvoiceEmailStatus,
   canSendInvoiceToClient,
   canSubmitJobForReview,
   canSubmitJobStatus,
@@ -137,8 +136,21 @@ export async function approveJobForBillingAction(
   return { success: true, data: mapScheduleRow(data) };
 }
 
+/**
+ * Envoie la facture au client, POUR DE VRAI, puis pose les marques d'envoi.
+ *
+ * `jobId` est facultatif : une facture rapide n'a pas de call, et elle doit
+ * pouvoir partir quand même. Sans ça, la page Factures ne pouvait rien envoyer.
+ *
+ * Le statut du travail n'est PLUS une condition d'envoi. Il l'était, et la
+ * condition se contredisait : le seul bouton d'envoi vivait dans une fenêtre
+ * qui exigeait un call non encore approuvé, alors que l'envoi exigeait un call
+ * déjà approuvé. Les deux ne pouvaient pas être vrais ensemble, et FA-2026-007
+ * est restée en brouillon pendant qu'on la croyait partie. Ce qui compte est
+ * qu'une facture existe et appartienne à l'entreprise.
+ */
 export async function sendInvoiceEmailAction(input: {
-  jobId: string;
+  jobId?: string | null;
   invoiceId: string;
   recipientEmail: string;
   subject?: string;
@@ -153,11 +165,10 @@ export async function sendInvoiceEmailAction(input: {
   const recipient = input.recipientEmail.trim();
   if (!recipient) return fail("Le courriel du destinataire est requis.");
 
-  const job = await getScheduledJobById(ctx.company.id, input.jobId, false);
-  if (!job) return fail("Travail introuvable.");
-  if (!canSendInvoiceEmailStatus(job.status)) {
-    return fail("Ce travail n'est pas prêt pour l'envoi de facture.");
-  }
+  const job = input.jobId
+    ? await getScheduledJobById(ctx.company.id, input.jobId, false)
+    : null;
+  if (input.jobId && !job) return fail("Travail introuvable.");
 
   const supabase = await createClient();
   const { data: invoice, error: invoiceError } = await supabase
@@ -211,13 +222,14 @@ export async function sendInvoiceEmailAction(input: {
     companyName: ctx.company.name,
     companyLogoUrl: ctx.company.logoUrl,
     primaryColor: ctx.company.primaryColor,
-    customerName: job.customerName,
+    customerName: job?.customerName ?? String(invoice.customer_name ?? ""),
     invoiceNumber: String(invoice.invoice_number),
     quoteNumber: invoice.quote_number ? String(invoice.quote_number) : null,
-    jobNumber: job.jobNumber,
-    clientPoNumber: job.clientPoNumber,
+    jobNumber: job?.jobNumber ?? (invoice.job_number ? String(invoice.job_number) : null),
+    clientPoNumber:
+      job?.clientPoNumber ?? (invoice.client_po_number ? String(invoice.client_po_number) : null),
     workDescription:
-      job.workDescription ??
+      job?.workDescription ??
       (invoice.work_description ? String(invoice.work_description) : null),
     lineItems: toClientInvoiceLineItems(parsedItems),
     materialSubtotal:
@@ -252,18 +264,21 @@ export async function sendInvoiceEmailAction(input: {
 
   if (updateInvoiceError) return fail("Courriel envoyé mais impossible de mettre à jour la facture.");
 
-  const { error: updateJobError } = await supabase
-    .from("scheduled_jobs")
-    .update({
-      status: "invoice-sent",
-      sent_at: now,
-      sent_to: recipient,
-      sent_by: ctx.user.id,
-    })
-    .eq("id", input.jobId)
-    .eq("company_id", ctx.company.id);
+  // Une facture rapide n'a pas de call à faire avancer.
+  if (input.jobId) {
+    const { error: updateJobError } = await supabase
+      .from("scheduled_jobs")
+      .update({
+        status: "invoice-sent",
+        sent_at: now,
+        sent_to: recipient,
+        sent_by: ctx.user.id,
+      })
+      .eq("id", input.jobId)
+      .eq("company_id", ctx.company.id);
 
-  if (updateJobError) return fail("Courriel envoyé mais impossible de mettre à jour le travail.");
+    if (updateJobError) return fail("Courriel envoyé mais impossible de mettre à jour le travail.");
+  }
 
   revalidateWorkflowPaths();
   return { success: true, data: { sentTo: recipient } };

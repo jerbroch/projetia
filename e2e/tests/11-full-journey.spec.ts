@@ -51,8 +51,9 @@ test.describe("11. Parcours métier complet", () => {
     await expect(jobBlock).toBeVisible({ timeout: 15000 });
     await jobBlock.click();
 
-    await clickQuickStatusIfEnabled(page, "Transport / En route");
-    await clickQuickStatusIfEnabled(page, "En travail");
+    // Une action à la fois : « Commencer les travaux » amène le call en
+    // travail, et la fermeture devient alors la suite proposée.
+    await page.getByRole("button", { name: "Commencer les travaux" }).click();
 
     await closeWorkFromSchedule(page, "Travaux E2E terminés — parcours complet");
 
@@ -90,7 +91,7 @@ test.describe("11. Parcours métier complet", () => {
     await ensureDashboardAccess(page);
     await expect(jobBlock).toBeVisible({ timeout: 15000 });
     await jobBlock.click();
-    await clickQuickStatusIfEnabled(page, "Payé");
+    await clickQuickStatusIfEnabled(page, "Marquer payé");
 
     const closeScheduleDialog = page.getByRole("button", { name: "Fermer" });
     if (await closeScheduleDialog.isVisible({ timeout: 3000 }).catch(() => false)) {

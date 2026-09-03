@@ -15,7 +15,6 @@ import { EmployeeProfilePanel } from "@/components/employees/employee-profile-pa
 import { ResourceCalendar, type ScheduleFilters } from "@/components/schedule/resource-calendar";
 import { ScheduleEventForm } from "@/components/schedule/schedule-event-form";
 import { ScheduleQuickActionsDialog } from "@/components/schedule/schedule-quick-actions-dialog";
-import { JobReviewDialog } from "@/components/workflow/job-review-dialog";
 import { Button } from "@/components/ui/button";
 import {
   getEventDurationMinutes,
@@ -140,8 +139,6 @@ export function SchedulePageClient({
   const [detailOpen, setDetailOpen] = useState(false);
   const [quickEvent, setQuickEvent] = useState<ScheduleEvent | undefined>();
   const [quickOpen, setQuickOpen] = useState(false);
-  const [reviewEvent, setReviewEvent] = useState<ScheduleEvent | undefined>();
-  const [reviewOpen, setReviewOpen] = useState(false);
   const [actionError, setActionError] = useState("");
   const [, startTransition] = useTransition();
   const openedInitialEventRef = useRef(false);
@@ -403,10 +400,6 @@ export function SchedulePageClient({
           setCloseWorkEvent(ev);
           setCloseWorkOpen(true);
         }}
-        onReview={(ev) => {
-          setReviewEvent(ev);
-          setReviewOpen(true);
-        }}
         onBilling={(ev) => {
           setBillingEvent(ev);
           setBillingOpen(true);
@@ -472,21 +465,6 @@ export function SchedulePageClient({
           membershipRole={membershipRole}
           isDemo={isDemo}
           onSubmitted={(updated) => {
-            applyLocalEvent(updated);
-            router.refresh();
-          }}
-        />
-      )}
-
-      {reviewEvent && (
-        <JobReviewDialog
-          open={reviewOpen}
-          onOpenChange={setReviewOpen}
-          event={reviewEvent}
-          company={company}
-          membershipRole={membershipRole}
-          isDemo={isDemo}
-          onUpdated={(updated) => {
             applyLocalEvent(updated);
             router.refresh();
           }}

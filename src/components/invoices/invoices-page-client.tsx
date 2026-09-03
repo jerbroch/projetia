@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Receipt } from "lucide-react";
+import { Mail, Plus, Receipt } from "lucide-react";
 import { RecordPaymentDialog } from "@/components/payments/record-payment-dialog";
 import { QuickInvoiceDialog } from "@/components/invoices/quick-invoice-dialog";
+import { SendInvoiceDialog } from "@/components/invoices/send-invoice-dialog";
+import { canSendInvoiceToClient } from "@/lib/job-workflow";
 import { JobBillingDialog } from "@/components/billing/job-billing-dialog";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -26,6 +28,16 @@ import type { Company, Customer, Invoice, ProfileRole, ScheduleEvent, User } fro
 /** Une facture annulée ou déjà soldée n'attend plus de paiement. */
 function attendPaiement(invoice: Invoice): boolean {
   return invoice.status !== "cancelled" && invoice.paidAmount < invoice.amount;
+}
+
+/**
+ * Une facture que le client n'a jamais reçue.
+ *
+ * C'est `sentAt` qui fait foi, jamais le statut du call : un call pouvait dire
+ * « facture envoyée » sans qu'aucun courriel n'existe.
+ */
+function jamaisEnvoyee(invoice: Invoice): boolean {
+  return invoice.status !== "cancelled" && !invoice.sentAt;
 }
 
 interface InvoicesPageClientProps {
@@ -71,6 +83,8 @@ export function InvoicesPageClient({
 }: InvoicesPageClientProps) {
   const router = useRouter();
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
+  const [factureAEnvoyer, setFactureAEnvoyer] = useState<Invoice | null>(null);
+  const peutEnvoyer = canSendInvoiceToClient(membershipRole);
   const searchParams = useSearchParams();
   const [billingOpen, setBillingOpen] = useState(false);
   const [billingEvent, setBillingEvent] = useState<ScheduleEvent | undefined>();
@@ -204,6 +218,19 @@ export function InvoicesPageClient({
                 <CardContent className="space-y-1 text-sm">
                   <p className="font-semibold">{formatCurrency(invoice.amount)}</p>
                   <p className="text-xs text-muted-foreground">Échéance {formatDate(invoice.dueDate)}</p>
+                  {peutEnvoyer && jamaisEnvoyee(invoice) && (
+                    <Button
+                      size="sm"
+                      className="mt-2 w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFactureAEnvoyer(invoice);
+                      }}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Envoyer au client
+                    </Button>
+                  )}
                   {attendPaiement(invoice) && (
                     <Button
                       size="sm"
@@ -235,6 +262,7 @@ export function InvoicesPageClient({
                     <TableHead>Payé</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead>Échéance</TableHead>
+                    <TableHead>Envoi</TableHead>
                     <TableHead className="text-right">Paiement</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -257,6 +285,26 @@ export function InvoicesPageClient({
                         <StatusBadge status={invoice.status} />
                       </TableCell>
                       <TableCell>{formatDate(invoice.dueDate)}</TableCell>
+                      <TableCell>
+                        {invoice.sentAt ? (
+                          <span className="text-xs text-muted-foreground">
+                            Envoyée {formatDate(invoice.sentAt)}
+                          </span>
+                        ) : peutEnvoyer && jamaisEnvoyee(invoice) ? (
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFactureAEnvoyer(invoice);
+                            }}
+                          >
+                            <Mail className="mr-2 h-4 w-4" />
+                            Envoyer
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         {attendPaiement(invoice) && (
                           <Button
@@ -279,6 +327,26 @@ export function InvoicesPageClient({
             </CardContent>
           </Card>
         </>
+      )}
+
+      {factureAEnvoyer && (
+        <SendInvoiceDialog
+          open={Boolean(factureAEnvoyer)}
+          onOpenChange={(open) => !open && setFactureAEnvoyer(null)}
+          job={resolveInvoiceJob(factureAEnvoyer, scheduleEvents)}
+          customerName={factureAEnvoyer.customerName}
+          invoiceId={factureAEnvoyer.id}
+          invoiceNumber={factureAEnvoyer.invoiceNumber}
+          companyName={company.name}
+          defaultEmail={
+            customers.find((c) => c.id === factureAEnvoyer.customerId)?.email ?? ""
+          }
+          isDemo={isDemo}
+          onSent={() => {
+            setFactureAEnvoyer(null);
+            router.refresh();
+          }}
+        />
       )}
 
       {payingInvoice && (

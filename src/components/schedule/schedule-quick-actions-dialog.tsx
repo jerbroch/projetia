@@ -11,6 +11,8 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
+  ChevronDown,
+  Mail,
   Receipt,
   Truck,
   User,
@@ -20,17 +22,13 @@ import { approveJobForBillingAction } from "@/lib/actions/job-workflow";
 import { updateScheduleJobStatusAction } from "@/lib/actions/schedule";
 import {
   canQuickChangeToStatus,
-  canSubmitJobStatus,
-  canUseAdminQuickStatus,
-  canUseFieldQuickStatus,
-  getFieldQuickStatusButtonOrder,
   getJobStatusLabel,
-  getQuickStatusActions,
   isPendingReviewJob,
   isReadyToInvoiceJob,
   QUICK_STATUS_BUTTON_LABELS,
   type JobWorkflowStatus,
 } from "@/lib/job-workflow";
+import { prochaineAction, riensAFaire, statutsDeCorrection } from "@/lib/prochaine-action";
 import { getJobDisplayNumber } from "@/lib/job-utils";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -48,6 +46,9 @@ import { JobShiftsEditor } from "@/components/schedule/job-shifts-editor";
 import type { JobShift } from "@/lib/job-shifts";
 import { JobToolsSection } from "@/components/schedule/job-tools-section";
 import { PiecesJointesSection } from "@/components/shared/pieces-jointes-section";
+import { SendInvoiceDialog } from "@/components/invoices/send-invoice-dialog";
+import { formatCurrency } from "@/lib/utils";
+import type { CleAction } from "@/lib/prochaine-action";
 import type { Employee, ToolListItem } from "@/types";
 
 interface ScheduleQuickActionsDialogProps {
@@ -60,7 +61,6 @@ interface ScheduleQuickActionsDialogProps {
   onEventUpdated: (event: ScheduleEvent) => void;
   onViewDetail: (event: ScheduleEvent) => void;
   onCloseWork: (event: ScheduleEvent) => void;
-  onReview: (event: ScheduleEvent) => void;
   onBilling: (event: ScheduleEvent) => void;
   shifts?: JobShift[];
   onShiftsChanged?: () => void;
@@ -74,11 +74,11 @@ export function ScheduleQuickActionsDialog({
   onOpenChange,
   event,
   membershipRole,
+  company,
   isDemo,
   onEventUpdated,
   onViewDetail,
   onCloseWork,
-  onReview,
   onBilling,
   shifts = [],
   onShiftsChanged,
@@ -89,6 +89,10 @@ export function ScheduleQuickActionsDialog({
   const [error, setError] = useState("");
   const [invoiceId, setInvoiceId] = useState<string | undefined>();
   const [invoiceNumber, setInvoiceNumber] = useState<string | undefined>();
+  const [invoiceSentAt, setInvoiceSentAt] = useState<string | null>(null);
+  const [totalFeuille, setTotalFeuille] = useState<number | null>(null);
+  const [correctionsOuvertes, setCorrectionsOuvertes] = useState(false);
+  const [envoiOuvert, setEnvoiOuvert] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -97,12 +101,17 @@ export function ScheduleQuickActionsDialog({
       setError("");
       setInvoiceId(undefined);
       setInvoiceNumber(undefined);
+      setInvoiceSentAt(null);
+      setTotalFeuille(null);
+      setCorrectionsOuvertes(false);
 
       if (!isDemo) {
         getBillingSummaryForJobAction(event.id).then((result) => {
           if (result.success && result.data) {
             setInvoiceId(result.data.invoiceId);
             setInvoiceNumber(result.data.invoiceNumber);
+            setInvoiceSentAt(result.data.invoiceSentAt ?? null);
+            setTotalFeuille(result.data.sheet ? result.data.sheet.total : null);
           }
         });
       }
@@ -112,19 +121,16 @@ export function ScheduleQuickActionsDialog({
   if (!currentEvent) return null;
 
   const selectedEvent = currentEvent;
-  const quickActions = getQuickStatusActions(membershipRole, selectedEvent.status);
-  const fieldStatusButtons = getFieldQuickStatusButtonOrder(membershipRole);
-  const showCloseWork =
-    canUseFieldQuickStatus(membershipRole) &&
-    canSubmitJobStatus(selectedEvent.status) &&
-    selectedEvent.status !== "completed";
-  const adminActions = quickActions.filter(
-    (status) =>
-      status === "pending-review" ||
-      status === "ready-to-invoice" ||
-      status === "invoice-sent" ||
-      status === "paid"
-  );
+
+  // UNE action principale, nommée par ce qu'elle fait. Les marches arrière sont
+  // repliées : on les prend quand on s'est trompé, pas quand on avance.
+  const action = prochaineAction(selectedEvent, {
+    role: membershipRole,
+    factureExiste: Boolean(invoiceId),
+    factureEnvoyee: Boolean(invoiceSentAt),
+  });
+  const corrections = statutsDeCorrection(selectedEvent, membershipRole);
+  const messageFin = riensAFaire(selectedEvent.status);
 
   const jobDate = format(parseISO(selectedEvent.start), "d MMMM yyyy", { locale: fr });
   const { time: startTime } = isoToLocalDateTime(selectedEvent.start);
@@ -205,6 +211,69 @@ export function ScheduleQuickActionsDialog({
     });
   }
 
+  function approuver() {
+    if (!currentEvent) return;
+    const snapshot = currentEvent;
+    setError("");
+
+    if (isDemo) {
+      const updated = applyLocalStatus(snapshot, "ready-to-invoice");
+      setCurrentEvent(updated);
+      onEventUpdated(updated);
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await approveJobForBillingAction(snapshot.id);
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      if (result.data) {
+        setCurrentEvent(result.data);
+        onEventUpdated(result.data);
+      }
+    });
+  }
+
+  function lancerAction(cle: CleAction) {
+    if (!currentEvent) return;
+    const snapshot = currentEvent;
+
+    switch (cle) {
+      case "demarrer":
+        handleStatusClick("in-progress");
+        return;
+      case "terminer":
+        onOpenChange(false);
+        onCloseWork(snapshot);
+        return;
+      case "approuver":
+        // L'approbation se fait ICI, sur le call, où l'entrepreneur est déjà.
+        // Elle exigeait avant d'ouvrir une deuxième fenêtre depuis une page
+        // qui n'était même pas dans le menu.
+        approuver();
+        return;
+      case "generer":
+        onOpenChange(false);
+        onBilling(snapshot);
+        return;
+      case "envoyer":
+        setEnvoiOuvert(true);
+        return;
+      case "payer":
+        handleStatusClick("paid");
+        return;
+    }
+  }
+
+  function IconeAction({ cle }: { cle: CleAction }) {
+    if (cle === "demarrer") return <Truck className="mr-2 h-4 w-4" />;
+    if (cle === "terminer" || cle === "approuver") return <CheckCircle2 className="mr-2 h-4 w-4" />;
+    if (cle === "envoyer") return <Mail className="mr-2 h-4 w-4" />;
+    return <Receipt className="mr-2 h-4 w-4" />;
+  }
+
   function renderStatusButton(status: JobWorkflowStatus) {
     const label = QUICK_STATUS_BUTTON_LABELS[status] ?? getJobStatusLabel(status);
     const isActive = selectedEvent.status === status;
@@ -231,7 +300,8 @@ export function ScheduleQuickActionsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{getJobDisplayNumber(selectedEvent)}</DialogTitle>
@@ -296,81 +366,100 @@ export function ScheduleQuickActionsDialog({
           <PiecesJointesSection scheduledJobId={selectedEvent.id} compact />
         </div>
 
-        {(fieldStatusButtons.length > 0 || showCloseWork || adminActions.length > 0) && (
-          <>
-            <Separator />
+        <Separator />
+
+        <div className="space-y-3">
+          {/*
+            UNE seule action, nommée par ce qu'elle fait. L'écran offrait avant
+            tous les statuts atteignables du même poids visuel — dont deux
+            marches arrière — et le seul bouton qui menait quelque part ne
+            portait le nom d'aucun statut.
+          */}
+          {totalFeuille !== null && totalFeuille > 0 && (
+            <p className="text-center text-sm">
+              Feuille de facturation&nbsp;:{" "}
+              <strong className="tabular-nums">{formatCurrency(totalFeuille)}</strong>
+            </p>
+          )}
+
+          {action && (
+            <div className="space-y-1">
+              <Button
+                type="button"
+                size="lg"
+                className="h-12 w-full justify-center"
+                disabled={isPending}
+                onClick={() => lancerAction(action.cle)}
+              >
+                {isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <IconeAction cle={action.cle} />
+                )}
+                {action.libelle}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">{action.aide}</p>
+            </div>
+          )}
+
+          {!action && messageFin && (
+            <p className="text-center text-sm text-muted-foreground">{messageFin}</p>
+          )}
+
+          {invoiceId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                onOpenChange(false);
+                onViewDetail(selectedEvent);
+              }}
+            >
+              <Receipt className="mr-2 h-4 w-4" />
+              Voir la facture{invoiceNumber ? ` ${invoiceNumber}` : ""}
+              {invoiceSentAt ? "" : " (jamais envoyée)"}
+            </Button>
+          )}
+
+          {isReadyToInvoiceJob(selectedEvent) && invoiceId && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                onOpenChange(false);
+                onBilling(selectedEvent);
+              }}
+            >
+              <Receipt className="mr-2 h-4 w-4" />
+              Modifier la facturation
+            </Button>
+          )}
+
+          {corrections.length > 0 && (
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase text-muted-foreground">
-                Changer le statut
-              </p>
-              {(fieldStatusButtons.length > 0 || showCloseWork) && (
-                <div className="flex flex-wrap gap-2">
-                  {fieldStatusButtons.map(renderStatusButton)}
-                  {showCloseWork && renderStatusButton("completed")}
+              <button
+                type="button"
+                className="flex w-full items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setCorrectionsOuvertes((v) => !v)}
+                aria-expanded={correctionsOuvertes}
+              >
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${correctionsOuvertes ? "rotate-180" : ""}`}
+                />
+                Corriger le statut
+              </button>
+              {correctionsOuvertes && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {corrections.map(renderStatusButton)}
                 </div>
-              )}
-              {canUseAdminQuickStatus(membershipRole) && adminActions.length > 0 && (
-                <div className="flex flex-wrap gap-2">{adminActions.map(renderStatusButton)}</div>
               )}
             </div>
-          </>
-        )}
-
-        {canUseAdminQuickStatus(membershipRole) &&
-          (isPendingReviewJob(selectedEvent) || isReadyToInvoiceJob(selectedEvent) || invoiceId) && (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">
-                  Actions gestionnaire
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {isPendingReviewJob(selectedEvent) && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        onOpenChange(false);
-                        onReview(selectedEvent);
-                      }}
-                    >
-                      <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Vérifier le travail
-                    </Button>
-                  )}
-                  {isReadyToInvoiceJob(selectedEvent) && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        onOpenChange(false);
-                        onBilling(selectedEvent);
-                      }}
-                    >
-                      <Receipt className="mr-2 h-4 w-4" />
-                      Voir / Générer la facture
-                    </Button>
-                  )}
-                  {invoiceId && (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        onOpenChange(false);
-                        onViewDetail(selectedEvent);
-                      }}
-                    >
-                      <Receipt className="mr-2 h-4 w-4" />
-                      Voir la facture{invoiceNumber ? ` (${invoiceNumber})` : ""}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
           )}
+        </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <Button
@@ -389,6 +478,33 @@ export function ScheduleQuickActionsDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      {invoiceId && (
+        <SendInvoiceDialog
+          open={envoiOuvert}
+          onOpenChange={setEnvoiOuvert}
+          job={selectedEvent}
+          invoiceId={invoiceId}
+          invoiceNumber={invoiceNumber ?? ""}
+          companyName={company.name}
+          defaultEmail={selectedEvent.customerEmail ?? ""}
+          isDemo={isDemo}
+          onSent={(sentTo) => {
+            const now = new Date().toISOString();
+            setInvoiceSentAt(now);
+            const updated: ScheduleEvent = {
+              ...selectedEvent,
+              status: "invoice-sent",
+              sentAt: now,
+              sentTo,
+            };
+            setCurrentEvent(updated);
+            onEventUpdated(updated);
+            setEnvoiOuvert(false);
+          }}
+        />
+      )}
+    </>
   );
 }

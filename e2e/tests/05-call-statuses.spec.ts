@@ -1,11 +1,7 @@
 import { test, expect, tenantAuth } from "../fixtures/base";
 import { ensureDashboardAccess } from "../helpers/auth";
-import { clickQuickStatusIfEnabled, resetSeedJobIfNeeded } from "../helpers/schedule";
+import { resetSeedJobIfNeeded } from "../helpers/schedule";
 
-const STATUS_FLOW = [
-  { label: /Transport \/ En route|En route/i },
-  { label: /En travail|En cours/i },
-];
 
 test.describe("5. Statuts d'appel", () => {
   test.use({ storageState: tenantAuth, pageName: "Statuts" });
@@ -21,11 +17,20 @@ test.describe("5. Statuts d'appel", () => {
     await expect(jobBlock).toBeVisible({ timeout: 15000 });
     await jobBlock.click();
 
-    for (const step of STATUS_FLOW) {
-      await clickQuickStatusIfEnabled(page, step.label);
-    }
+    // UNE seule action à la fois, nommée par ce qu'elle fait. Le mur de
+    // statuts — dont deux marches arrière offertes du même poids visuel — a
+    // été remplacé par la suite évidente de l'état courant.
+    const dialogue = page.getByRole("dialog");
+    await dialogue.getByRole("button", { name: "Commencer les travaux" }).click();
 
-    const completedBtn = page.getByRole("button", { name: "Travaux terminés" });
-    await expect(completedBtn).toBeVisible({ timeout: 5000 });
+    // Et la suite de « en travail » est la fermeture du chantier.
+    await expect(dialogue.getByRole("button", { name: "Travaux terminés" })).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Les marches arrière existent toujours, mais repliées.
+    await expect(dialogue.getByRole("button", { name: /Transport \/ En route/ })).toHaveCount(0);
+    await dialogue.getByRole("button", { name: "Corriger le statut" }).click();
+    await expect(dialogue.getByRole("button", { name: /Transport \/ En route/ })).toBeVisible();
   });
 });

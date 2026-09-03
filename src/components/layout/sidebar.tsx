@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Calendar,
+  ClipboardCheck,
   CreditCard,
   FileText,
   HardHat,
@@ -28,6 +29,7 @@ const navigation = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
   { name: "Clients", href: "/customers", icon: Users },
   { name: "Soumissions", href: "/quotes", icon: FileText },
+  { name: "À vérifier", href: "/reviews", icon: ClipboardCheck },
   { name: "Factures", href: "/invoices", icon: Receipt },
   { name: "Calendrier", href: "/schedule", icon: Calendar },
   { name: "Archives", href: "/archives", icon: Archive },

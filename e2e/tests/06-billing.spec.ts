@@ -162,7 +162,7 @@ test.describe("6. Facturation", () => {
       await page
         .locator('[role="dialog"]')
         .first()
-        .getByRole("button", { name: /Voir \/ Générer la facture/ })
+        .getByRole("button", { name: "Générer la facture" })
         .click();
 
       const dialogue = page.locator('[role="dialog"]').last();
