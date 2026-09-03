@@ -7,9 +7,12 @@ import {
   buildQuoteEmailSubject,
   type QuoteEmailTemplateInput,
 } from "@/lib/email/quote-email-template";
+import { corpsResend } from "@/lib/email/expediteur";
 
 export interface SendQuoteEmailInput extends QuoteEmailTemplateInput {
   to: string;
+  /** Adresse à laquelle le client doit répondre — celle de l'entreprise. */
+  replyTo?: string;
 }
 
 export interface SendQuoteEmailResult {
@@ -20,7 +23,6 @@ export interface SendQuoteEmailResult {
 
 export async function sendQuoteEmail(input: SendQuoteEmailInput): Promise<SendQuoteEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL ?? "ConstructionIOS <onboarding@resend.dev>";
 
   const subject = buildQuoteEmailSubject(input);
   const html = buildQuoteEmailHtml(input);
@@ -37,12 +39,9 @@ export async function sendQuoteEmail(input: SendQuoteEmailInput): Promise<SendQu
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        from,
-        to: [input.to],
-        subject,
-        html,
-      }),
+      body: JSON.stringify(
+        corpsResend({ to: input.to, subject, html, replyTo: input.replyTo }),
+      ),
     });
 
     if (!res.ok) {

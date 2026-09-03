@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { requireTenantContext } from "@/lib/session";
 import type { ScheduleEvent } from "@/types";
+import { adresseDeReponse } from "@/lib/email/expediteur";
 
 export type WorkflowActionResult<T = void> =
   | { success: true; data?: T }
@@ -213,6 +214,10 @@ export async function sendInvoiceEmailAction(input: {
 
   const emailResult = await sendInvoiceEmail({
     to: recipient,
+    // Le client répond à L'ENTREPRISE. Le domaine d'envoi ne sait qu'envoyer :
+    // une réponse à l'expéditeur rebondirait, et l'entrepreneur ne le saurait
+    // jamais — c'est ainsi qu'on perd un contrat sans l'apprendre.
+    replyTo: adresseDeReponse(ctx.company.email),
     subject:
       input.subject?.trim() ||
       buildInvoiceEmailSubject({
