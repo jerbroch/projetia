@@ -166,21 +166,36 @@ test.describe("16. Parcours de fermeture et de facturation", () => {
     console.log("ÉTAPE 4 >>> envoyée :", JSON.stringify(apresEnvoi));
 
     // ── 5. Resend confirme que le courriel est parti ────────────────────────
+    //
+    // SANS CLÉ, IL N'Y A RIEN À CONFIRMER. `sendInvoiceEmail` se replie sur la
+    // console quand `RESEND_API_KEY` est absente : la facture est marquée
+    // envoyée alors qu'aucun courriel n'a quitté la machine. La CI n'a pas la
+    // clé, et interroger l'API avec un jeton vide rend un 401 qu'on prendrait
+    // pour « courriel introuvable ».
+    //
+    // L'étape est donc SAUTÉE et le dit, plutôt que de passer en silence. Elle
+    // s'exécute partout où la clé existe — c'est là qu'elle a de la valeur.
     const numero = String(facture!.invoice_number);
-    await expect
-      .poll(async () => {
-        const r = await fetch("https://api.resend.com/emails?limit=15", {
-          headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
-        });
-        if (!r.ok) return null;
-        const body = await r.json();
-        const trouve = (body.data ?? []).find((e: { subject?: string }) =>
-          (e.subject ?? "").includes(numero),
-        );
-        return trouve ? String(trouve.last_event ?? "envoyé") : null;
-      }, { timeout: 60000, intervals: [3000] })
-      .not.toBeNull();
-    console.log(`ÉTAPE 5 >>> Resend confirme le courriel pour ${numero}`);
+    if (!process.env.RESEND_API_KEY) {
+      console.log(
+        `ÉTAPE 5 >>> SAUTÉE — RESEND_API_KEY absente, aucun courriel n'a pu partir (${numero})`,
+      );
+    } else {
+      await expect
+        .poll(async () => {
+          const r = await fetch("https://api.resend.com/emails?limit=25", {
+            headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+          });
+          if (!r.ok) return null;
+          const body = await r.json();
+          const trouve = (body.data ?? []).find((e: { subject?: string }) =>
+            (e.subject ?? "").includes(numero),
+          );
+          return trouve ? String(trouve.last_event ?? "envoyé") : null;
+        }, { timeout: 60000, intervals: [3000] })
+        .not.toBeNull();
+      console.log(`ÉTAPE 5 >>> Resend confirme le courriel pour ${numero}`);
+    }
 
     // ── 6. Marquer payé ─────────────────────────────────────────────────────
     await page.keyboard.press("Escape");
