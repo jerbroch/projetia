@@ -191,6 +191,63 @@ function etape(rang: number, texte: string, precision: string | null, extra?: st
   </table>`;
 }
 
+/**
+ * LA VERSION TEXTE, ENVOYÉE À CÔTÉ DU HTML.
+ *
+ * Un courriel qui ne contient QUE du HTML est un signal de pourriel connu : les
+ * envois légitimes portent presque toujours les deux parties, et les campagnes
+ * douteuses n'en mettent qu'une. C'est aussi ce que lisent les lecteurs
+ * d'écran, les vieux clients, et les aperçus de notification sur téléphone —
+ * sans elle, l'aperçu affiche du balisage.
+ *
+ * Elle n'est pas une copie appauvrie : elle porte le montant, l'échéance et
+ * surtout LA RÉFÉRENCE À CITER AU PAIEMENT, qui est l'information dont
+ * l'entrepreneur a besoin pour rapprocher un virement.
+ */
+export function buildInvoiceEmailText(input: InvoiceEmailTemplateInput): string {
+  const lignes: string[] = [];
+  const argent = (n: number) =>
+    new Intl.NumberFormat("fr-CA", { style: "currency", currency: "CAD" }).format(n);
+
+  lignes.push(`FACTURE ${input.invoiceNumber} — ${input.companyName}`, "");
+  if (input.customerName) lignes.push(input.customerName, "");
+  if (input.workDescription) lignes.push("TRAVAUX EFFECTUÉS", input.workDescription, "");
+
+  if (input.lineItems.length) {
+    lignes.push("DÉTAIL");
+    for (const l of input.lineItems) {
+      lignes.push(`  ${l.description} — ${l.quantity} × ${argent(l.unitPrice)} = ${argent(l.lineTotal)}`);
+    }
+    lignes.push("");
+  }
+
+  if (input.gstAmount != null) lignes.push(`TPS : ${argent(input.gstAmount)}`);
+  if (input.qstAmount != null) lignes.push(`TVQ : ${argent(input.qstAmount)}`);
+  lignes.push(`TOTAL : ${argent(input.total)}`);
+  if (input.balanceDue != null && input.balanceDue !== input.total) {
+    lignes.push(`SOLDE DÛ : ${argent(input.balanceDue)}`);
+  }
+  if (input.dueDate) lignes.push(`Échéance : ${input.dueDate}`);
+  lignes.push("");
+
+  if (input.photos?.length) {
+    const n = input.photos.length;
+    lignes.push(`${n} photo${n > 1 ? "s" : ""} du chantier ${n > 1 ? "sont jointes" : "est jointe"} à ce courriel.`, "");
+  }
+
+  lignes.push(
+    "COMMENT PAYER",
+    `Inscrivez « ${input.invoiceNumber} » dans le message de votre paiement,`,
+    "c'est ce qui nous permet de l'associer à cette facture.",
+    "",
+  );
+
+  if (input.customMessage) lignes.push(input.customMessage, "");
+  lignes.push(input.companyName);
+
+  return lignes.join("\n");
+}
+
 export function buildInvoiceEmailSubject(
   input: Pick<InvoiceEmailTemplateInput, "invoiceNumber" | "companyName">
 ): string {

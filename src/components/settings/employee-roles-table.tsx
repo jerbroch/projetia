@@ -75,7 +75,7 @@ export function EmployeeRolesTable({ disabled = false }: { disabled?: boolean })
         isActive: l.isActive,
       });
       if (!r.success) {
-        setErreur(r.error ?? "Impossible d'enregistrer.");
+        setErreur(r.error ?? "Le rôle n'a pas été enregistré, sans cause précisée.");
         return;
       }
       if (id) setEdits((e) => { const n = { ...e }; delete n[id]; return n; });
@@ -163,9 +163,14 @@ export function EmployeeRolesTable({ disabled = false }: { disabled?: boolean })
                   </td>
                   <td className="flex items-center gap-1 py-1.5 pl-2">
                     {modifie && (
-                      <Button size="sm" disabled={enCours} onClick={() => enregistrer(r.id, l, r.sortOrder || i + 1)}>
+                      <Button
+                        size="sm"
+                        disabled={enCours}
+                        aria-label={`Enregistrer le rôle ${r.name}`}
+                        onClick={() => enregistrer(r.id, l, r.sortOrder || i + 1)}
+                      >
                         {enCours && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-                        Enregistrer
+                        Enregistrer ce rôle
                       </Button>
                     )}
                     <Button

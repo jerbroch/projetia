@@ -37,6 +37,7 @@ import {
 } from "@/lib/job-workflow";
 import { isArchivedJob } from "@/lib/job-utils";
 import type { JobBillingLine, JobBillingSheet, LaborRateTemplate, MaterialCatalogItem, ProfileRole, ScheduleEvent } from "@/types";
+import { messageDeRefus, REFUS_SILENCIEUX } from "@/lib/cause-du-refus";
 
 export type BillingActionResult<T = void> =
   | { success: true; data?: T }
@@ -622,7 +623,12 @@ export async function saveLaborRateTemplateAction(
     isActive: formData.get("isActive") !== "false",
   });
 
-  if (error || !data) return fail("Impossible de sauvegarder le modèle.");
+  if (error) {
+    console.error("[saveLaborRateTemplateAction]", error);
+    return fail(messageDeRefus(`Taux « ${name} »`, error));
+  }
+  // Ni erreur ni rangée : la RLS n'a rien autorisé, en silence.
+  if (!data) return fail(REFUS_SILENCIEUX);
   revalidatePath("/settings");
   return {
     success: true,

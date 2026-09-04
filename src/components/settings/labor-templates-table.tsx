@@ -105,7 +105,7 @@ export function LaborTemplatesTable({
     startTransition(async () => {
       const r = await saveLaborRateTemplateAction(fd);
       if (!r.success) {
-        setErreur(r.error ?? "Impossible d'enregistrer.");
+        setErreur(r.error ?? "Le taux n'a pas été enregistré, sans cause précisée.");
         return;
       }
       if (id) setEdits((e) => { const n = { ...e }; delete n[id]; return n; });
@@ -215,9 +215,14 @@ export function LaborTemplatesTable({
                   </td>
                   <td className="py-1.5 pl-2">
                     {modifie && (
-                      <Button size="sm" disabled={enCours} onClick={() => enregistrer(t.id, l)}>
+                      <Button
+                        size="sm"
+                        disabled={enCours}
+                        aria-label={`Enregistrer le taux ${t.name}`}
+                        onClick={() => enregistrer(t.id, l)}
+                      >
                         {enCours && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
-                        Enregistrer
+                        Enregistrer ce taux
                       </Button>
                     )}
                   </td>

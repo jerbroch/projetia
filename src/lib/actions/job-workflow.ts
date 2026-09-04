@@ -25,6 +25,7 @@ import { requireTenantContext } from "@/lib/session";
 import type { ScheduleEvent } from "@/types";
 import { adresseDeReponse } from "@/lib/email/expediteur";
 import { photosDuCallPourFacture } from "@/lib/email/photos-pour-facture";
+import { messageDeRefus, REFUS_SILENCIEUX } from "@/lib/cause-du-refus";
 
 export type WorkflowActionResult<T = void> =
   | { success: true; data?: T }
@@ -362,7 +363,10 @@ export async function updateInteracSettingsAction(formData: FormData): Promise<W
   const enabled = formData.get("interacEnabled") === "true";
   const supabase = await createClient();
 
-  const { error } = await supabase
+  // `.select()` n'est pas décoratif : sans lui, une mise à jour que la RLS
+  // n'autorise pas rend « aucune erreur » et ZÉRO RANGÉE. L'écran affichait
+  // alors « enregistré » pendant que rien n'avait changé.
+  const { data, error } = await supabase
     .from("companies")
     .update({
       interac_enabled: enabled,
@@ -372,9 +376,14 @@ export async function updateInteracSettingsAction(formData: FormData): Promise<W
       interac_security_answer: formData.get("interacSecurityAnswer") || null,
       interac_instructions: formData.get("interacInstructions") || null,
     })
-    .eq("id", ctx.company.id);
+    .eq("id", ctx.company.id)
+    .select("id");
 
-  if (error) return fail("Impossible de sauvegarder les paramètres Interac.");
+  if (error) {
+    console.error("[updateInteracSettingsAction]", error);
+    return fail(messageDeRefus("Coordonnées de paiement", error));
+  }
+  if (!data?.length) return fail(REFUS_SILENCIEUX);
   revalidatePath("/settings");
   return { success: true };
 }
