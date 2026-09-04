@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { LogOut, CalendarDays, Hammer, Wrench, Phone} from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,20 @@ interface FieldLayoutProps {
 
 export function FieldLayout({ children, company, user }: FieldLayoutProps) {
   const pathname = usePathname();
+  const barre = useRef<HTMLElement>(null);
+
+  // La hauteur réelle, mesurée. Elle change avec la taille du texte du
+  // téléphone, que l'ouvrier a souvent grossie.
+  useEffect(() => {
+    const nav = barre.current;
+    if (!nav) return;
+    const mesurer = () =>
+      document.documentElement.style.setProperty("--hauteur-barre", `${nav.offsetHeight}px`);
+    mesurer();
+    const observateur = new ResizeObserver(mesurer);
+    observateur.observe(nav);
+    return () => observateur.disconnect();
+  }, []);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-background">
@@ -45,10 +60,35 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 pb-24">{children}</main>
+      {/*
+        LA MARGE DU BAS SE CALCULE SUR LA BARRE, elle n'est pas écrite en dur.
+        Elle valait `pb-24` (96 px) pour une barre d'une rangée. Le quatrième
+        onglet a fait passer la barre à deux rangées et 133 px : le bas des
+        cartes est passé dessous, sans que rien ne le signale.
 
-      <nav className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur">
-        <div className="mx-auto grid max-w-lg grid-cols-3 gap-1 px-2 py-2">
+        `--hauteur-barre` est posée par la barre elle-même, ci-dessous. Un
+        cinquième onglet un jour ne reproduira donc pas le défaut en silence.
+      */}
+      <main
+        className="flex-1 px-4 py-4"
+        style={{ paddingBottom: "calc(var(--hauteur-barre, 5rem) + 1rem)" }}
+      >
+        {children}
+      </main>
+
+      <nav
+        ref={barre}
+        className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      >
+        {/*
+          Le nombre de colonnes SUIT le nombre d'onglets. Écrire `grid-cols-3`
+          à côté d'une liste de quatre éléments est une contradiction qui ne se
+          voit qu'à l'écran, sur un téléphone étroit.
+        */}
+        <div
+          className="mx-auto grid max-w-lg gap-1 px-2 py-2"
+          style={{ gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))` }}
+        >
           {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (

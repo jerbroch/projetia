@@ -97,6 +97,7 @@ export function mapBillingLineRow(row: Record<string, unknown>): JobBillingLine 
     sourceKind: row.source_kind ? (String(row.source_kind) as JobBillingLine["sourceKind"]) : null,
     sourceIds: Array.isArray(row.source_ids) ? (row.source_ids as string[]) : [],
     manuallyEdited: Boolean(row.manually_edited ?? false),
+    signaleParEmploye: Boolean(row.signale_par_employe ?? false),
     sortOrder: Number(row.sort_order ?? 0),
   };
 }

@@ -8,6 +8,7 @@ import {
   mapFieldHourRow,
   mapFieldMaterialRow,
   searchFieldCatalogItems,
+  tauxVisiblesTerrain,
   updateScheduledJobFieldFieldsAdmin,
 } from "@/lib/data/field-data";
 import {
@@ -27,7 +28,9 @@ import {
 import type { JobWorkflowStatus } from "@/lib/job-workflow";
 import { requireFieldContext, requireTenantContext } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
-import type { FieldHour, FieldMaterial, ScheduleEvent } from "@/types";
+import type {
+  FieldCatalogItem,
+  FieldLaborRate, FieldHour, FieldMaterial, ScheduleEvent } from "@/types";
 
 export type FieldActionResult<T = void> =
   | { success: true; data?: T; event?: ScheduleEvent }
@@ -294,6 +297,22 @@ export async function updateFieldNotesAction(
 export async function searchFieldCatalogAction(query: string) {
   const ctx = await requireFieldContext();
   return searchFieldCatalogItems(ctx.company.id, query);
+}
+
+/**
+ * Les listes dans lesquelles l'employé CHOISIT : les taux de l'employeur et les
+ * matériaux du catalogue. Il ne crée rien — un article absent se signale.
+ */
+export async function chargerListesTerrainAction(recherche = ""): Promise<{
+  taux: FieldLaborRate[];
+  materiaux: FieldCatalogItem[];
+}> {
+  const ctx = await requireFieldContext();
+  const [taux, materiaux] = await Promise.all([
+    tauxVisiblesTerrain(ctx.company.id),
+    searchFieldCatalogItems(ctx.company.id, recherche),
+  ]);
+  return { taux, materiaux };
 }
 
 export async function getFieldCompletionPreviewAction(jobId: string) {

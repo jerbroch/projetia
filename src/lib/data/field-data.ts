@@ -7,6 +7,7 @@ import { getToolsWithDetails } from "@/lib/data/tools-data";
 import { isAssignmentOpen } from "@/lib/tool-utils";
 import type {
   FieldCatalogItem,
+  FieldLaborRate,
   FieldHour,
   FieldMaterial,
   ScheduleEvent,
@@ -118,10 +119,13 @@ export async function searchFieldCatalogItems(
 ): Promise<FieldCatalogItem[]> {
   if (!isSupabaseConfigured()) return [];
   const supabase = await createClient();
+  // LA VUE, PAS LA TABLE. `material_catalog_items` ne porte aucun prix, et les
+  // tables qui en portent contiennent des COÛTS : `reference_price` est la base
+  // de calcul de la marge. `field_material_prices` ne rend que le résultat.
   let request = supabase
-    .from("material_catalog_items")
-    .select("id, name, unit, category_id")
-    .or(`company_id.eq.${companyId},company_id.is.null`)
+    .from("field_material_prices")
+    .select("id, name, unit, category_id, sell_price")
+    .eq("company_id", companyId)
     .limit(limit);
 
   const trimmed = query.trim();
@@ -140,6 +144,9 @@ export async function searchFieldCatalogItems(
     name: String(row.name),
     unit: String(row.unit ?? "unité"),
     category: row.category_id ? String(row.category_id) : null,
+    // `null` et non zéro : un prix absent n'est pas un prix nul. Zéro ferait
+    // croire au client que c'est gratuit.
+    sellPrice: row.sell_price != null ? Number(row.sell_price) : null,
   }));
 }
 
@@ -234,4 +241,35 @@ export async function countOpenToolsForEmployee(
       actualReturnDate: row.actual_return_date ? String(row.actual_return_date).slice(0, 10) : undefined,
     })
   ).length;
+}
+
+/**
+ * Les taux de main-d'œuvre que l'employé peut choisir.
+ *
+ * Lus dans `field_labor_rates`, une vue qui n'expose PAS `cost_per_hr`. La RLS
+ * ne sait pas masquer une colonne ; seule une vue le peut. Voir la migration
+ * 044.
+ */
+export async function tauxVisiblesTerrain(companyId: string): Promise<FieldLaborRate[]> {
+  if (!isSupabaseConfigured()) return [];
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("field_labor_rates")
+    .select("id, name, bill_rate, worker_count, rate_type")
+    .eq("company_id", companyId)
+    .order("sort_order")
+    .order("name");
+
+  if (error) {
+    console.error("[tauxVisiblesTerrain]", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    billRate: row.bill_rate != null ? Number(row.bill_rate) : null,
+    workerCount: row.worker_count != null ? Number(row.worker_count) : 1,
+    rateType: row.rate_type ? String(row.rate_type) : "regular",
+  }));
 }

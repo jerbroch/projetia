@@ -1043,8 +1043,13 @@ function BillingLinesTable({
           </tr>
         </thead>
         <tbody>
-          {lines.map((line) => (
-            <tr key={line.id} className="border-b">
+          {lines.map((line) => {
+            // UNE LIGNE À CHIFFRER SE VOIT DE LOIN. Un badge discret se rate
+            // quand la feuille en compte quinze ; un matériau posé et non
+            // facturé est une perte sèche. La rangée entière est teintée.
+            const aChiffrer = Boolean(line.signaleParEmploye) || (Boolean(line.sourceKind) && line.unitSellPrice <= 0);
+            return (
+            <tr key={line.id} className={aChiffrer ? "border-b bg-amber-500/10" : "border-b"}>
               <td className="p-2">
                 {line.description}
                 {/* Une ligne venue du terrain se distingue d'une ligne tapée à la
@@ -1054,9 +1059,9 @@ function BillingLinesTable({
                     terrain{line.manuallyEdited ? " · retouchée" : ""}
                   </span>
                 )}
-                {line.sourceKind && line.unitSellPrice <= 0 && (
-                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
-                    prix à saisir
+                {aChiffrer && (
+                  <span className="ml-2 rounded bg-amber-500/25 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:text-amber-300">
+                    {line.signaleParEmploye ? "signalé du terrain · à chiffrer" : "prix à saisir"}
                   </span>
                 )}
                 {line.lineType === "labor" && laborTemplates.length > 1 && (
@@ -1143,7 +1148,8 @@ function BillingLinesTable({
                 </td>
               )}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
