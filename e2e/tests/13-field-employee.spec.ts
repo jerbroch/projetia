@@ -66,9 +66,14 @@ test.describe("13. Employé terrain", () => {
     await page.getByRole("button", { name: "Ajouter les heures" }).click();
     await expect(page.getByText("2 h")).toBeVisible({ timeout: 10000 });
 
+    // Le matériau ne se tape plus : il se choisit dans le catalogue de
+    // l'employeur, ou se signale s'il n'y est pas. Ici on passe par le
+    // signalement — ce locataire d'essai n'a pas de catalogue.
+    await page.locator("#rechercheMateriau").fill("Tuyau cuivre");
+    await page.getByRole("button", { name: /n'est pas dans la liste/ }).click();
     await page.locator("#materialName").fill("Tuyau cuivre");
-    await page.getByRole("button", { name: "Ajouter le matériau" }).click();
-    await expect(page.getByText("Tuyau cuivre")).toBeVisible({ timeout: 10000 });
+    await page.getByRole("button", { name: "Signaler et ajouter au call" }).click();
+    await expect(page.getByText("Tuyau cuivre").first()).toBeVisible({ timeout: 10000 });
 
     await page.getByRole("button", { name: "Travaux terminés" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();

@@ -344,6 +344,8 @@ export interface JobBillingLine {
   sourceIds?: string[];
   /** Vrai dès qu'on retouche une ligne importée : un réimport doit demander. */
   manuallyEdited?: boolean;
+  /** Signalé depuis le terrain, sans prix : à chiffrer par le bureau. */
+  signaleParEmploye?: boolean;
   sortOrder: number;
 }
 
@@ -626,6 +628,23 @@ export interface FieldCatalogItem {
   name: string;
   unit: string;
   category?: string | null;
+  /**
+   * Prix de vente, marge comprise. `null` quand l'article n'a pas de prix —
+   * jamais zéro, qui ferait croire au client que c'est gratuit.
+   */
+  sellPrice?: number | null;
+}
+
+/**
+ * Un taux de main-d'œuvre tel que le terrain le voit : le prix de vente, et
+ * RIEN du coût. Voir la vue `field_labor_rates`, migration 044.
+ */
+export interface FieldLaborRate {
+  id: string;
+  name: string;
+  billRate: number | null;
+  workerCount: number;
+  rateType: string;
 }
 
 /** Plage horaire d'un employé sur un call. Voir `src/lib/job-shifts.ts`. */

@@ -150,6 +150,11 @@ export async function importerTerrainAction(input: {
         source_ids: p.sourceIds,
         labor_template_id: p.laborTemplateId ?? null,
         manually_edited: false,
+        // Ce qui sort du terrain sans prix — hors catalogue, ou article dont
+        // l'employeur n'a pas encore fixé le prix — arrive SIGNALÉ. La feuille
+        // le montre en jaune : un matériau posé et non facturé est une perte
+        // sèche, et une ligne à zéro qui saute aux yeux ne l'est pas.
+        signale_par_employe: p.prixAsaisir === true,
         sort_order: depart + i,
       })),
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Phone } from "lucide-react";
@@ -22,6 +22,9 @@ import {
 } from "@/lib/field-permissions";
 import { formatFieldJobDate, formatFieldJobTime } from "@/lib/field-schedule-utils";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SelecteurMateriau } from "@/components/field/selecteur-materiau";
+import { chargerListesTerrainAction } from "@/lib/actions/field";
+import { formatCurrency } from "@/lib/utils";
 import { PiecesJointesSection } from "@/components/shared/pieces-jointes-section";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +38,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { FieldHour, FieldMaterial, ScheduleEvent, ToolListItem } from "@/types";
+import type { FieldCatalogItem, FieldHour, FieldLaborRate, FieldMaterial, ScheduleEvent, ToolListItem } from "@/types";
 
 interface FieldCallDetailClientProps {
   job: ScheduleEvent;
@@ -53,6 +56,14 @@ export function FieldCallDetailClient({
   employeeId,
 }: FieldCallDetailClientProps) {
   const router = useRouter();
+  const [taux, setTaux] = useState<FieldLaborRate[]>([]);
+  const [materiauChoisi, setMateriauChoisi] = useState<FieldCatalogItem | null>(null);
+  const [horsCatalogue, setHorsCatalogue] = useState(false);
+
+  useEffect(() => {
+    void chargerListesTerrainAction().then((r) => setTaux(r.taux));
+  }, []);
+
   const [job, setJob] = useState(initialJob);
   const [hours, setHours] = useState(initialHours);
   const [materials, setMaterials] = useState(initialMaterials);
@@ -143,7 +154,9 @@ export function FieldCallDetailClient({
     const form = e.currentTarget;
     const formData = new FormData(form);
     formData.set("jobId", job.id);
-    formData.set("isCustom", "true");
+    // `isCustom` était posé à « true » d'office : TOUT arrivait hors catalogue,
+    // même un article choisi dans la liste. C'est le choix réel qui décide.
+    formData.set("isCustom", horsCatalogue ? "true" : "false");
     startMaterial(async () => {
       const result = await saveFieldMaterialAction(formData);
       if (!result.success) {
@@ -152,6 +165,8 @@ export function FieldCallDetailClient({
       }
       if (result.data) setMaterials((prev) => [result.data!, ...prev]);
       form.reset();
+      setMateriauChoisi(null);
+      setHorsCatalogue(false);
       router.refresh();
     });
   }
@@ -311,9 +326,38 @@ export function FieldCallDetailClient({
                   <Input id="endTime" name="endTime" type="time" />
                 </div>
               </div>
+              {/*
+                IL CHOISIT, IL NE TAPE PLUS. Le champ libre disait
+                « Compagnon, apprenti... » : trois employés écrivaient trois
+                libellés différents pour le même taux, et l'employeur démêlait
+                à la facturation.
+
+                Le montant affiché est le PRIX DE VENTE. Le coût n'est pas
+                dans la vue que lit cet écran — il ne peut donc pas fuir.
+              */}
               <div className="space-y-1">
-                <Label htmlFor="laborType">Type (opt.)</Label>
-                <Input id="laborType" name="laborType" placeholder="Compagnon, apprenti..." />
+                <Label htmlFor="laborType">Type de travail</Label>
+                <select
+                  id="laborType"
+                  name="laborType"
+                  className="flex h-12 w-full rounded-md border border-input bg-transparent px-3 text-base"
+                  defaultValue=""
+                >
+                  <option value="">Choisir…</option>
+                  {taux.map((t) => (
+                    <option key={t.id} value={t.name}>
+                      {t.name}
+                      {t.billRate != null && t.billRate > 0
+                        ? ` — ${formatCurrency(t.billRate)}/h`
+                        : " — prix à venir"}
+                    </option>
+                  ))}
+                </select>
+                {taux.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Votre employeur n&apos;a pas encore réglé ses taux.
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <Label htmlFor="hourNotes">Notes</Label>
@@ -349,10 +393,55 @@ export function FieldCallDetailClient({
           )}
           {canEnterFieldMaterials("employee", job, employeeId) && (
             <form onSubmit={submitMaterial} className="grid gap-3 rounded-lg border p-3">
-              <div className="space-y-1">
-                <Label htmlFor="materialName">Matériau</Label>
-                <Input id="materialName" name="name" required placeholder="Nom du matériau" />
-              </div>
+              {materiauChoisi ? (
+                <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{materiauChoisi.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {materiauChoisi.sellPrice != null
+                        ? `${formatCurrency(materiauChoisi.sellPrice)} · ${materiauChoisi.unit}`
+                        : `Prix à venir · ${materiauChoisi.unit}`}
+                    </p>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setMateriauChoisi(null)}>
+                    Changer
+                  </Button>
+                </div>
+              ) : horsCatalogue ? (
+                <div className="space-y-1">
+                  <Label htmlFor="materialName">Ce que vous avez posé</Label>
+                  <Input
+                    id="materialName"
+                    name="name"
+                    required
+                    className="h-12 text-base"
+                    placeholder="Valve d'arrêt 3/4 laiton"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Votre employeur l&apos;ajoutera au catalogue. La ligne partira sur la
+                    facturation sans prix, à chiffrer — rien ne se perd.
+                  </p>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setHorsCatalogue(false)}>
+                    Revenir au catalogue
+                  </Button>
+                </div>
+              ) : (
+                <SelecteurMateriau
+                  onChoisi={(item) => {
+                    setMateriauChoisi(item);
+                    setHorsCatalogue(false);
+                  }}
+                  onAbsent={() => setHorsCatalogue(true)}
+                />
+              )}
+              {materiauChoisi && (
+                <>
+                  <input type="hidden" name="name" value={materiauChoisi.name} />
+                  <input type="hidden" name="catalogItemId" value={materiauChoisi.id} />
+                </>
+              )}
+              {/* Hors catalogue : c'est ce drapeau qui fera la ligne jaune. */}
+              <input type="hidden" name="isCustom" value={horsCatalogue ? "true" : "false"} />
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="quantity">Quantité</Label>
@@ -360,15 +449,19 @@ export function FieldCallDetailClient({
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="unit">Unité</Label>
-                  <Input id="unit" name="unit" defaultValue="unité" required />
+                  <Input id="unit" name="unit" key={materiauChoisi?.id ?? "libre"} defaultValue={materiauChoisi?.unit ?? "unité"} required />
                 </div>
               </div>
               <div className="space-y-1">
                 <Label htmlFor="materialNotes">Notes</Label>
                 <Input id="materialNotes" name="notes" />
               </div>
-              <Button type="submit" disabled={materialPending}>
-                Ajouter le matériau
+              <Button
+                type="submit"
+                className="h-12"
+                disabled={materialPending || (!materiauChoisi && !horsCatalogue)}
+              >
+                {horsCatalogue ? "Signaler et ajouter au call" : "Ajouter au call"}
               </Button>
             </form>
           )}
