@@ -95,6 +95,27 @@ async function createTenantUser(admin: ReturnType<typeof createAdmin>, runId: st
     throw new Error(`Failed to create tenant profile: ${profileError.message}`);
   }
 
+  // LE LOCATAIRE D'ESSAI DOIT RESSEMBLER À UN VRAI INSCRIT.
+  //
+  // `registerAction` crée une rangée `company_members` en plus du profil ; le
+  // harnais ne créait que le profil. Les politiques RLS et `getMembershipRole`
+  // s'appuient sur cette table : sans elle, la suite n'éprouvait jamais ce
+  // chemin, et une récursion de politique sur `company_members` pouvait passer
+  // inaperçue — c'est arrivé, et trois formulaires de Paramètres étaient
+  // cassés en production sans que rien ne tombe rouge.
+  const { error: memberError } = await admin.from("company_members").insert({
+    company_id: company.id,
+    user_id: userId,
+    role: "owner",
+  });
+
+  if (memberError) {
+    await admin.from("profiles").delete().eq("id", userId);
+    await admin.from("companies").delete().eq("id", company.id);
+    await admin.auth.admin.deleteUser(userId);
+    throw new Error(`Failed to create tenant membership: ${memberError.message}`);
+  }
+
   return { email, password, companyId: company.id as string };
 }
 
