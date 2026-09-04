@@ -1,6 +1,7 @@
 import {
   buildInvoiceEmailHtml,
   buildInvoiceEmailSubject,
+  buildInvoiceEmailText,
   type InvoiceEmailTemplateInput,
 } from "@/lib/email/invoice-email-template";
 import { corpsResend, type PieceLiee } from "@/lib/email/expediteur";
@@ -25,6 +26,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput): Promise<Se
 
   const subject = input.subject ?? buildInvoiceEmailSubject(input);
   const html = buildInvoiceEmailHtml(input);
+  const text = buildInvoiceEmailText(input);
 
   if (!apiKey) {
     console.info("[sendInvoiceEmail] RESEND_API_KEY not set — invoice email to:", input.to);
@@ -39,7 +41,7 @@ export async function sendInvoiceEmail(input: SendInvoiceEmailInput): Promise<Se
         "Content-Type": "application/json",
       },
       body: JSON.stringify(
-        corpsResend({ to: input.to, subject, html, replyTo: input.replyTo, pieces: input.pieces }),
+        corpsResend({ to: input.to, subject, html, text, replyTo: input.replyTo, pieces: input.pieces }),
       ),
     });
 

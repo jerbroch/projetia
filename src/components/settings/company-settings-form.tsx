@@ -188,7 +188,7 @@ export function CompanySettingsForm({ company }: CompanySettingsFormProps) {
           </div>
           <Button type="submit" disabled={loading || isPending || company.isDemo}>
             {(loading || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Enregistrer
+            Enregistrer l&apos;entreprise
           </Button>
           {company.isDemo && (
             <p className="text-sm text-muted-foreground">

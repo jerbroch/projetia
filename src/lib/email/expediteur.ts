@@ -48,6 +48,12 @@ export function corpsResend(input: {
   to: string;
   subject: string;
   html: string;
+  /**
+   * Version texte, envoyée À CÔTÉ du HTML. Un courriel qui n'a qu'une partie
+   * HTML est un signal de pourriel connu, et c'est aussi ce que lisent les
+   * aperçus de notification et les lecteurs d'écran.
+   */
+  text?: string;
   replyTo?: string;
   /**
    * Images liées au courriel. Elles ne comptent PAS dans les 102 Ko à partir
@@ -62,6 +68,7 @@ export function corpsResend(input: {
     subject: input.subject,
     html: input.html,
   };
+  if (input.text) corps.text = input.text;
   if (input.replyTo) corps.reply_to = [input.replyTo];
   if (input.pieces?.length) corps.attachments = input.pieces;
   return corps;

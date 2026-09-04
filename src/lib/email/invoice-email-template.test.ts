@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildInvoiceEmailHtml,
   buildInvoiceEmailSubject,
+  buildInvoiceEmailText,
   buildInteracEmailBlock,
   toClientInvoiceLineItems,
 } from "@/lib/email/invoice-email-template";
@@ -56,5 +57,43 @@ describe("invoice email template", () => {
       unitPrice: 95,
       lineTotal: 190,
     });
+  });
+});
+
+describe("buildInvoiceEmailText", () => {
+  const base = {
+    companyName: "Plomberie Essai",
+    customerName: "Jean Latreille",
+    invoiceNumber: "FA-2026-008",
+    lineItems: [{ description: "Chauffe-eau", quantity: 1, unitPrice: 1180, lineTotal: 1180 }],
+    total: 1356.6,
+    gstAmount: 59, qstAmount: 117.7,
+    dueDate: "2026-10-03",
+  };
+
+  // Un courriel qui n'a qu'une partie HTML est un signal de pourriel connu.
+  it("porte le montant, l'échéance et la référence à citer", () => {
+    const t = buildInvoiceEmailText(base);
+    expect(t).toContain("FA-2026-008");
+    expect(t).toContain("Jean Latreille");
+    expect(t).toContain("Chauffe-eau");
+    expect(t).toContain("COMMENT PAYER");
+    expect(t).toContain("dans le message de votre paiement");
+  });
+
+  it("ne contient aucune balise", () => {
+    expect(buildInvoiceEmailText(base)).not.toMatch(/<[a-z]/i);
+  });
+
+  it("annonce les photos jointes", () => {
+    const avec = buildInvoiceEmailText({
+      ...base,
+      photos: [
+        { contentId: "photo-1", alt: "a", urlPleineTaille: null },
+        { contentId: "photo-2", alt: "b", urlPleineTaille: null },
+      ],
+    });
+    expect(avec).toContain("2 photos du chantier sont jointes");
+    expect(buildInvoiceEmailText(base)).not.toContain("photo");
   });
 });

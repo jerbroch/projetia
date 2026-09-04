@@ -5,6 +5,7 @@ import { requireTenantContext } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import type { EmployeeRole } from "@/types";
+import { messageDeRefus, REFUS_SILENCIEUX } from "@/lib/cause-du-refus";
 
 /**
  * Les rôles appartiennent à l'entrepreneur, pas à nous.
@@ -73,14 +74,16 @@ export async function enregistrerRoleAction(input: {
   const { data, error } = await requete.select("*").single();
 
   if (error || !data) {
-    // L'index unique parle en anglais et cite des noms de contrainte. On
-    // traduit la seule erreur que l'employeur peut provoquer.
+    // Le doublon est le cas courant et mérite sa phrase à lui ; pour tout le
+    // reste, on NOMME ce que la base a refusé au lieu de dire « impossible ».
     const doublon = error?.message?.includes("employee_roles_nom_unique");
+    if (doublon) {
+      return { success: false, error: `Un rôle « ${name} » existe déjà. Choisissez un autre nom.` };
+    }
+    if (error) console.error("[enregistrerRoleAction]", error);
     return {
       success: false,
-      error: doublon
-        ? `Un rôle « ${name} » existe déjà. Choisissez un autre nom.`
-        : "Impossible d'enregistrer le rôle.",
+      error: error ? messageDeRefus(`Rôle « ${name} »`, error) : REFUS_SILENCIEUX,
     };
   }
 

@@ -202,7 +202,7 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
             />
           </div>
           <Button onClick={handleSaveMargin} disabled={isDemo || isPending}>
-            Enregistrer
+            Enregistrer la marge
           </Button>
         </CardContent>
       </Card>
