@@ -52,6 +52,7 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
   const [isPending, startTransition] = useTransition();
   const [rateType, setRateType] = useState("regular");
   const [csvMessage, setCsvMessage] = useState("");
+  const [lignesIgnorees, setLignesIgnorees] = useState<{ compte: number; apercu: string[] } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -118,16 +119,22 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
     if (!file || isDemo) return;
     setCsvMessage("");
     setError("");
+    setLignesIgnorees(null);
     const content = await file.text();
     startTransition(async () => {
       const result = await importCatalogPricesCsvAction(content);
       if (!result.success) setError(result.error);
       else if (result.data) {
+        const d = result.data;
         setCsvMessage(
-          `${result.data.imported} prix importé(s)` +
-            (result.data.skipped ? `, ${result.data.skipped} ignoré(s) (override manuel)` : "") +
-            (result.data.errors.length ? ` — ${result.data.errors.length} erreur(s)` : "")
+          `${d.imported} prix importé(s)` +
+            (d.skipped ? `, ${d.skipped} conservé(s) (prix personnalisé)` : "") +
+            (d.errors.length ? ` — ${d.errors.length} erreur(s)` : "")
         );
+        // LES LIGNES ÉCARTÉES SE DISENT. Un fichier de 718 lignes pouvait en
+        // importer 300 et annoncer « succès » : on ne voyait le trou qu'en
+        // facturant, des semaines plus tard.
+        setLignesIgnorees(d.ignorees ? { compte: d.ignorees, apercu: d.apercuIgnorees } : null);
       }
     });
   }
@@ -237,6 +244,31 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
             Exemple : ,Coude 90° cuivre,3/4&quot;,12.50,https://example.com/coude
           </p>
           {csvMessage && <p className="text-sm text-green-700">{csvMessage}</p>}
+
+          {lignesIgnorees && (
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+              <p className="font-medium">
+                {lignesIgnorees.compte} ligne{lignesIgnorees.compte > 1 ? "s" : ""} n&apos;
+                {lignesIgnorees.compte > 1 ? "ont" : "a"} pas pu être lue
+                {lignesIgnorees.compte > 1 ? "s" : ""}.
+              </p>
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                {lignesIgnorees.apercu.map((l) => (
+                  <li key={l}>{l}</li>
+                ))}
+              </ul>
+              {lignesIgnorees.compte > lignesIgnorees.apercu.length && (
+                <p className="mt-1 text-xs">
+                  … et {lignesIgnorees.compte - lignesIgnorees.apercu.length} autre
+                  {lignesIgnorees.compte - lignesIgnorees.apercu.length > 1 ? "s" : ""}.
+                </p>
+              )}
+              <p className="mt-2 text-xs">
+                Corrigez ces lignes et réimportez le fichier&nbsp;: les prix déjà en place ne
+                seront pas dupliqués.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
