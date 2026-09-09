@@ -19,6 +19,7 @@ import {
   type ExistingSubscriptionRow,
 } from "@/lib/billing/subscription-status";
 import { subscriptionPeriodEnd } from "@/lib/billing/stripe-payload";
+import { ligneAbonnementDepuisStripe } from "@/lib/billing/enregistrement-abonnement";
 
 function asId(value: string | { id: string } | null | undefined): string | null {
   if (!value) return null;
@@ -168,6 +169,42 @@ export async function syncSubscriptionToCompany(
   const { error } = await admin.from("companies").update(update).eq("id", companyId);
   if (error) throw error;
 
+  // LA TRACE DE L'ARGENT, à côté de l'état d'accès.
+  //
+  // `companies` dit QUI a accès ; il ne porte aucun montant. Le tableau de
+  // revenus ne pouvait donc afficher que zéro, même avec des clients qui
+  // paient — le même mensonge que « Stripe non connecté », en pire, parce
+  // qu'on ne doute pas d'un chiffre.
+  //
+  // Non bloquant : l'accès du client est déjà enregistré ci-dessus. Un échec
+  // ici doit coûter une ligne de statistique, jamais un abonnement.
+  const ligne = ligneAbonnementDepuisStripe(
+    subscription,
+    companyId,
+    nomDuPlan(tier, cycle),
+  );
+  if (ligne) {
+    // Enveloppé : « non bloquant » doit tenir même si l'appel LÈVE au lieu de
+    // rendre une erreur. Sans ce filet, une trace impossible à écrire ferait
+    // échouer le webhook et Stripe le rejouerait indéfiniment.
+    try {
+      const { error: erreurTrace } = await admin
+        .from("company_subscriptions")
+        .upsert(ligne, { onConflict: "stripe_subscription_id" });
+      if (erreurTrace) {
+        console.error(
+          `Stripe: montant de ${subscription.id} non enregistré:`,
+          erreurTrace.message,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `Stripe: trace d'abonnement ${subscription.id} impossible:`,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
+  }
+
   if (
     matched &&
     subscriptionMetadataNeedsRealign(subscription.metadata, matched.tier, matched.cycle)
@@ -176,6 +213,26 @@ export async function syncSubscriptionToCompany(
   }
 
   return { companyId, status: subscription.status, tier, cycle };
+}
+
+/**
+ * Le libellé lisible du plan, pour le tableau de revenus.
+ *
+ * `entrepreneur` + `monthly` ne se lit pas dans un rapport ; « Entrepreneur —
+ * mensuel » se lit. Rend `null` plutôt qu'un libellé inventé quand le palier
+ * n'a pas pu être résolu.
+ */
+function nomDuPlan(tier: SubscriptionTier | null, cycle: BillingCycle | null): string | null {
+  if (!tier) return null;
+  const paliers: Record<string, string> = {
+    solo: "Solo",
+    entreprise: "Entreprise",
+    entrepreneur: "Entrepreneur",
+    croissance: "Croissance",
+  };
+  const nom = paliers[tier] ?? tier;
+  if (!cycle) return nom;
+  return `${nom} — ${cycle === "annual" ? "annuel" : "mensuel"}`;
 }
 
 /** Recharge l'abonnement depuis Stripe puis synchronise (retour de Checkout). */
