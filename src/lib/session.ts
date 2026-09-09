@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
@@ -16,7 +17,24 @@ export class AuthError extends Error {
   }
 }
 
-export async function getSessionUser(): Promise<User | null> {
+/**
+ * MÉMOÏSÉES POUR LA DURÉE D'UNE REQUÊTE.
+ *
+ * Mesuré le 9 septembre 2026 sur /schedule : `auth.getUser()` appelé 14 fois,
+ * `profiles` lu 26 fois, `company_members` 27 fois, `profiles.status` 13 fois —
+ * pour afficher UNE page. Les données du chantier, elles, n'étaient lues qu'une
+ * fois chacune : le gaspillage était entièrement dans la question « qui es-tu
+ * et qu'as-tu le droit de voir ? », reposée par chaque composant de page et
+ * chaque action serveur.
+ *
+ * Quatre-vingts allers-retours vers Supabase sur cent trente, pour une réponse
+ * qui ne peut pas changer entre le début et la fin d'un même affichage.
+ *
+ * `cache()` de React mémoïse PAR REQUÊTE. Le cache naît et meurt avec elle : il
+ * ne peut donc pas servir la réponse d'un utilisateur à un autre. Ce n'est pas
+ * un cache de données, c'est la fin d'une répétition.
+ */
+export const getSessionUser = cache(async (): Promise<User | null> => {
   const demo = await getDemoSession();
   if (demo) {
     return {
@@ -49,7 +67,7 @@ export async function getSessionUser(): Promise<User | null> {
     isDemo: false,
     emailVerified: Boolean(user.email_confirmed_at),
   };
-}
+});
 
 export async function requireSessionUser(): Promise<User> {
   const user = await getSessionUser();
@@ -65,7 +83,7 @@ export async function requireVerifiedUser(): Promise<User> {
   return user;
 }
 
-async function fetchCompanyFromDb(companyId: string): Promise<Company | null> {
+const fetchCompanyFromDb = cache(async (companyId: string): Promise<Company | null> => {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();
@@ -119,9 +137,9 @@ async function fetchCompanyFromDb(companyId: string): Promise<Company | null> {
     },
     isDemo: false,
   };
-}
+});
 
-async function fetchProfileFromDb(userId: string): Promise<Profile | null> {
+const fetchProfileFromDb = cache(async (userId: string): Promise<Profile | null> => {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();
@@ -144,12 +162,12 @@ async function fetchProfileFromDb(userId: string): Promise<Profile | null> {
     status: data.status,
     employeeId: data.employee_id ? String(data.employee_id) : null,
   };
-}
+});
 
-async function fetchMembershipRoleFromDb(
+const fetchMembershipRoleFromDb = cache(async (
   userId: string,
   companyId: string,
-): Promise<ProfileRole | null> {
+): Promise<ProfileRole | null> => {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();
@@ -161,9 +179,9 @@ async function fetchMembershipRoleFromDb(
     .maybeSingle();
 
   return data?.role ?? null;
-}
+});
 
-async function fetchEmployeeIdForUser(userId: string): Promise<string | null> {
+const fetchEmployeeIdForUser = cache(async (userId: string): Promise<string | null> => {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = await createClient();
@@ -182,7 +200,7 @@ async function fetchEmployeeIdForUser(userId: string): Promise<string | null> {
     .maybeSingle();
 
   return employee?.id ? String(employee.id) : null;
-}
+});
 
 function enrichUserFromProfile(user: User, profile: Profile | null, membershipRole: ProfileRole): User {
   const name = profile
@@ -198,7 +216,7 @@ function enrichUserFromProfile(user: User, profile: Profile | null, membershipRo
   };
 }
 
-export async function getTenantContext(): Promise<TenantContext | null> {
+export const getTenantContext = cache(async (): Promise<TenantContext | null> => {
   const user = await getSessionUser();
   if (!user) return null;
 
@@ -252,7 +270,7 @@ export async function getTenantContext(): Promise<TenantContext | null> {
     employeeId,
     isDemo: false,
   };
-}
+});
 
 export async function requireTenantContext(): Promise<TenantContext> {
   const ctx = await getTenantContext();

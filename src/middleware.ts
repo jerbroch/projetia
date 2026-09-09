@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { PASSWORD_SETUP_PATH, shouldForcePasswordSetup } from "@/lib/password-setup-gate";
 import { CHEMINS_DE_PORTE, porteDeProfil } from "@/lib/profile-access-gate";
+import { enTeteServerTiming } from "@/lib/server-timing";
 import {
   TENANT_PREFIXES,
   chargerStatutDeProfil,
@@ -72,6 +73,14 @@ function hasDemoSession(request: NextRequest): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  // COMBIEN COÛTE LE CONTRÔLE D'ACCÈS, sur le serveur qui sert vraiment le site.
+  //
+  // Chronométrer depuis un poste de développement ne dit rien du produit : un
+  // aller-retour vers Supabase coûte 83 ms depuis un salon et quelques
+  // millisecondes depuis un serveur voisin de la base. L'en-tête rend la vraie
+  // durée visible dans l'onglet Réseau de n'importe quel navigateur, sans
+  // outil ni supposition.
+  const departMiddleware = Date.now();
   let supabaseResponse = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -113,7 +122,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isPublicRoute(pathname)) {
-    return supabaseResponse;
+    return avecEnTeteDeMesure(supabaseResponse, departMiddleware);
   }
 
   const isDemo = hasDemoSession(request);
@@ -125,7 +134,7 @@ export async function middleware(request: NextRequest) {
     if (!emailVerified && !isDemo) {
       return redirectTo(request, "/verify-email");
     }
-    return supabaseResponse;
+    return avecEnTeteDeMesure(supabaseResponse, departMiddleware);
   }
 
   if (isProtected(pathname)) {
@@ -142,8 +151,35 @@ export async function middleware(request: NextRequest) {
     // Un accès retiré doit fermer TOUT DE SUITE, avant les vérifications
     // d'abonnement. Jusqu'ici `profiles.status` était posé par la révocation
     // et lu par personne : la porte restait grande ouverte.
-    if (supabase && userId && !isDemo) {
-      const porte = porteDeProfil(await chargerStatutDeProfil(supabase, userId));
+    // LES TROIS CONTRÔLES PARTENT ENSEMBLE.
+    //
+    // Ils ne dépendent que de l'identifiant de l'utilisateur, jamais l'un de
+    // l'autre. Enchaînés, ils coûtaient trois allers-retours l'un après
+    // l'autre ; mesuré le 9 septembre, le contrôle d'accès représentait 40 à
+    // 49 % du temps serveur de CHAQUE page — y compris /aide, qui ne charge
+    // aucune donnée.
+    //
+    // Lancés de front, ils coûtent le plus lent des trois. L'ordre des
+    // REDIRECTIONS, lui, ne change pas : on décide toujours dans le même
+    // ordre en dessous. Une porte fermée redirige au même endroit qu'avant.
+    //
+    // On paie parfois une lecture pour rien — quand la première porte
+    // redirige, les deux autres réponses sont jetées. C'est une lecture sans
+    // écriture, contre trois allers-retours économisés à chaque page.
+    const surRouteLocataire = isTenantRoute(pathname);
+    const controles =
+      supabase && userId && !isDemo
+        ? await Promise.all([
+            chargerStatutDeProfil(supabase, userId),
+            surRouteLocataire ? shouldBlockTenantRoute(supabase, userId, isDemo) : Promise.resolve(false),
+            surRouteLocataire
+              ? shouldRedirectFieldEmployeeFromAdmin(supabase, userId, pathname, isDemo)
+              : Promise.resolve(false),
+          ])
+        : null;
+
+    if (controles) {
+      const porte = porteDeProfil(controles[0]);
       if (porte !== "ouverte") {
         return redirectTo(request, CHEMINS_DE_PORTE[porte]);
       }
@@ -153,18 +189,13 @@ export async function middleware(request: NextRequest) {
       return redirectTo(request, "/verify-email");
     }
 
-    if (isTenantRoute(pathname) && supabase && userId && !isDemo) {
-      const blocked = await shouldBlockTenantRoute(supabase, userId, isDemo);
+    if (surRouteLocataire && controles) {
+      const blocked = controles[1];
       if (blocked) {
         return redirectTo(request, "/choose-plan");
       }
 
-      const fieldRedirect = await shouldRedirectFieldEmployeeFromAdmin(
-        supabase,
-        userId,
-        pathname,
-        isDemo,
-      );
+      const fieldRedirect = controles[2];
       if (fieldRedirect) {
         const terrainUrl = request.nextUrl.clone();
         terrainUrl.pathname = "/terrain";
@@ -189,7 +220,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(onboardingUrl);
   }
 
-  return supabaseResponse;
+  return avecEnTeteDeMesure(supabaseResponse, departMiddleware);
+}
+
+/**
+ * Ajoute la durée du contrôle d'accès à la réponse.
+ *
+ * `Server-Timing` est lu nativement par les navigateurs : la durée apparaît
+ * dans l'onglet Réseau, à côté du temps total. Pas d'outil à installer, et le
+ * chiffre décrit le serveur qui a répondu — pas la machine qui regarde.
+ */
+function avecEnTeteDeMesure(reponse: NextResponse, depart: number): NextResponse {
+  reponse.headers.set(
+    "Server-Timing",
+    enTeteServerTiming({ acces: Date.now() - depart }),
+  );
+  return reponse;
 }
 
 export const config = {
