@@ -491,31 +491,60 @@ export async function getCompanySubscriptions(): Promise<CompanySubscription[]> 
     .not("stripe_subscription_id", "is", null)
     .order("subscription_started_at", { ascending: false, nullsFirst: false });
 
-  return (data ?? []).map((row) => ({
+  // LE MONTANT VIENT DE LA TRACE DE L'ARGENT, quand elle existe.
+  //
+  // On garde `companies` comme liste faisant foi — c'est elle qui dit qui est
+  // abonné, et une trace manquante ne doit jamais faire disparaître un abonné
+  // du tableau. Le montant, lui, n'est écrit que par le webhook.
+  const ids = (data ?? []).map((r) => String(r.stripe_subscription_id));
+  const traces = new Map<string, { plan_amount_cents: number; currency: string; plan_name: string | null; current_period_start: string | null; cancelled_at: string | null }>();
+  if (ids.length) {
+    const { data: lignes } = await db
+      .from("company_subscriptions")
+      .select("stripe_subscription_id, plan_amount_cents, currency, plan_name, current_period_start, cancelled_at")
+      .in("stripe_subscription_id", ids);
+    for (const l of lignes ?? []) {
+      traces.set(String(l.stripe_subscription_id), {
+        plan_amount_cents: Number(l.plan_amount_cents ?? 0),
+        currency: String(l.currency ?? "cad"),
+        plan_name: l.plan_name ? String(l.plan_name) : null,
+        current_period_start: l.current_period_start ? String(l.current_period_start) : null,
+        cancelled_at: l.cancelled_at ? String(l.cancelled_at) : null,
+      });
+    }
+  }
+
+  return (data ?? []).map((row) => {
+    const trace = traces.get(String(row.stripe_subscription_id));
+    return {
     id: String(row.id),
     companyId: String(row.id),
     stripeCustomerId: row.stripe_customer_id ? String(row.stripe_customer_id) : null,
     stripeSubscriptionId: row.stripe_subscription_id ? String(row.stripe_subscription_id) : null,
-    planName: row.plan_name
-      ? String(row.plan_name)
-      : row.subscription_plan
-        ? String(row.subscription_plan)
-        : row.subscription_tier
-          ? String(row.subscription_tier)
-          : null,
-    // Le montant n'est pas sur `companies`. Zéro est ici la valeur HONNÊTE :
-    // mieux vaut un montant absent qu'un montant inventé dans un tableau de
-    // revenus. Il viendra quand le webhook enregistrera le prix payé.
-    planAmountCents: 0,
-    currency: "cad",
+    planName:
+      trace?.plan_name ??
+      (row.plan_name
+        ? String(row.plan_name)
+        : row.subscription_plan
+          ? String(row.subscription_plan)
+          : row.subscription_tier
+            ? String(row.subscription_tier)
+            : null),
+    // Zéro reste la valeur quand la trace manque : mieux vaut un montant
+    // absent qu'un montant inventé dans un tableau de revenus.
+    planAmountCents: trace?.plan_amount_cents ?? 0,
+    currency: trace?.currency ?? "cad",
     status: String(row.subscription_status ?? "unknown"),
-    currentPeriodStart: row.subscription_started_at ? String(row.subscription_started_at) : null,
+    currentPeriodStart:
+      trace?.current_period_start ??
+      (row.subscription_started_at ? String(row.subscription_started_at) : null),
     currentPeriodEnd: row.subscription_current_period_end
       ? String(row.subscription_current_period_end)
       : null,
-    cancelledAt: null,
+    cancelledAt: trace?.cancelled_at ?? null,
     createdAt: String(row.subscription_started_at ?? row.created_at),
-  }));
+    };
+  });
 }
 
 export async function getCompanySubscriptionHistory(

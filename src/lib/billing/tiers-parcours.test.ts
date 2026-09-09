@@ -24,6 +24,7 @@ const checkoutCreate = vi.fn();
 const customersCreate = vi.fn();
 const subscriptionsRetrieve = vi.fn();
 const companyUpdates: Array<Record<string, unknown>> = [];
+const tracesAbonnement: Record<string, unknown>[] = [];
 let companyRow: Record<string, unknown> = {};
 
 vi.mock("@/lib/stripe", () => ({
@@ -49,6 +50,13 @@ vi.mock("@/lib/supabase/admin", () => ({
       update: (patch: Record<string, unknown>) => {
         companyUpdates.push(patch);
         return { eq: async () => ({ error: null }) };
+      },
+      // La trace de l'argent : le webhook écrit le montant payé dans
+      // `company_subscriptions`. La simulation doit la porter, sinon
+      // l'épreuve valide un client qui n'existe pas.
+      upsert: async (ligne: Record<string, unknown>) => {
+        tracesAbonnement.push(ligne);
+        return { error: null };
       },
     }),
   }),
@@ -86,6 +94,7 @@ beforeEach(() => {
   delete process.env.SUBSCRIPTION_TRIAL_DAYS;
   companyRow = { stripe_customer_id: "cus_test", stripe_subscription_id: null };
   companyUpdates.length = 0;
+  tracesAbonnement.length = 0;
   checkoutCreate.mockReset().mockResolvedValue({
     id: "cs_test",
     url: "https://checkout.stripe.com/c/pay/cs_test",
@@ -241,5 +250,36 @@ describe("garde-fous entre paliers", () => {
     });
     expect(result?.tier).toBeNull();
     expect(companyUpdates.at(-1)!.subscription_tier).toBeUndefined();
+  });
+});
+
+describe("la trace de l'argent", () => {
+  // Un tableau de revenus qui affiche zéro pendant que des clients paient est
+  // pire qu'un message d'erreur : on ne doute pas d'un chiffre.
+  it("enregistre le montant payé au passage du webhook", async () => {
+    tracesAbonnement.length = 0;
+    await syncSubscriptionToCompany({
+      id: "sub_trace",
+      status: "active",
+      customer: "cus_trace",
+      items: {
+        data: [
+          {
+            quantity: 1,
+            current_period_end: 1_759_678_400,
+            price: { id: process.env.STRIPE_PRICE_SOLO_MONTHLY, unit_amount: 4900, currency: "cad" },
+          },
+        ],
+      },
+      metadata: { company_id: "co-1" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any, "co-1");
+
+    expect(tracesAbonnement).toHaveLength(1);
+    const trace = tracesAbonnement[0];
+    expect(trace.stripe_subscription_id).toBe("sub_trace");
+    expect(trace.plan_amount_cents).toBe(4900);
+    expect(trace.currency).toBe("cad");
+    expect(trace.status).toBe("active");
   });
 });
