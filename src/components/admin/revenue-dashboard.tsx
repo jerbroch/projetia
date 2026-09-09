@@ -16,10 +16,15 @@ export function RevenueDashboard({ metrics }: RevenueDashboardProps) {
           <CardTitle>Revenus SaaS</CardTitle>
         </CardHeader>
         <CardContent>
+          {/*
+            L'ancien message renvoyait vers `company_subscriptions`, une table
+            que rien ne remplit : le webhook écrit sur `companies`. Il envoyait
+            donc chercher une panne inexistante dans un endroit sans rapport.
+          */}
           <p className="text-muted-foreground">
-            Données d&apos;abonnement non disponibles. Connectez Stripe et enregistrez les
-            abonnements dans <code className="text-xs">company_subscriptions</code> pour voir
-            les métriques réelles.
+            Aucun abonnement payant pour l&apos;instant. Les métriques
+            apparaîtront au premier encaissement — l&apos;état de Stripe est
+            indiqué sur la page Abonnements.
           </p>
         </CardContent>
       </Card>

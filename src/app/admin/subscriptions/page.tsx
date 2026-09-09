@@ -14,6 +14,10 @@ import {
   getUnreadAlertCount,
 } from "@/lib/data/platform-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  etatStripeDepuisEnvironnement,
+  messageAucunAbonne,
+} from "@/lib/billing/etat-stripe";
 import { StatusBadge } from "@/components/shared/status-badge";
 
 export default async function AdminSubscriptionsPage() {
@@ -23,6 +27,15 @@ export default async function AdminSubscriptionsPage() {
     getPlatformCompanies(),
     getUnreadAlertCount(),
   ]);
+
+  // Zéro abonné et Stripe débranché sont deux situations différentes. On les
+  // distingue, et on dit combien d'entreprises sont en beta ou en essai — sans
+  // ce chiffre, « aucun abonné » ressemble à une panne.
+  const etatStripe = etatStripeDepuisEnvironnement();
+  const comptes = {
+    beta: companies.filter((c) => c.accessType === "beta" || c.isBeta).length,
+    essai: companies.filter((c) => c.subscriptionStatus === "trial").length,
+  };
 
   const companyNames = new Map(companies.map((c) => [c.id, c.name]));
 
@@ -34,10 +47,21 @@ export default async function AdminSubscriptionsPage() {
       description="Abonnements enregistrés (données réelles uniquement)"
     >
       {subscriptions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          Aucun abonnement enregistré. Les données apparaîtront lorsque Stripe sera connecté et
-          que les abonnements seront synchronisés dans company_subscriptions.
-        </p>
+        <div className="space-y-2">
+          {/*
+            L'ancien message accusait Stripe dès que la liste était vide, sans
+            rien vérifier — et la liste lisait une table que rien ne remplit.
+            Il aurait dit « connectez Stripe » avec cent abonnés payants.
+          */}
+          <p className="text-sm text-muted-foreground">
+            {messageAucunAbonne(etatStripe, comptes)}
+          </p>
+          {!etatStripe.pretAEncaisser && (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Tant que ce point n&apos;est pas réglé, aucun abonnement ne pourra être enregistré.
+            </p>
+          )}
+        </div>
       ) : (
         <Table>
           <TableHeader>

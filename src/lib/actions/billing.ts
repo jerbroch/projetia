@@ -16,7 +16,7 @@ import {
   getOrCreateJobBillingSheet,
   importCatalogReferencePrices,
   importMaterialCatalogCsv,
-  parseCatalogPricesCsv,
+  lireCatalogPricesCsv,
   parseMaterialCsv,
   recalculateBillingSheetTotals,
   resolveQuoteInvoiceContext,
@@ -667,17 +667,47 @@ export async function updateDefaultMaterialMarginAction(
 
 export async function importCatalogPricesCsvAction(
   csvContent: string
-): Promise<BillingActionResult<{ imported: number; skipped: number; errors: string[] }>> {
+): Promise<
+  BillingActionResult<{
+    imported: number;
+    skipped: number;
+    errors: string[];
+    ignorees: number;
+    apercuIgnorees: string[];
+  }>
+> {
   const ctx = await requireTenantContext();
   if (ctx.isDemo) return fail("Import démo non disponible.");
   if (!isSupabaseConfigured()) return fail("Supabase n'est pas configuré.");
 
-  const rows = parseCatalogPricesCsv(csvContent);
-  if (rows.length === 0) return fail("Fichier CSV vide ou invalide.");
+  const { rows, ignorees } = lireCatalogPricesCsv(csvContent);
+
+  if (rows.length === 0) {
+    // ON DIT POURQUOI. « Fichier vide ou invalide » sur un fichier de 718
+    // lignes envoie chercher au mauvais endroit ; la première raison réelle
+    // désigne la colonne ou le format en cause.
+    const premiere = ignorees[0];
+    return fail(
+      premiere
+        ? `Aucune ligne lisible. Ligne ${premiere.ligne} : ${premiere.raison}. ` +
+            `Colonnes attendues : name et reference_price.`
+        : "Fichier vide, ou sans ligne d'entête.",
+    );
+  }
 
   const result = await importCatalogReferencePrices(ctx.company.id, rows);
   revalidatePath("/settings");
-  return { success: true, data: result };
+  return {
+    success: true,
+    data: {
+      ...result,
+      // Les lignes écartées étaient perdues en silence : un fichier pouvait en
+      // importer 300 sur 718 et annoncer « succès ». On ne voyait le trou qu'en
+      // facturant. On en rapporte le compte et les dix premières.
+      ignorees: ignorees.length,
+      apercuIgnorees: ignorees.slice(0, 10).map((l) => `Ligne ${l.ligne} — ${l.raison}`),
+    },
+  };
 }
 
 export async function updateCatalogCustomPriceAction(input: {

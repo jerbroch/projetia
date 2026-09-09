@@ -465,13 +465,57 @@ export async function getAtRiskCompanies(): Promise<AtRiskCompany[]> {
   return results;
 }
 
+/**
+ * Les abonnements, LUS LÀ OÙ ILS SONT ÉCRITS.
+ *
+ * Cette fonction interrogeait `company_subscriptions`, une table que RIEN NE
+ * REMPLIT : le webhook Stripe écrit sur `companies` — voir
+ * `syncSubscriptionToCompany`. L'administration affichait donc « aucun
+ * abonnement » quel que soit le nombre d'abonnés réels, et blâmait Stripe dans
+ * son message d'état vide.
+ *
+ * Vérifié en production le 8 septembre 2026 : `company_subscriptions` contient
+ * zéro rangée, et la table existe depuis le début.
+ *
+ * On lit donc `companies`, qui porte la vérité. La table historique est laissée
+ * en place pour `getCompanySubscriptionHistory`, qui ne servira que le jour où
+ * quelque chose l'alimentera.
+ */
 export async function getCompanySubscriptions(): Promise<CompanySubscription[]> {
   const db = admin();
   const { data } = await db
-    .from("company_subscriptions")
-    .select("*")
-    .order("created_at", { ascending: false });
-  return (data ?? []).map(mapSubscription);
+    .from("companies")
+    .select("id, name, stripe_customer_id, stripe_subscription_id, plan_name, subscription_plan, subscription_tier, subscription_status, subscription_started_at, subscription_current_period_end, created_at")
+    // Un abonnement Stripe, ou rien : une entreprise en beta n'est pas un
+    // abonné, et la compter en gonflerait le chiffre d'affaires affiché.
+    .not("stripe_subscription_id", "is", null)
+    .order("subscription_started_at", { ascending: false, nullsFirst: false });
+
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    companyId: String(row.id),
+    stripeCustomerId: row.stripe_customer_id ? String(row.stripe_customer_id) : null,
+    stripeSubscriptionId: row.stripe_subscription_id ? String(row.stripe_subscription_id) : null,
+    planName: row.plan_name
+      ? String(row.plan_name)
+      : row.subscription_plan
+        ? String(row.subscription_plan)
+        : row.subscription_tier
+          ? String(row.subscription_tier)
+          : null,
+    // Le montant n'est pas sur `companies`. Zéro est ici la valeur HONNÊTE :
+    // mieux vaut un montant absent qu'un montant inventé dans un tableau de
+    // revenus. Il viendra quand le webhook enregistrera le prix payé.
+    planAmountCents: 0,
+    currency: "cad",
+    status: String(row.subscription_status ?? "unknown"),
+    currentPeriodStart: row.subscription_started_at ? String(row.subscription_started_at) : null,
+    currentPeriodEnd: row.subscription_current_period_end
+      ? String(row.subscription_current_period_end)
+      : null,
+    cancelledAt: null,
+    createdAt: String(row.subscription_started_at ?? row.created_at),
+  }));
 }
 
 export async function getCompanySubscriptionHistory(

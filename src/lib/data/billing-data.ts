@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { champ, lireCsv, nombreDepuisTexte } from "@/lib/csv-robuste";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import {
   buildInvoiceLineSnapshots,
@@ -763,32 +764,91 @@ export interface CatalogPriceImportRow {
   sourceUrl?: string;
 }
 
-export function parseCatalogPricesCsv(content: string): CatalogPriceImportRow[] {
-  const lines = content.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
+/** Ce qui n'a pas pu être lu, avec le numéro de ligne du fichier. */
+export interface LigneIgnoree {
+  ligne: number;
+  raison: string;
+  contenu: string;
+}
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const idx = (name: string) => headers.indexOf(name);
+export interface LectureCatalogueCsv {
+  rows: CatalogPriceImportRow[];
+  ignorees: LigneIgnoree[];
+}
 
+/**
+ * Lit un fichier de prix de catalogue.
+ *
+ * CE QUI EST IGNORÉ EST RAPPORTÉ, AVEC SON NUMÉRO DE LIGNE. L'ancienne version
+ * écartait les lignes en silence : un fichier de 718 lignes pouvait en importer
+ * 300 et annoncer « succès ». On ne voyait le trou qu'en facturant.
+ */
+export function lireCatalogPricesCsv(content: string): LectureCatalogueCsv {
+  const { entetes, lignes } = lireCsv(content);
   const rows: CatalogPriceImportRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim());
-    if (cols.every((c) => !c)) continue;
+  const ignorees: LigneIgnoree[] = [];
 
-    const referencePrice = parseFloat(
-      cols[idx("reference_price")] ?? cols[idx("prix_reference")] ?? cols[idx("price")] ?? "0"
-    );
-    if (!referencePrice || Number.isNaN(referencePrice)) continue;
+  lignes.forEach((champs, i) => {
+    // +2 : l'entête est la ligne 1, et l'humain compte à partir de 1.
+    const numero = i + 2;
+    const contenu = champs.join(" | ").slice(0, 80);
+
+    // PLUS DE CHAMPS QUE D'ENTÊTES : la ligne est ambiguë.
+    //
+    // Le cas typique est un prix écrit « 1234,56 » dans un fichier séparé par
+    // des virgules : le nombre se coupe en deux et la colonne de prix reçoit
+    // « 1234 ». Le fichier s'importerait « avec succès » en perdant les cents
+    // de chaque ligne — un défaut qu'on ne découvrirait qu'en facturant.
+    //
+    // On refuse et on nomme la cause : le fichier doit être enregistré avec le
+    // point-virgule, ou les champs mis entre guillemets.
+    if (champs.length > entetes.length) {
+      ignorees.push({
+        ligne: numero,
+        raison:
+          `${champs.length} valeurs pour ${entetes.length} colonnes — un nombre à virgule ` +
+          `a probablement été coupé. Enregistrez le fichier avec le point-virgule.`,
+        contenu,
+      });
+      return;
+    }
+
+    const nom = champ(entetes, champs, "name", "nom");
+    if (!nom) {
+      ignorees.push({ ligne: numero, raison: "aucun nom d'article", contenu });
+      return;
+    }
+
+    const brut = champ(entetes, champs, "reference_price", "prix_reference", "price", "prix");
+    const prix = nombreDepuisTexte(brut);
+    if (prix == null) {
+      ignorees.push({
+        ligne: numero,
+        raison: brut ? `prix illisible : « ${brut} »` : "aucun prix",
+        contenu,
+      });
+      return;
+    }
+    if (prix <= 0) {
+      ignorees.push({ ligne: numero, raison: "prix à zéro ou négatif", contenu });
+      return;
+    }
 
     rows.push({
-      sku: cols[idx("sku")] ?? undefined,
-      name: cols[idx("name")] ?? cols[idx("nom")] ?? "",
-      diameter: cols[idx("diameter")] ?? cols[idx("diametre")] ?? undefined,
-      referencePrice,
-      sourceUrl: cols[idx("source_url")] ?? cols[idx("url")] ?? undefined,
+      sku: champ(entetes, champs, "sku"),
+      name: nom,
+      diameter: champ(entetes, champs, "diameter", "diametre"),
+      referencePrice: prix,
+      sourceUrl: champ(entetes, champs, "source_url", "url"),
     });
-  }
-  return rows.filter((r) => r.name);
+  });
+
+  return { rows, ignorees };
+}
+
+/** @deprecated Utiliser `lireCatalogPricesCsv`, qui rapporte les lignes ignorées. */
+export function parseCatalogPricesCsv(content: string): CatalogPriceImportRow[] {
+  return lireCatalogPricesCsv(content).rows;
 }
 
 export async function importCatalogReferencePrices(
@@ -918,25 +978,19 @@ export async function importMaterialCatalogCsv(
 }
 
 export function parseMaterialCsv(content: string): CsvImportRow[] {
-  const lines = content.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
+  // Même analyse robuste que les prix : point-virgule d'Excel en français,
+  // guillemets, BOM, virgule décimale. Voir `csv-robuste.ts`.
+  const { entetes, lignes } = lireCsv(content);
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const idx = (name: string) => headers.indexOf(name);
+  const rows: CsvImportRow[] = lignes.map((champs) => ({
+    name: champ(entetes, champs, "name", "nom") ?? "",
+    categorySlug: champ(entetes, champs, "category", "categorie") ?? "",
+    diameter: champ(entetes, champs, "diameter", "diametre"),
+    fittingType: champ(entetes, champs, "fitting_type", "type"),
+    supplierCode: champ(entetes, champs, "supplier", "fournisseur") ?? "autre",
+    sku: champ(entetes, champs, "sku"),
+    unitCost: nombreDepuisTexte(champ(entetes, champs, "unit_cost", "cout", "coût")) ?? 0,
+  }));
 
-  const rows: CsvImportRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim());
-    if (cols.every((c) => !c)) continue;
-    rows.push({
-      name: cols[idx("name")] ?? cols[idx("nom")] ?? "",
-      categorySlug: cols[idx("category")] ?? cols[idx("categorie")] ?? "",
-      diameter: cols[idx("diameter")] ?? cols[idx("diametre")] ?? undefined,
-      fittingType: cols[idx("fitting_type")] ?? cols[idx("type")] ?? undefined,
-      supplierCode: cols[idx("supplier")] ?? cols[idx("fournisseur")] ?? "autre",
-      sku: cols[idx("sku")] ?? undefined,
-      unitCost: parseFloat(cols[idx("unit_cost")] ?? cols[idx("cout")] ?? "0"),
-    });
-  }
   return rows.filter((r) => r.name && r.categorySlug);
 }
