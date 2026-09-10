@@ -16,7 +16,20 @@ import type { QuoteCostEstimation } from "@/types";
  * La barrière de production de la suite e2e s'applique ici comme ailleurs.
  */
 
-const admin = createAdminClient as unknown as () => ReturnType<typeof createAdminClient>;
+/**
+ * Sans identifiants, ce test ne peut rien éprouver. Il se saute alors — mais en
+ * le DISANT : un test qui disparaît sans bruit ne protège rien, et on croirait
+ * la suite verte alors qu'elle n'a rien vérifié.
+ */
+const identifiantsPresents = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+if (!identifiantsPresents) {
+  console.warn(
+    "\n⚠ versionnage-identite : sauté, faute d'identifiants Supabase.\n" +
+      "  Posez .env.e2e (local) ou les secrets DEV_SUPABASE_* (CI) pour qu'il s'exécute.\n"
+  );
+}
 
 /** Trois lignes de main-d'œuvre, identifiées comme le fait l'éditeur. */
 function estimation(lignes: Array<{ id: string; heures: number; taux: number }>): QuoteCostEstimation {
@@ -34,12 +47,15 @@ function estimation(lignes: Array<{ id: string; heures: number; taux: number }>)
   };
 }
 
-describe("l'identité d'une ligne survit à une révision", () => {
-  const db = admin();
+describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une révision", () => {
+  // Construit dans beforeAll : le faire au chargement du module ferait échouer
+  // la suite entière là où les identifiants manquent, avant même le skip.
+  let db: ReturnType<typeof createAdminClient>;
   let companyId = "";
   let quoteId = "";
 
   beforeAll(async () => {
+    db = createAdminClient();
     cibleConfirmee(); // refuse la production, comme toute la suite
 
     const { data: c, error: ec } = await db
