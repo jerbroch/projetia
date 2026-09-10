@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { supprimerEntreprise } from "@/lib/data/supprimer-entreprise";
 import "./load-env";
 import { cibleConfirmee } from "./target-guard";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -86,12 +87,9 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
     if (!companyId) return;
     // L'ordre compte : company_id est en ON DELETE RESTRICT vers companies,
     // exactement la conséquence notée au journal des dettes.
-    await db.from("quote_line_versions").delete().eq("company_id", companyId);
-    await db.from("quote_line_items").delete().eq("company_id", companyId);
-    await db.from("quote_versions").delete().eq("company_id", companyId);
-    await db.from("versioning_write_failures").delete().eq("company_id", companyId);
     if (quoteId) await db.from("quotes").delete().eq("id", quoteId);
-    await db.from("companies").delete().eq("id", companyId);
+    // Le versionnage est en ON DELETE RESTRICT : le geste partagé s'en occupe.
+    await supprimerEntreprise(db as never, companyId);
   });
 
   /** Les identités en base, indexées par l'identifiant que porte l'éditeur. */

@@ -150,27 +150,31 @@ hors province — il verra un calendrier vide sans comprendre pourquoi.
 
 **Décision de Jérôme le 2 septembre 2026 :** noter, corriger plus tard.
 
-## Supprimer une entreprise deviendra impossible quand le versionnage écrira
+## Supprimer une entreprise passe par un seul geste — RÉGLÉ
 
 La migration 045 pose `quote_versions.company_id → companies ON DELETE RESTRICT`,
-délibérément à contre-courant du schéma (31 clés sur 35 sont en CASCADE). C'est le
-but : une soumission envoyée est une pièce, et supprimer une entreprise ne doit pas
+délibérément à contre-courant du schéma (31 clés sur 35 sont en CASCADE) : une
+soumission envoyée est une pièce, et supprimer une entreprise ne doit pas
 l'effacer sans que personne ne l'ait demandé.
 
-MESURÉ le 9 septembre 2026 : avec RESTRICT comme avec NO ACTION, `delete from
-companies` est refusé dès qu'une version existe — la cascade venant de `quotes` ne
-prend pas les devants.
+CE QUI EST ARRIVÉ, le 10 septembre 2026. Dès que le versionnage s'est mis à
+écrire, la purge des locataires e2e a cessé de fonctionner :
 
-Aujourd'hui rien ne casse : les trois tables sont vides. Le jour où le versionnage
-écrira, ces chemins échoueront tant qu'ils n'effaceront pas d'abord les
-`quote_versions` :
+    [E2E globalTeardown] Cleanup skipped: suppression des entreprises
+    impossible : update or delete on table "companies" violates foreign key
+    constraint "quote_versions_company_id_fkey"
 
-- `e2e/helpers/purge-e2e-tenants.ts`
-- `e2e/global-setup.ts`
-- `src/lib/actions/platform/test-users.ts`
+Elle échouait en silence — « Cleanup skipped » ne fait pas échouer le passage.
+56 entreprises d'essai se sont accumulées sur le dev en une journée, et la suite
+Playwright a commencé à échouer sur des tests sans rapport.
 
-`src/lib/actions/auth.ts` n'est pas concerné : il ne supprime qu'une entreprise
-tout juste créée par une inscription ratée, qui ne peut pas porter de version.
+CE QUI A ÉTÉ FAIT. Un seul geste partagé, `src/lib/data/supprimer-entreprise.ts`,
+qui efface le versionnage puis l'entreprise. Les sept chemins qui supprimaient
+une entreprise y passent désormais : la purge e2e, `e2e/global-setup.ts`,
+`src/lib/actions/platform/test-users.ts` (×4) et la reprise d'inscription ratée.
+
+Un seul endroit plutôt que sept : en oublier un rendrait la panne invisible
+jusqu'au jour où ce chemin-là sert.
 
 ## `labor_rate_id` reste nul : les statistiques par type d'ouvrage seront approximatives
 

@@ -1,6 +1,7 @@
 "use server";
 
 import { randomBytes } from "crypto";
+import { supprimerEntreprise } from "@/lib/data/supprimer-entreprise";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAdminActivity } from "@/lib/data/platform-data";
@@ -114,7 +115,7 @@ export async function createTestUserAction(): Promise<TestUserActionResult> {
   });
 
   if (profileError) {
-    await db.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(db as never, company.id);
     await db.auth.admin.deleteUser(userId);
     return { success: false, error: "Impossible de créer le profil test." };
   }
@@ -127,7 +128,7 @@ export async function createTestUserAction(): Promise<TestUserActionResult> {
 
   if (memberError) {
     await db.from("profiles").delete().eq("id", userId);
-    await db.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(db as never, company.id);
     await db.auth.admin.deleteUser(userId);
     return { success: false, error: "Impossible de finaliser le compte test." };
   }
@@ -152,7 +153,7 @@ export async function createTestUserAction(): Promise<TestUserActionResult> {
   if (trackError) {
     await db.from("company_members").delete().eq("user_id", userId);
     await db.from("profiles").delete().eq("id", userId);
-    await db.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(db as never, company.id);
     await db.auth.admin.deleteUser(userId);
     if (isSchemaMissing(trackError.message)) {
       return {
@@ -212,7 +213,7 @@ export async function deleteTestUserAction(userId: string): Promise<DeleteTestUs
       .eq("company_id", companyId);
 
     if ((count ?? 0) <= 1) {
-      await db.from("companies").delete().eq("id", companyId);
+      await supprimerEntreprise(db as never, companyId);
     } else {
       await db.from("company_members").delete().eq("user_id", userId);
       await db.from("profiles").delete().eq("id", userId);

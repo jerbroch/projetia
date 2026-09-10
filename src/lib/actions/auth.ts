@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { supprimerEntreprise } from "@/lib/data/supprimer-entreprise";
 import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
@@ -138,7 +139,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
   });
 
   if (profileError) {
-    await admin.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(admin as never, company.id);
     await admin.auth.admin.deleteUser(userId);
     return safeError("Impossible de créer le profil. Veuillez réessayer.");
   }
@@ -151,7 +152,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
 
   if (memberError) {
     await admin.from("profiles").delete().eq("id", userId);
-    await admin.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(admin as never, company.id);
     await admin.auth.admin.deleteUser(userId);
     return safeError("Impossible de finaliser l'inscription. Veuillez réessayer.");
   }
