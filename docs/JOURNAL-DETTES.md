@@ -149,3 +149,45 @@ consultera son horaire depuis un autre fuseau — en voyage, ou un fournisseur
 hors province — il verra un calendrier vide sans comprendre pourquoi.
 
 **Décision de Jérôme le 2 septembre 2026 :** noter, corriger plus tard.
+
+## Supprimer une entreprise deviendra impossible quand le versionnage écrira
+
+La migration 045 pose `quote_versions.company_id → companies ON DELETE RESTRICT`,
+délibérément à contre-courant du schéma (31 clés sur 35 sont en CASCADE). C'est le
+but : une soumission envoyée est une pièce, et supprimer une entreprise ne doit pas
+l'effacer sans que personne ne l'ait demandé.
+
+MESURÉ le 9 septembre 2026 : avec RESTRICT comme avec NO ACTION, `delete from
+companies` est refusé dès qu'une version existe — la cascade venant de `quotes` ne
+prend pas les devants.
+
+Aujourd'hui rien ne casse : les trois tables sont vides. Le jour où le versionnage
+écrira, ces chemins échoueront tant qu'ils n'effaceront pas d'abord les
+`quote_versions` :
+
+- `e2e/helpers/purge-e2e-tenants.ts`
+- `e2e/global-setup.ts`
+- `src/lib/actions/platform/test-users.ts`
+
+`src/lib/actions/auth.ts` n'est pas concerné : il ne supprime qu'une entreprise
+tout juste créée par une inscription ratée, qui ne peut pas porter de version.
+
+## `labor_rate_id` reste nul : les statistiques par type d'ouvrage seront approximatives
+
+Le versionnage (migrations 045/046, `src/lib/quotes/versionnage.ts`) écrit
+`labor_type_snapshot` — le libellé lisible — mais laisse `labor_rate_id` nul.
+
+La raison est dans l'éditeur : une ligne de main-d'œuvre stocke `hourlyRate`,
+jamais le gabarit d'où ce taux vient. `laborTemplateId` n'existe que sur
+`JobBillingLine` (`src/types/index.ts:337`), pas sur `QuoteLaborLine`.
+
+CONSÉQUENCE : tant que c'est nul, regrouper les ouvrages par type reposera sur du
+texte libre — « Compagnon », « compagnon (plomberie) », « Compagnon plomberie »
+compteront pour trois. C'est acceptable pour lire une soumission ; ça ne l'est
+plus le jour où l'on suggérera des prix à partir de l'historique, parce qu'une
+suggestion tirée de trois familles mal séparées sera fausse sans le dire.
+
+POUR LE COMBLER : ajouter `laborTemplateId` à `QuoteLaborLine` et le retenir dans
+`cost-estimation-section.tsx` au moment où le gabarit est choisi. Les lignes déjà
+saisies resteront nulles — on ne peut pas deviner après coup de quel gabarit
+venait un taux.

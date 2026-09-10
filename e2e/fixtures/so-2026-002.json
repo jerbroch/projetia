@@ -1,0 +1,59 @@
+{
+  "quote_number": "SO-2026-002",
+  "title": "Changer chauffe eau",
+  "description": "Changer chauffe eau",
+  "amount": "1620.00",
+  "status": "draft",
+  "terms": null,
+  "deposit_required": false,
+  "deposit_percentage": null,
+  "line_items": [
+    {
+      "total": 1620,
+      "quantity": 1,
+      "unit_price": 1620,
+      "description": "Changer chauffe eau — Changer chauffe eau"
+    }
+  ],
+  "cost_estimation": {
+    "fees": [],
+    "labor": [
+      {
+        "id": "ql-1788266736600-ybgyn",
+        "hours": 4,
+        "total": 500,
+        "category": "compagnon",
+        "hourly_rate": 125,
+        "worker_count": 1,
+        "employee_category": null
+      }
+    ],
+    "materials": [
+      {
+        "id": "qm-1788266712068-6ymdv",
+        "name": "Chauffe-eau 60 gal",
+        "unit": "unité",
+        "total": 1120,
+        "quantity": 1,
+        "is_custom": false,
+        "cost_price": 800,
+        "margin_pct": 0.4,
+        "sale_price": 1120,
+        "description": null,
+        "catalog_item_id": "64057c25-f17a-455d-bc09-68fb3f8838a8"
+      }
+    ],
+    "profitability": {
+      "profit": null,
+      "soldPrice": 1620,
+      "actualCost": null,
+      "actualHours": null,
+      "estimatedHours": 4,
+      "actualMaterialsCost": null,
+      "estimatedMaterialsCost": 800
+    },
+    "show_labor_on_client": false,
+    "manual_price_override": false,
+    "show_materials_on_client": false
+  }
+}

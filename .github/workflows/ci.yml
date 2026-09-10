@@ -40,7 +40,21 @@ jobs:
 
       # Contient react-event-safety, qui attrape en deux secondes le motif
       # `currentTarget` lu après un await — sans navigateur.
+      #
+      # Les identifiants du DÉVELOPPEMENT sont posés ici pour que
+      # e2e/versionnage-identite.test.ts s'exécute réellement : il éprouve
+      # contre la vraie base que l'identité d'une ligne de soumission survit
+      # aux révisions, et c'est la raison d'être du versionnage. Sans eux il
+      # se sauterait en silence, et ne protégerait donc rien.
+      #
+      # Jamais la production : E2E_SUPABASE_REF verrouille la cible, et le
+      # test crée puis efface sa propre entreprise, sans toucher au reste.
       - name: Tests unitaires
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.DEV_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DEV_SUPABASE_SERVICE_ROLE_KEY }}
+          E2E_SUPABASE_REF: ${{ secrets.DEV_SUPABASE_REF }}
         run: npm test
 
       - name: Build de production

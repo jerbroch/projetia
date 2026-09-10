@@ -1,0 +1,24 @@
+{
+  "article": {
+    "id": "64057c25-f17a-455d-bc09-68fb3f8838a8",
+    "company_id": null,
+    "category_id": "9976b934-856e-491d-b87c-66a05bb94fec",
+    "name": "Chauffe-eau 60 gal",
+    "description": null,
+    "diameter": null,
+    "fitting_type": null,
+    "unit": "unité",
+    "is_custom": false,
+    "search_text": "chauffe-eau 60 gal   ",
+    "created_at": "2026-08-10T21:19:54.408Z",
+    "updated_at": "2026-08-10T21:19:54.408Z"
+  },
+  "categorie": {
+    "id": "9976b934-856e-491d-b87c-66a05bb94fec",
+    "company_id": null,
+    "name": "Chauffe-eau",
+    "slug": "chauffe-eau",
+    "sort_order": 23,
+    "created_at": "2026-08-10T21:02:26.620Z"
+  }
+}
