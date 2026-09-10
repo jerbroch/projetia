@@ -37,7 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ChampDecimal } from "@/components/ui/champ-decimal";
+import { ChampDecimal, ChampDecimalNonControle } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import type { FieldCatalogItem, FieldHour, FieldLaborRate, FieldMaterial, ScheduleEvent, ToolListItem } from "@/types";
 
@@ -465,7 +465,7 @@ export function FieldCallDetailClient({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="quantity">Quantité</Label>
-                  <Input id="quantity" name="quantity" type="number" min="0.01" step="0.01" defaultValue="1" required />
+                  <ChampDecimalNonControle id="quantity" name="quantity" defaultValue="1" required />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="unit">Unité</Label>

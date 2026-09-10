@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -268,7 +269,7 @@ export function EmployeeForm({
             </div>
             <div className="space-y-2">
               <Label htmlFor="hourlyRate">Taux horaire</Label>
-              <Input id="hourlyRate" type="number" min="0" step="0.01" value={form.hourlyRate} onChange={(e) => updateField("hourlyRate", e.target.value)} />
+              <ChampDecimal id="hourlyRate" value={form.hourlyRate} onValeurChange={(v) => updateField("hourlyRate", v)} />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="profilePhoto">URL photo de profil (optionnel)</Label>

@@ -101,3 +101,36 @@ export const ChampDecimalNombre = React.forwardRef<HTMLInputElement, ChampDecima
   }
 );
 ChampDecimalNombre.displayName = "ChampDecimalNombre";
+
+/**
+ * LA VARIANTE NON CONTRÔLÉE, POUR LES FORMULAIRES QUI PARTENT EN FormData.
+ *
+ * Certains champs n'ont pas d'état en React : ils portent un `name` et une
+ * valeur de départ, et c'est le formulaire qui les ramasse à l'envoi. Ils ont
+ * malgré tout besoin du filtre de frappe — sans lui, la virgule est avalée et
+ * les chiffres se collent : un taux de 0,09975 devient 009975.
+ */
+export interface ChampDecimalNonControleProps
+  extends Omit<React.ComponentProps<"input">, "type" | "value" | "onChange"> {
+  defaultValue?: string | number;
+  decimales?: number;
+}
+
+export const ChampDecimalNonControle = React.forwardRef<
+  HTMLInputElement,
+  ChampDecimalNonControleProps
+>(({ defaultValue, decimales = 2, ...props }, ref) => {
+  const [texte, setTexte] = React.useState(() =>
+    texteDecimalNettoye(String(defaultValue ?? ""), decimales)
+  );
+  return (
+    <ChampDecimal
+      ref={ref}
+      value={texte}
+      onValeurChange={setTexte}
+      decimales={decimales}
+      {...props}
+    />
+  );
+});
+ChampDecimalNonControle.displayName = "ChampDecimalNonControle";

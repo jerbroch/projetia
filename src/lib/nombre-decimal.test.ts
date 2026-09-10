@@ -21,6 +21,22 @@ describe("decimalDepuisTexte", () => {
     expect(decimalDepuisTexte(1.255)).toBe(1.26);
   });
 
+  it("colle et tape donnent la MÊME valeur", () => {
+    // C'est l'invariant : un même texte, un même résultat, quel que soit le
+    // geste. Deux règles selon le geste rendraient le résultat imprévisible.
+    for (const t of ["1,5", "1.5", "12,75", "0,05"]) {
+      expect(decimalDepuisTexte(texteDecimalNettoye(t))).toBe(decimalDepuisTexte(t));
+    }
+  });
+
+  it("lit un montant collé d'un tableur, dans les deux conventions", () => {
+    expect(decimalDepuisTexte("1,500.75")).toBe(1500.75);   // anglaise
+    expect(decimalDepuisTexte("1.500,75")).toBe(1500.75);   // européenne
+    expect(decimalDepuisTexte("1 500,75")).toBe(1500.75);   // espace insécable
+    expect(decimalDepuisTexte("1 234 567,89")).toBe(1234567.89);
+    expect(decimalDepuisTexte("2 250,00 $")).toBe(2250);
+  });
+
   it("ne prend pas la virgule pour un séparateur de milliers", () => {
     // C'est là que le lecteur de csv-robuste.ts se tromperait : il rendrait
     // 1500. Pour des heures, personne n'écrit de séparateur de milliers.
@@ -61,9 +77,17 @@ describe("texteDecimalNettoye — ce qu'on peut taper", () => {
     expect(texteDecimalNettoye("1.")).toBe("1,");
   });
 
-  it("refuse un deuxième séparateur", () => {
-    expect(texteDecimalNettoye("1,5,3")).toBe("1,53");
-    expect(texteDecimalNettoye("1.5.3")).toBe("1,53");
+  it("avec deux séparateurs, le DERNIER est le décimal", () => {
+    // Le premier séparait les milliers. La position tranche.
+    expect(texteDecimalNettoye("1,5,3")).toBe("15,3");
+    expect(texteDecimalNettoye("1.5.3")).toBe("15,3");
+  });
+
+  it("un séparateur posé en fin de frappe ne réinterprète pas le précédent", () => {
+    // Taper « 1,5 » puis une deuxième virgule ne doit pas faire sauter
+    // l'affichage à « 15, » sous les doigts.
+    expect(texteDecimalNettoye("1,5,")).toBe("1,5");
+    expect(texteDecimalNettoye("1,5.")).toBe("1,5");
   });
 
   it("coupe au-delà de deux décimales", () => {

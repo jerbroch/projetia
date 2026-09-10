@@ -1,5 +1,5 @@
-import { test, expect } from "../fixtures/base";
-import { loginWithCredentials } from "../helpers/auth";
+import { test, expect, tenantAuth } from "../fixtures/base";
+import { ensureDashboardAccess, loginWithCredentials } from "../helpers/auth";
 import {
   cleanupFieldEmployeeTestData, createE2EAdmin, setupFieldEmployeeTestData,
   type FieldEmployeeTestContext,
@@ -133,5 +133,72 @@ test.describe("24. Heures décimales, virgule comprise", () => {
     await expect(champ).toBeVisible({ timeout: 20000 });
     await champ.fill("1,555");
     await expect(champ).toHaveValue("1,55");
+  });
+});
+
+/**
+ * LA MÊME RÈGLE POUR L'ARGENT, ET LA MÊME QUEL QUE SOIT LE GESTE.
+ *
+ * Mesuré avant correction, en tapant touche par touche dans « Montant ($) » :
+ * « 1500,75 » laissait « 150075 » dans le champ. Le navigateur ne vidait pas
+ * la valeur, il jetait la virgule et collait les chiffres — 1 500,75 $ devenait
+ * 150 075 $. Cent fois trop, et l'air d'un chiffre plausible.
+ *
+ * Taper et coller doivent donner la même valeur : deux règles selon le geste
+ * rendraient le résultat imprévisible pour celui qui saisit.
+ */
+test.describe("24b. La virgule dans les montants", () => {
+  test.use({ storageState: tenantAuth, pageName: "Montants décimaux" });
+
+  async function ouvrirLeFormulaire(page: import("@playwright/test").Page) {
+    await page.goto("/quotes");
+    await ensureDashboardAccess(page);
+    await page.getByRole("button", { name: "Nouvelle soumission" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    return dialog.getByLabel("Montant ($)");
+  }
+
+  test("« 1500,75 » tapé ne devient plus 150075", async ({ page }) => {
+    const montant = await ouvrirLeFormulaire(page);
+    await montant.click();
+    await montant.pressSequentially("1500,75", { delay: 25 });
+    await expect(montant).toHaveValue("1500,75");
+  });
+
+  test("taper et coller donnent la même valeur", async ({ page }) => {
+    const montant = await ouvrirLeFormulaire(page);
+
+    await montant.click();
+    await montant.pressSequentially("1500,75", { delay: 25 });
+    const tape = await montant.inputValue();
+
+    await montant.fill("");
+    await montant.fill("1500,75");
+    const colle = await montant.inputValue();
+
+    console.log(`MONTANT >>> tapé « ${tape} » · collé « ${colle} »`);
+    expect(colle).toBe(tape);
+  });
+
+  test("un montant collé d'un tableur garde ses milliers", async ({ page }) => {
+    const montant = await ouvrirLeFormulaire(page);
+    // Deux séparateurs : le dernier est le décimal, l'autre sépare les
+    // milliers. Déterministe, pas une supposition.
+    for (const [colle, attendu] of [
+      ["1,500.75", "1500,75"],
+      ["1.500,75", "1500,75"],
+      ["1 500,75", "1500,75"],
+    ]) {
+      await montant.fill("");
+      await montant.fill(colle);
+      expect(await montant.inputValue(), `collé « ${colle} »`).toBe(attendu);
+    }
+  });
+
+  test("une troisième décimale ne s'inscrit pas dans un montant", async ({ page }) => {
+    const montant = await ouvrirLeFormulaire(page);
+    await montant.fill("12,345");
+    await expect(montant).toHaveValue("12,34");
   });
 });

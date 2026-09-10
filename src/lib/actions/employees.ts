@@ -13,6 +13,7 @@ import { requireTenantContext } from "@/lib/session";
 import { employeeFormSchema } from "@/lib/validations/employees";
 import type { Employee } from "@/types";
 import { getEmployees } from "@/lib/data/tenant-data";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import {
   normaliserCourriel,
   refusCourrielEnDouble,
@@ -63,7 +64,11 @@ function toEmployeeInput(parsed: NonNullable<ReturnType<typeof parseEmployeeForm
     notes: parsed.notes || undefined,
     department: parsed.department || undefined,
     hireDate: parsed.hireDate || undefined,
-    hourlyRate: parsed.hourlyRate ? Number(parsed.hourlyRate) : undefined,
+    // `Number("32,50")` rend NaN et le taux partait vide. Voir
+    // src/lib/nombre-decimal.ts.
+    hourlyRate: parsed.hourlyRate
+      ? decimalDepuisTexte(parsed.hourlyRate) ?? undefined
+      : undefined,
   };
 }
 

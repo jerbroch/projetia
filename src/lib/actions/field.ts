@@ -55,7 +55,7 @@ const fieldMaterialSchema = z.object({
   catalogItemId: z.string().uuid().optional(),
   name: z.string().trim().min(1, "Le nom est requis"),
   description: z.string().optional(),
-  quantity: z.coerce.number().positive("La quantité doit être supérieure à 0"),
+  quantity: zNombreDecimal(z.number().positive("La quantité doit être supérieure à 0")),
   unit: z.string().trim().min(1).default("unité"),
   notes: z.string().optional(),
   isCustom: z.coerce.boolean().optional(),

@@ -709,13 +709,11 @@ export function JobBillingDialog({
                           {showPrices && (
                             <div className="space-y-1">
                               <Label>Taux ($/h)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                              <ChampDecimal
+                                aria-label="Taux horaire"
                                 value={customLaborRate}
-                                onChange={(e) => setCustomLaborRate(e.target.value)}
-                                placeholder="185.00"
+                                onValeurChange={setCustomLaborRate}
+                                placeholder="185,00"
                               />
                             </div>
                           )}
@@ -785,22 +783,19 @@ export function JobBillingDialog({
                         </p>
                         <div className="w-24 space-y-1">
                           <Label>Qté</Label>
-                          <Input
-                            type="number"
-                            min="1"
+                          <ChampDecimal
+                            aria-label="Quantité"
                             value={materialQty}
-                            onChange={(e) => setMaterialQty(e.target.value)}
+                            onValeurChange={setMaterialQty}
                           />
                         </div>
                         {showPrices && (
                           <div className="w-28 space-y-1">
                             <Label>Prix unitaire ($)</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
+                            <ChampDecimal
+                              aria-label="Prix unitaire"
                               value={materialPriceInput}
-                              onChange={(e) => setMaterialPriceInput(e.target.value)}
+                              onValeurChange={setMaterialPriceInput}
                               placeholder="0.00"
                             />
                           </div>
@@ -833,22 +828,19 @@ export function JobBillingDialog({
                           </div>
                           <div className="space-y-1">
                             <Label>Quantité</Label>
-                            <Input
-                              type="number"
-                              min="1"
+                            <ChampDecimal
+                              aria-label="Quantité"
                               value={diversQty}
-                              onChange={(e) => setDiversQty(e.target.value)}
+                              onValeurChange={setDiversQty}
                             />
                           </div>
                           {showPrices && (
                             <div className="space-y-1">
                               <Label>Prix unitaire ($)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                              <ChampDecimal
+                                aria-label="Prix unitaire"
                                 value={diversPrice}
-                                onChange={(e) => setDiversPrice(e.target.value)}
+                                onValeurChange={setDiversPrice}
                               />
                             </div>
                           )}
@@ -909,12 +901,11 @@ export function JobBillingDialog({
                     <div className="flex flex-wrap items-end gap-2 py-2">
                       <div className="w-32 space-y-1">
                         <Label htmlFor="sheetMargin">Marge matériaux (%)</Label>
-                        <Input
+                        <ChampDecimal
+                          aria-label="Marge matériaux"
                           id="sheetMargin"
-                          type="number"
-                          min="0"
                           value={sheetMarginInput}
-                          onChange={(e) => setSheetMarginInput(e.target.value)}
+                          onValeurChange={setSheetMarginInput}
                         />
                       </div>
                       <Button size="sm" variant="outline" onClick={handleSaveSheetMargin} disabled={isPending}>
@@ -1098,14 +1089,12 @@ function BillingLinesTable({
               {showPrices && materialOnly && (
                 <td className="p-2 text-right">
                   {!disabled && onUpdatePrice ? (
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                    <ChampDecimal
+                      aria-label="Prix coûtant"
                       className="ml-auto h-8 w-24 text-right"
                       value={editingPrice[line.id] ?? String(line.unitCost)}
-                      onChange={(e) =>
-                        setEditingPrice((prev) => ({ ...prev, [line.id]: e.target.value }))
+                      onValeurChange={(v) =>
+                        setEditingPrice((prev) => ({ ...prev, [line.id]: v }))
                       }
                       onBlur={() => {
                         const val = lireNombre(editingPrice[line.id] ?? String(line.unitCost));
@@ -1124,14 +1113,12 @@ function BillingLinesTable({
                   <td className="p-2 text-right">{formatCurrency(line.unitCost)}</td>
                   <td className="p-2 text-right">
                     {!disabled && onUpdatePrice ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                      <ChampDecimal
+                        aria-label="Prix de vente"
                         className="ml-auto h-8 w-24 text-right"
                         value={editingPrice[line.id] ?? String(line.unitSellPrice)}
-                        onChange={(e) =>
-                          setEditingPrice((prev) => ({ ...prev, [line.id]: e.target.value }))
+                        onValeurChange={(v) =>
+                          setEditingPrice((prev) => ({ ...prev, [line.id]: v }))
                         }
                         onBlur={() => {
                           const val = lireNombre(

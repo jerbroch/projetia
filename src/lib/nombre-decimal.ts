@@ -17,52 +17,74 @@ import { z } from "zod";
  */
 
 /**
- * La forme normalisée, à pleine précision : chiffres, un seul point décimal.
- * Ne tronque rien — c'est le rôle du filtre de frappe, pas de la lecture.
+ * LA RÈGLE, UNE SEULE, QUEL QUE SOIT LE GESTE.
+ *
+ * Un séparateur : il est décimal. Deux : le DERNIER est décimal, l'autre
+ * sépare les milliers. La position tranche — c'est déterministe, on ne devine
+ * rien.
+ *
+ * Elle vaut à la frappe comme au collage. Deux règles selon le geste voudrait
+ * dire que coller « 1,5 » donne 15 alors que le taper donne 1,5 : même texte,
+ * deux valeurs, et personne ne saurait laquelle il a obtenue.
+ *
+ * Le filtre de frappe empêche d'ajouter un second séparateur au clavier ; tout
+ * texte qu'on PEUT taper n'en a donc qu'un, et donne le même résultat collé.
  */
 function normaliser(texte: string): string {
-  let t = texte.replace(/[\s  ]/g, "").replace(/[^0-9.,-]/g, "");
+  let t = texte
+    .replace(/[\s\u00a0\u202f]/g, "")
+    .replace(/[$€£]/g, "")
+    .replace(/[^0-9.,-]/g, "");
   const negatif = t.startsWith("-");
   t = t.replace(/-/g, "");
 
-  // Le PREMIER séparateur est le point décimal ; les suivants sont du bruit.
-  // Pas de séparateur de milliers ici : voir l'en-tête du fichier.
-  const premier = t.search(/[.,]/);
-  if (premier >= 0) {
-    t = `${t.slice(0, premier)}.${t.slice(premier + 1).replace(/[.,]/g, "")}`;
+  const positions: number[] = [];
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === "." || t[i] === ",") positions.push(i);
   }
+
+  if (positions.length) {
+    const dernier = positions[positions.length - 1];
+    const enCours = dernier === t.length - 1;
+
+    if (enCours && positions.length > 1) {
+      // Un séparateur posé en fin de frappe alors qu'il y en a déjà un : on
+      // jette celui qu'on vient de taper, plutôt que de réinterpréter le
+      // précédent sous les doigts.
+      const avantDernier = positions[positions.length - 2];
+      const sansLeDernier = t.slice(0, dernier);
+      t = sansLeDernier.slice(0, avantDernier).replace(/[.,]/g, "") +
+          "." + sansLeDernier.slice(avantDernier + 1).replace(/[.,]/g, "");
+    } else if (enCours) {
+      t = t.slice(0, dernier).replace(/[.,]/g, "") + ".";
+    } else {
+      // Le dernier séparateur est le point décimal ; ceux d'avant séparaient
+      // les milliers et disparaissent.
+      t = t.slice(0, dernier).replace(/[.,]/g, "") + "." + t.slice(dernier + 1);
+    }
+  }
+
   return (negatif ? "-" : "") + t;
 }
 
 /**
- * CE QU'ON PEUT TAPER. Filtre de frappe : chiffres, un seul séparateur, et pas
- * plus de décimales que permis. Tronque volontairement — au clavier, un
- * troisième chiffre après la virgule ne doit tout simplement pas s'inscrire.
- *
- * À ne pas confondre avec `decimalDepuisTexte`, qui dit ce qu'un texte VEUT
- * DIRE et arrondit au lieu de tronquer. Les deux règles sont voulues : on
- * empêche de taper une troisième décimale, mais si elle arrive par un autre
- * chemin, on l'arrondit plutôt que de la jeter.
+ * CE QU'ON PEUT TAPER. Même règle que la lecture, plus une limite de
+ * décimales : au clavier, un troisième chiffre après la virgule ne s'inscrit
+ * pas. La LECTURE, elle, arrondit au lieu de tronquer — voir
+ * `decimalDepuisTexte`.
  */
 export function texteDecimalNettoye(texte: string, decimales = 2): string {
-  // On garde la frappe en cours telle quelle — « 1, » doit survivre le temps
-  // que le doigt trouve le 5. Nettoyer trop tôt efface ce qu'on est en train
-  // d'écrire.
-  let t = texte.replace(/[\s  ]/g, "").replace(/[^0-9.,-]/g, "");
+  const t = normaliser(texte);
+  if (!t) return "";
 
-  const negatif = t.startsWith("-");
-  t = t.replace(/-/g, "");
+  const point = t.indexOf(".");
+  if (point < 0) return t;
 
-  // Un seul séparateur : le premier rencontré. Les suivants sont ignorés.
-  const premier = t.search(/[.,]/);
-  if (premier >= 0) {
-    const entier = t.slice(0, premier);
-    const reste = t.slice(premier + 1).replace(/[.,]/g, "");
-    t = `${entier},${reste.slice(0, decimales)}`;
-  }
-
-  return (negatif ? "-" : "") + t;
+  const entier = t.slice(0, point);
+  const fraction = t.slice(point + 1).slice(0, decimales);
+  return `${entier},${fraction}`;
 }
+
 
 /**
  * Le nombre, ou `null` si le texte n'en contient pas.

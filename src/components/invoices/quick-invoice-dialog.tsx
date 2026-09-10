@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/utils";
 import type { Company, Customer } from "@/types";
@@ -59,8 +61,10 @@ export function QuickInvoiceDialog({
     () =>
       lignes.map((l) => ({
         description: l.description,
-        quantity: Number(l.quantity) || 0,
-        unitPrice: Number(l.unitPrice) || 0,
+        // `Number("12,50")` rend NaN, que le `|| 0` transformait en zéro : une
+        // ligne de facture à 12,50 $ partait à 0 $ sans un mot.
+        quantity: decimalDepuisTexte(l.quantity) ?? 0,
+        unitPrice: decimalDepuisTexte(l.unitPrice) ?? 0,
       })),
     [lignes],
   );
@@ -152,19 +156,15 @@ export function QuickInvoiceDialog({
                     onChange={(e) => majLigne(i, "description", e.target.value)}
                     placeholder="Main-d'œuvre, matériel, déplacement…"
                   />
-                  <Input
+                  <ChampDecimal
                     aria-label={`Quantité de la ligne ${i + 1}`}
-                    type="number"
-                    step="0.01"
                     value={l.quantity}
-                    onChange={(e) => majLigne(i, "quantity", e.target.value)}
+                    onValeurChange={(v) => majLigne(i, "quantity", v)}
                   />
-                  <Input
+                  <ChampDecimal
                     aria-label={`Prix unitaire de la ligne ${i + 1}`}
-                    type="number"
-                    step="0.01"
                     value={l.unitPrice}
-                    onChange={(e) => majLigne(i, "unitPrice", e.target.value)}
+                    onValeurChange={(v) => majLigne(i, "unitPrice", v)}
                     placeholder="0,00"
                   />
                   <Button

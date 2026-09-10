@@ -192,27 +192,18 @@ POUR LE COMBLER : ajouter `laborTemplateId` à `QuoteLaborLine` et le retenir da
 saisies resteront nulles — on ne peut pas deviner après coup de quel gabarit
 venait un taux.
 
-## La virgule reste refusée dans les champs d'ARGENT
+## Les champs entiers restent en `type="number"` — c'est voulu
 
-Les heures et les taux horaires acceptent maintenant « 1,5 » comme « 1.5 »
-(`src/lib/nombre-decimal.ts`, `src/components/ui/champ-decimal.tsx`). Les champs
-de MONTANT, eux, sont encore en `<input type="number">` et souffrent du même
-défaut : la virgule vide la valeur, `Number("")` rend 0, et le prix s'enregistre
-à zéro sans un mot.
+La virgule est acceptée partout où une valeur décimale se saisit : heures, taux
+horaires, montants, quantités, marges, taux de taxe
+(`src/lib/nombre-decimal.ts`, `src/components/ui/champ-decimal.tsx`).
 
-Recensés le 10 septembre 2026, non corrigés faute d'avoir été demandés :
+Six champs gardent `<input type="number">`, parce qu'ils ne prennent que des
+ENTIERS et que le pavé numérique du téléphone leur convient :
 
-- `cost-estimation-section.tsx` — quantité, prix coûtant, marge, prix des frais,
-  prix proposé
-- `job-billing-dialog.tsx` — quantité, prix unitaire, marge matériaux, prix
-  retouchés en ligne
-- `quick-invoice-dialog.tsx` — quantité de ligne
-- `quote-form.tsx` — montant, pourcentage du dépôt
-- `billing-settings-form.tsx`, `company-settings-form.tsx`,
-  `onboarding-wizard.tsx` — marges et taux de taxe
-- `assign-tool-dialog.tsx` — durée en jours
+- nombre de travailleurs (éditeur de soumission, facturation, gabarits de taux ×2)
+- durée d'un prêt d'outil, en jours
+- priorité d'une amélioration (administration)
 
-POUR LE COMBLER : remplacer `<Input type="number">` par `<ChampDecimal>` et la
-lecture correspondante par `decimalDepuisTexte`. Le travail est mécanique ; ce
-qui demande de l'attention, c'est le nombre de décimales par champ — deux pour
-un montant, davantage pour un taux de TVQ (0,09975).
+Si l'un d'eux devait un jour accepter une décimale, il faudrait le passer à
+`ChampDecimal` — pas ajouter un `step`.

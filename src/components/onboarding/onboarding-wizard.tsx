@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { HardHat, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChampDecimalNonControle } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -150,12 +151,12 @@ export function OnboardingWizard() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="gstRate">TPS (%)</Label>
-                  <Input id="gstRate" name="gstRate" type="number" step="0.001" defaultValue="0.05" />
+                  <ChampDecimalNonControle id="gstRate" name="gstRate" decimales={5} defaultValue="0.05" />
                   <p className="text-xs text-muted-foreground">Défaut : 5%</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="qstRate">TVQ (%)</Label>
-                  <Input id="qstRate" name="qstRate" type="number" step="0.00001" defaultValue="0.09975" />
+                  <ChampDecimalNonControle id="qstRate" name="qstRate" decimales={5} defaultValue="0.09975" />
                   <p className="text-xs text-muted-foreground">Défaut : 9,975%</p>
                 </div>
               </div>

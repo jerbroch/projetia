@@ -25,7 +25,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChampDecimalNombre } from "@/components/ui/champ-decimal";
+import { ChampDecimal, ChampDecimalNombre } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -156,6 +156,12 @@ function MaterialSearchField({
       </Button>
     </div>
   );
+}
+
+/** 0,375 → 37,5. `Math.round` écrasait la demie et une marge de 37,5 % se
+ *  transformait en 38 % dès qu'on regardait le champ. */
+function arrondir2(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 export function CostEstimationSection({
@@ -435,14 +441,10 @@ export function CostEstimationSection({
               </div>
               <div className="space-y-1">
                 <Label>Qté</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.quantity}
-                  onChange={(e) =>
-                    updateMaterialLine(index, { quantity: Number(e.target.value) || 0 })
-                  }
+                <ChampDecimalNombre
+                  aria-label="Quantité"
+                  valeur={line.quantity}
+                  onNombreChange={(n) => updateMaterialLine(index, { quantity: n ?? 0 })}
                 />
               </div>
               <div className="space-y-1">
@@ -454,28 +456,18 @@ export function CostEstimationSection({
               </div>
               <div className="space-y-1">
                 <Label>Prix coûtant ($)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.costPrice}
-                  onChange={(e) =>
-                    updateMaterialLine(index, { costPrice: Number(e.target.value) || 0 })
-                  }
+                <ChampDecimalNombre
+                  aria-label="Prix coûtant"
+                  valeur={line.costPrice}
+                  onNombreChange={(n) => updateMaterialLine(index, { costPrice: n ?? 0 })}
                 />
               </div>
               <div className="space-y-1">
                 <Label>Marge (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={Math.round(line.marginPct * 100)}
-                  onChange={(e) =>
-                    updateMaterialLine(index, {
-                      marginPct: (Number(e.target.value) || 0) / 100,
-                    })
-                  }
+                <ChampDecimalNombre
+                  aria-label="Marge"
+                  valeur={arrondir2(line.marginPct * 100)}
+                  onNombreChange={(n) => updateMaterialLine(index, { marginPct: (n ?? 0) / 100 })}
                 />
               </div>
               <div className="flex items-end justify-between gap-2 sm:col-span-2">
@@ -535,36 +527,26 @@ export function CostEstimationSection({
               </div>
               <div className="space-y-1">
                 <Label>Qté</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={line.quantity}
-                  onChange={(e) =>
-                    updateFeeLine(index, { quantity: Number(e.target.value) || 0 })
-                  }
+                <ChampDecimalNombre
+                  aria-label="Quantité"
+                  valeur={line.quantity}
+                  onNombreChange={(n) => updateFeeLine(index, { quantity: n ?? 0 })}
                 />
               </div>
               <div className="space-y-1">
                 <Label>Prix ($)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={line.price}
-                  onChange={(e) => updateFeeLine(index, { price: Number(e.target.value) || 0 })}
+                <ChampDecimalNombre
+                  aria-label="Prix"
+                  valeur={line.price}
+                  onNombreChange={(n) => updateFeeLine(index, { price: n ?? 0 })}
                 />
               </div>
               <div className="space-y-1">
                 <Label>Marge (%) — optionnel</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={Math.round((line.marginPct ?? 0) * 100)}
-                  onChange={(e) =>
-                    updateFeeLine(index, { marginPct: (Number(e.target.value) || 0) / 100 })
-                  }
+                <ChampDecimalNombre
+                  aria-label="Marge"
+                  valeur={arrondir2((line.marginPct ?? 0) * 100)}
+                  onNombreChange={(n) => updateFeeLine(index, { marginPct: (n ?? 0) / 100 })}
                 />
               </div>
               <div className="flex items-end justify-between gap-2">
@@ -633,13 +615,10 @@ export function CostEstimationSection({
             {manualPriceOverride && (
               <div className="space-y-1">
                 <Label htmlFor="proposedAmount">Prix proposé ($)</Label>
-                <Input
+                <ChampDecimal
                   id="proposedAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
                   value={amount}
-                  onChange={(e) => onAmountChange(e.target.value)}
+                  onValeurChange={onAmountChange}
                 />
               </div>
             )}
