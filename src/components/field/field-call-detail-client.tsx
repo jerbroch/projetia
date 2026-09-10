@@ -37,6 +37,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import type { FieldCatalogItem, FieldHour, FieldLaborRate, FieldMaterial, ScheduleEvent, ToolListItem } from "@/types";
 
@@ -57,6 +58,9 @@ export function FieldCallDetailClient({
 }: FieldCallDetailClientProps) {
   const router = useRouter();
   const [taux, setTaux] = useState<FieldLaborRate[]>([]);
+  // Le texte tapé, pas un nombre : « 1, » doit vivre le temps que le doigt
+  // trouve le 5.
+  const [heuresSaisies, setHeuresSaisies] = useState("");
   const [materiauChoisi, setMateriauChoisi] = useState<FieldCatalogItem | null>(null);
   const [horsCatalogue, setHorsCatalogue] = useState(false);
 
@@ -145,6 +149,9 @@ export function FieldCallDetailClient({
       }
       if (result.data) setHours((prev) => [result.data!, ...prev]);
       form.reset();
+      // `form.reset()` ne touche pas un champ contrôlé : sans ceci, les heures
+      // de la saisie précédente resteraient affichées et seraient réenvoyées.
+      setHeuresSaisies("");
       router.refresh();
     });
   }
@@ -315,7 +322,20 @@ export function FieldCallDetailClient({
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="hours">Heures</Label>
-                  <Input id="hours" name="hours" type="number" min="0.25" step="0.25" required />
+                  {/*
+                    « 1,5 » et « 1.5 » donnent la même chose. Avec
+                    type="number", la virgule vidait le champ et une journée et
+                    demie s'enregistrait comme zéro heure, sans un mot.
+                  */}
+                  <ChampDecimal
+                    id="hours"
+                    name="hours"
+                    required
+                    inputMode="decimal"
+                    placeholder="1,5"
+                    value={heuresSaisies}
+                    onValeurChange={setHeuresSaisies}
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="startTime">Début (opt.)</Label>

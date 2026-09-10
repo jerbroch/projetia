@@ -191,3 +191,28 @@ POUR LE COMBLER : ajouter `laborTemplateId` à `QuoteLaborLine` et le retenir da
 `cost-estimation-section.tsx` au moment où le gabarit est choisi. Les lignes déjà
 saisies resteront nulles — on ne peut pas deviner après coup de quel gabarit
 venait un taux.
+
+## La virgule reste refusée dans les champs d'ARGENT
+
+Les heures et les taux horaires acceptent maintenant « 1,5 » comme « 1.5 »
+(`src/lib/nombre-decimal.ts`, `src/components/ui/champ-decimal.tsx`). Les champs
+de MONTANT, eux, sont encore en `<input type="number">` et souffrent du même
+défaut : la virgule vide la valeur, `Number("")` rend 0, et le prix s'enregistre
+à zéro sans un mot.
+
+Recensés le 10 septembre 2026, non corrigés faute d'avoir été demandés :
+
+- `cost-estimation-section.tsx` — quantité, prix coûtant, marge, prix des frais,
+  prix proposé
+- `job-billing-dialog.tsx` — quantité, prix unitaire, marge matériaux, prix
+  retouchés en ligne
+- `quick-invoice-dialog.tsx` — quantité de ligne
+- `quote-form.tsx` — montant, pourcentage du dépôt
+- `billing-settings-form.tsx`, `company-settings-form.tsx`,
+  `onboarding-wizard.tsx` — marges et taux de taxe
+- `assign-tool-dialog.tsx` — durée en jours
+
+POUR LE COMBLER : remplacer `<Input type="number">` par `<ChampDecimal>` et la
+lecture correspondante par `decimalDepuisTexte`. Le travail est mécanique ; ce
+qui demande de l'attention, c'est le nombre de décimales par champ — deux pour
+un montant, davantage pour un taux de TVQ (0,09975).

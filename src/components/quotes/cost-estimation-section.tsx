@@ -25,6 +25,7 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChampDecimalNombre } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -288,15 +289,16 @@ export function CostEstimationSection({
                       )}
                     </td>
                     <td className="p-2 align-top">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.25"
+                      {/*
+                        « 1,5 » comme « 1.5 ». Avec type="number", la virgule
+                        vidait le champ et Number("") rendait 0 : une heure et
+                        demie devenait zéro, sans un mot.
+                      */}
+                      <ChampDecimalNombre
+                        aria-label="Heures"
                         className="ml-auto w-20 text-right"
-                        value={line.hours}
-                        onChange={(e) =>
-                          updateLaborLine(index, { hours: Number(e.target.value) || 0 })
-                        }
+                        valeur={line.hours}
+                        onNombreChange={(n) => updateLaborLine(index, { hours: n ?? 0 })}
                       />
                     </td>
                     <td className="p-2 align-top">
@@ -312,15 +314,11 @@ export function CostEstimationSection({
                       />
                     </td>
                     <td className="p-2 align-top">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                      <ChampDecimalNombre
+                        aria-label="Taux horaire"
                         className="ml-auto w-24 text-right"
-                        value={line.hourlyRate}
-                        onChange={(e) =>
-                          updateLaborLine(index, { hourlyRate: Number(e.target.value) || 0 })
-                        }
+                        valeur={line.hourlyRate}
+                        onNombreChange={(n) => updateLaborLine(index, { hourlyRate: n ?? 0 })}
                       />
                     </td>
                     <td className="p-2 align-top text-right font-medium">

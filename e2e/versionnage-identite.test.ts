@@ -180,6 +180,35 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
     expect(lignes).toHaveLength(3);
   });
 
+  it("des heures décimales arrivent en base sans arrondi", async () => {
+    // L'autre chemin des heures : la soumission. `labor_hours` est un
+    // numeric(8,2) — une heure et demie doit y arriver telle quelle, et
+    // 1,5 h × 2 travailleurs doit faire 3 h, pas 1 h.
+    const r = await ecrireVersionCourante(db as never, {
+      companyId,
+      quoteId,
+      estimation: {
+        labor: [
+          { id: "ql-dec-1", category: "compagnon", hours: 1.5, hourlyRate: 125, workerCount: 1, total: 187.5 },
+          { id: "ql-dec-2", category: "compagnon", hours: 1.5, hourlyRate: 125, workerCount: 2, total: 375 },
+          { id: "ql-dec-3", category: "compagnon", hours: 7.25, hourlyRate: 125, workerCount: 1, total: 906.25 },
+        ],
+        materials: [],
+        fees: [],
+      },
+      operation: "update",
+    });
+    expect(r.erreur).toBeUndefined();
+
+    const { data } = await db
+      .from("quote_line_versions")
+      .select("labor_hours, quote_line_item_id")
+      .eq("quote_version_id", r.quoteVersionId!)
+      .order("sort_order");
+    const heures = (data ?? []).map((x) => Number((x as { labor_hours: number }).labor_hours));
+    expect(heures).toEqual([1.5, 3, 7.25]);
+  });
+
   it("une soumission dupliquée reçoit de NOUVELLES identités, jamais les mêmes", async () => {
     // La duplication recopie cost_estimation verbatim : la copie porte donc
     // les mêmes identifiants client. Si elle partageait les quote_line_items,
