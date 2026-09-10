@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { readTestCredentials } from "./test-data";
 
 export async function loginWithCredentials(
   page: Page,
@@ -9,6 +10,26 @@ export async function loginWithCredentials(
   await page.getByLabel("Courriel").fill(email);
   await page.getByLabel("Mot de passe").fill(password);
   await page.getByRole("button", { name: "Se connecter" }).click();
+}
+
+/**
+ * CONNEXION DU LOCATAIRE, ATTENTE COMPRISE.
+ *
+ * `loginWithCredentials` remplit et clique, sans attendre : appeler `goto`
+ * juste après tombe sur la page de connexion encore affichée. C'est ce que
+ * faisaient les specs 23 et 24b, et le rapport d'intégration continue montrait
+ * bien « Bienvenue sur ConstructionIOS » à la place de /quotes.
+ *
+ * Et pas de `storageState` pour ces specs-là : la suite complète dure près de
+ * cinquante minutes, ils tournent à la fin, et l'état de session écrit par
+ * `auth.setup` au début n'est plus valable à ce moment. On se connecte quand
+ * on en a besoin.
+ */
+export async function connexionLocataire(page: Page): Promise<void> {
+  const creds = readTestCredentials();
+  await loginWithCredentials(page, creds.tenantEmail, creds.tenantPassword);
+  await page.waitForURL(/\/(dashboard|choose-plan|onboarding)/, { timeout: 60000 });
+  await ensureDashboardAccess(page);
 }
 
 export async function loginAsDemo(page: Page): Promise<void> {

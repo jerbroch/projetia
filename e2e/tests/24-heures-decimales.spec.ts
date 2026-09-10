@@ -1,5 +1,5 @@
-import { test, expect, tenantAuth } from "../fixtures/base";
-import { ensureDashboardAccess, loginWithCredentials } from "../helpers/auth";
+import { test, expect } from "../fixtures/base";
+import { connexionLocataire, ensureDashboardAccess, loginWithCredentials } from "../helpers/auth";
 import {
   cleanupFieldEmployeeTestData, createE2EAdmin, setupFieldEmployeeTestData,
   type FieldEmployeeTestContext,
@@ -79,10 +79,14 @@ test.describe("24. Heures décimales, virgule comprise", () => {
     await page.getByRole("button", { name: "Ajouter les heures" }).click();
 
     // Si le serveur refuse, on veut lire POURQUOI plutôt que de regarder un
-    // compteur rester à zéro pendant vingt secondes. Le message doit être NON
-    // VIDE : la page porte des conteneurs d'erreur toujours présents, et les
-    // prendre pour un refus ferait échouer le test sur du néant.
-    const refus = await page
+    // compteur rester à zéro pendant vingt secondes.
+    //
+    // LIMITÉ AU FORMULAIRE, et c'est essentiel : en intégration continue, la
+    // page porte une bannière « ⚠ Ce serveur local écrit dans la base … » qui
+    // est un avertissement d'environnement, pas un refus de saisie. La lire
+    // comme un refus faisait échouer ces tests alors que la saisie passait.
+    const formulaire = page.locator("form").filter({ has: page.locator("#hours") });
+    const refus = await formulaire
       .locator('[role="alert"], .text-destructive')
       .allInnerTexts()
       .then((t) => t.map((x) => x.trim()).filter(Boolean));
@@ -148,9 +152,12 @@ test.describe("24. Heures décimales, virgule comprise", () => {
  * rendraient le résultat imprévisible pour celui qui saisit.
  */
 test.describe("24b. La virgule dans les montants", () => {
-  test.use({ storageState: tenantAuth, pageName: "Montants décimaux" });
+  // Pas de storageState : voir le spec 23. Ce bloc tourne à la fin d'une suite
+  // de cinquante minutes, et l'état de session du début ne tient pas.
+  test.use({ pageName: "Montants décimaux" });
 
   async function ouvrirLeFormulaire(page: import("@playwright/test").Page) {
+    await connexionLocataire(page);
     await page.goto("/quotes");
     await ensureDashboardAccess(page);
     await page.getByRole("button", { name: "Nouvelle soumission" }).click();

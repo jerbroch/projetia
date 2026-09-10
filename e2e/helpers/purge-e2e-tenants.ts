@@ -15,6 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cibleConfirmee, DOMAINE_E2E } from "../target-guard";
+import { supprimerEntreprises } from "@/lib/data/supprimer-entreprise";
 
 /**
  * Âge en deçà duquel une entreprise e2e est considérée comme APPARTENANT À UN
