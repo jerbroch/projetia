@@ -14,6 +14,10 @@ import {
 } from "@/lib/mock-data";
 import { resolveEmployeeAppAccessStatus as resolveEmployeeAccessStatus } from "@/lib/employee-access-utils";
 import { createClient } from "@/lib/supabase/server";
+import {
+  ecrireVersionCourante,
+  estimationDepuisRangee,
+} from "@/lib/data/quote-versioning-write";
 import { DEMO_COMPANY_ID } from "@/lib/demo/constants";
 import type {
   Company,
@@ -345,7 +349,7 @@ export async function insertQuoteForCompany(
     total: item.total,
   }));
 
-  return supabase
+  const resultat = await supabase
     .from("quotes")
     .insert({
       company_id: companyId,
@@ -372,6 +376,20 @@ export async function insertQuoteForCompany(
     })
     .select("*")
     .single();
+
+  // Le versionnage s'ajoute, il ne remplace rien : line_items et
+  // cost_estimation viennent d'être écrits exactement comme avant. Et il ne
+  // peut pas faire échouer la sauvegarde — voir quote-versioning-write.ts.
+  if (!resultat.error && resultat.data) {
+    await ecrireVersionCourante(supabase, {
+      companyId,
+      quoteId: String((resultat.data as { id: string }).id),
+      estimation: input.costEstimation,
+      operation: "create",
+    });
+  }
+
+  return resultat;
 }
 
 export async function updateQuoteForCompany(
@@ -404,7 +422,7 @@ export async function updateQuoteForCompany(
     total: item.total,
   }));
 
-  return supabase
+  const resultat = await supabase
     .from("quotes")
     .update({
       title: input.title,
@@ -431,6 +449,17 @@ export async function updateQuoteForCompany(
     .eq("company_id", companyId)
     .select("*")
     .single();
+
+  if (!resultat.error && resultat.data) {
+    await ecrireVersionCourante(supabase, {
+      companyId,
+      quoteId,
+      estimation: input.costEstimation,
+      operation: "update",
+    });
+  }
+
+  return resultat;
 }
 
 export async function deleteQuoteForCompany(companyId: string, quoteId: string) {
@@ -452,7 +481,7 @@ export async function duplicateQuoteForCompany(companyId: string, quoteId: strin
   }
 
   const quoteNumber = await getNextQuoteNumber(companyId);
-  return supabase
+  const resultat = await supabase
     .from("quotes")
     .insert({
       company_id: companyId,
@@ -477,6 +506,23 @@ export async function duplicateQuoteForCompany(companyId: string, quoteId: strin
     })
     .select("*")
     .single();
+
+  // La duplication recopie cost_estimation verbatim : la nouvelle soumission
+  // porte donc LES MÊMES identifiants client. On crée malgré tout de nouvelles
+  // identités, qui pointent vers les anciennes par copied_from_quote_line_item_id.
+  // Deux soumissions qui se partageraient un quote_line_item feraient remonter
+  // les heures d'un chantier dans les statistiques d'un autre.
+  if (!resultat.error && resultat.data) {
+    await ecrireVersionCourante(supabase, {
+      companyId,
+      quoteId: String((resultat.data as { id: string }).id),
+      estimation: estimationDepuisRangee(source),
+      operation: "duplicate",
+      copieDeQuoteId: quoteId,
+    });
+  }
+
+  return resultat;
 }
 
 function mapCompanyRow(row: Record<string, unknown>): Company {
