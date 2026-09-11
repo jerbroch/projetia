@@ -44,7 +44,7 @@ test.describe("11. Parcours métier complet", () => {
     await ensureDashboardAccess(page);
     await expect(quoteNumberCell(page, activeSeed.quoteNumber)).toBeVisible({ timeout: 15000 });
 
-    await page.goto("/schedule");
+    await page.goto(`/schedule?date=${activeSeed.scheduledDate}`);
     await ensureDashboardAccess(page);
 
     const jobBlock = page.locator(`[data-event-id="${activeSeed.scheduledJobId}"]`);
@@ -89,7 +89,7 @@ test.describe("11. Parcours métier complet", () => {
     await expect(page.getByText(/Facture envoyée|envoyée à/i)).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: "Envoyer la facture" })).toHaveCount(0);
 
-    await page.goto("/schedule");
+    await page.goto(`/schedule?date=${activeSeed.scheduledDate}`);
     await ensureDashboardAccess(page);
     await expect(jobBlock).toBeVisible({ timeout: 15000 });
     await jobBlock.click();
