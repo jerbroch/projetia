@@ -9,6 +9,7 @@ import {
   shouldBlockTenantRoute,
   shouldRedirectFieldEmployeeFromAdmin,
 } from "@/lib/middleware-access";
+import { deciderAcces, erreurDeDelaiDepasse } from "@/lib/auth/decision-acces";
 
 // Importées : une seule source pour ce qui exige une session et ce qui est
 // réservé au bureau (voir middleware-access.ts).
@@ -63,8 +64,59 @@ function redirectTo(request: NextRequest, pathname: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
+/** Le chemin de la page intermédiaire. Un seul endroit : elle doit être
+ *  exclue du matcher ET reconnue comme publique. */
+export const CHEMIN_VERIFICATION_IMPOSSIBLE = "/connexion-impossible";
+
 function isPublicRoute(pathname: string): boolean {
+  // `/connexion-impossible` en tête, et c'est ESSENTIEL : si elle était
+  // protégée, une vérification impossible redirigerait vers une page qui
+  // redirigerait vers une vérification impossible. La boucle ne se verrait
+  // qu'en production, le jour où le réseau tombe pour de vrai — au moment
+  // précis où plus personne ne peut rien ouvrir.
+  //
+  // Elle est déjà hors du matcher, donc le middleware ne tourne pas dessus.
+  // Ceci est la deuxième barrière, pour que la protection tienne même si
+  // quelqu'un élargit le matcher un jour.
+  if (pathname === CHEMIN_VERIFICATION_IMPOSSIBLE) return true;
   return pathname === "/soumission" || pathname.startsWith("/soumission/");
+}
+
+/**
+ * Une tentative de vérification, avec un plafond de temps.
+ *
+ * Une requête qui met trente secondes à échouer est pire qu'un échec en deux :
+ * l'utilisateur voit une page blanche et ferme l'application. Passé le délai,
+ * on rend une erreur rejouable — la même que pour un échec réseau — et la
+ * décision suit le même chemin.
+ */
+const DELAI_PREMIERE_TENTATIVE_MS = 2000;
+const DELAI_REESSAI_MS = 1500;
+
+async function verifierAvecDelai(
+  supabase: ReturnType<typeof createServerClient>,
+  delaiMs: number,
+): Promise<{ user: unknown; error: unknown }> {
+  let minuterie: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      supabase.auth
+        .getUser()
+        .then((r: { data: { user: unknown }; error: unknown }) => ({
+          user: r.data.user,
+          error: r.error,
+        }))
+        .catch((e: unknown) => ({ user: null, error: e })),
+      new Promise<{ user: unknown; error: unknown }>((resolve) => {
+        minuterie = setTimeout(
+          () => resolve({ user: null, error: erreurDeDelaiDepasse() }),
+          delaiMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (minuterie) clearTimeout(minuterie);
+  }
 }
 
 function hasDemoSession(request: NextRequest): boolean {
@@ -82,6 +134,7 @@ export async function middleware(request: NextRequest) {
   let emailVerified = isLoggedIn;
   let userId: string | null = null;
   let userMetadata: unknown = null;
+  let verificationImpossible = false;
 
   let supabase: ReturnType<typeof createServerClient> | null = null;
 
@@ -101,19 +154,51 @@ export async function middleware(request: NextRequest) {
       },
     });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
+    // Une tentative, puis UNE seule de plus si la première n'a pas abouti.
+    // Ces échecs sont le plus souvent une requête tombée ; le réessai passe
+    // sans que l'utilisateur voie quoi que ce soit. Le total est plafonné à
+    // 3,5 secondes — au-delà, la page intermédiaire vaut mieux que l'attente.
+    let resultat = await verifierAvecDelai(supabase, DELAI_PREMIERE_TENTATIVE_MS);
+    let decision = deciderAcces(resultat);
+
+    if (decision === "verification-impossible") {
+      resultat = await verifierAvecDelai(supabase, DELAI_REESSAI_MS);
+      decision = deciderAcces(resultat);
+    }
+
+    if (decision === "verification-impossible") {
+      verificationImpossible = true;
+    } else if (decision === "connecte") {
+      const user = resultat.user as {
+        id: string;
+        email_confirmed_at?: string | null;
+        user_metadata?: unknown;
+      };
       isLoggedIn = true;
       emailVerified = Boolean(user.email_confirmed_at);
       userId = user.id;
       userMetadata = user.user_metadata;
     }
+    // « non-connecte » laisse isLoggedIn à faux : c'est le comportement voulu,
+    // et c'est un VERDICT de Supabase, pas une supposition tirée d'un silence.
   }
 
   if (isPublicRoute(pathname)) {
     return supabaseResponse;
+  }
+
+  // NI ACCÈS, NI CONNEXION. On ne sait pas qui est là : accorder l'accès
+  // laisserait entrer quelqu'un qui n'est pas connecté, et renvoyer à la
+  // connexion ferait retaper un mot de passe à quelqu'un dont la session est
+  // valide. On le DIT, et on garde le témoin de session intact pour que le
+  // bouton « Réessayer » suffise.
+  if (verificationImpossible) {
+    const url = request.nextUrl.clone();
+    url.pathname = CHEMIN_VERIFICATION_IMPOSSIBLE;
+    url.search = `?suite=${encodeURIComponent(pathname + request.nextUrl.search)}`;
+    // 503 : le service n'a pas pu répondre. Ce n'est ni un refus, ni un
+    // succès — et les robots ne doivent pas l'indexer comme une page.
+    return NextResponse.rewrite(url, { status: 503 });
   }
 
   const isDemo = hasDemoSession(request);
