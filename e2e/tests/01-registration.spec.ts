@@ -28,7 +28,7 @@ test.describe("1. Parcours inscription", () => {
     await page.getByLabel("Nom", { exact: true }).fill("Register");
     await page.getByLabel("Courriel professionnel").fill(email);
     await page.getByLabel("Mot de passe", { exact: true }).fill(STRONG_PASSWORD);
-    await page.getByLabel("Confirmer le mot de passe").fill(STRONG_PASSWORD);
+    await page.getByLabel("Confirmer le mot de passe", { exact: true }).fill(STRONG_PASSWORD);
     await page.locator('input[name="acceptTerms"]').check();
     await page.locator('input[name="acceptPrivacy"]').check();
     await page.getByRole("button", { name: "Créer mon compte" }).click();
@@ -54,7 +54,7 @@ test.describe("1. Parcours inscription", () => {
       if (user) await admin.auth.admin.updateUserById(user.id, { email_confirm: true });
       await page.goto("/login");
       await page.getByLabel("Courriel").fill(email);
-      await page.getByLabel("Mot de passe").fill(STRONG_PASSWORD);
+      await page.getByLabel("Mot de passe", { exact: true }).fill(STRONG_PASSWORD);
       await page.getByRole("button", { name: "Se connecter" }).click();
     }
 
@@ -123,7 +123,7 @@ test.describe("1. Parcours inscription", () => {
 
     await page.goto("/login");
     await page.getByLabel("Courriel").fill(email);
-    await page.getByLabel("Mot de passe").fill(STRONG_PASSWORD);
+    await page.getByLabel("Mot de passe", { exact: true }).fill(STRONG_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
     await page.waitForURL(/\/choose-plan/, { timeout: 30000 });
 

@@ -57,7 +57,7 @@ export function ForgotPasswordForm() {
             )}
             <div className="space-y-2">
               <Label htmlFor="email">Courriel</Label>
-              <Input id="email" name="email" type="email" required autoComplete="email" />
+              <Input id="email" name="email" type="email" required autoComplete="username" />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">

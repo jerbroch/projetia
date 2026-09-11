@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { demoLoginAction, loginAction } from "@/lib/actions/auth";
 import { isDemoLoginEnabled } from "@/lib/demo/constants";
+import { ChampMotDePasse } from "@/components/ui/champ-mot-de-passe";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
@@ -87,7 +88,7 @@ export function LoginForm() {
                 type="email"
                 placeholder="vous@entreprise.com"
                 required
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">
@@ -97,10 +98,9 @@ export function LoginForm() {
                   Mot de passe oublié?
                 </Link>
               </div>
-              <Input
+              <ChampMotDePasse
                 id="password"
                 name="password"
-                type="password"
                 placeholder="Votre mot de passe"
                 required
                 autoComplete="current-password"

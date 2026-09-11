@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { registerAction } from "@/lib/actions/auth";
+import { ChampMotDePasse } from "@/components/ui/champ-mot-de-passe";
 
 export function RegisterForm() {
   const [error, setError] = useState("");
@@ -62,7 +63,7 @@ export function RegisterForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Courriel professionnel</Label>
-              <Input id="email" name="email" type="email" placeholder="jean@constructionabc.com" required />
+              <Input id="email" name="email" type="email" placeholder="jean@constructionabc.com" required autoComplete="username" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Téléphone mobile (optionnel)</Label>
@@ -70,14 +71,14 @@ export function RegisterForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input id="password" name="password" type="password" required minLength={10} />
+              <ChampMotDePasse id="password" name="password" required minLength={10} autoComplete="new-password" />
               <p className="text-xs text-muted-foreground">
                 Min. 10 caractères, majuscule, minuscule, chiffre et caractère spécial
               </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-              <Input id="confirmPassword" name="confirmPassword" type="password" required />
+              <ChampMotDePasse id="confirmPassword" name="confirmPassword" required autoComplete="new-password" etiquette="confirmation" />
             </div>
             <div className="space-y-3">
               <label className="flex items-start gap-2 text-sm">
