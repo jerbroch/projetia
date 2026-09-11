@@ -543,6 +543,27 @@ function mapCompanyRow(row: Record<string, unknown>): Company {
     qstRate: row.qst_rate != null ? Number(row.qst_rate) : undefined,
     defaultMaterialMargin:
       row.default_material_margin != null ? Number(row.default_material_margin) : undefined,
+    // LES COORDONNÉES DE PAIEMENT, SANS LA RÉPONSE DE SÉCURITÉ.
+    //
+    // Elles n'étaient pas mappées ici du tout, si bien que la page publique de
+    // soumission recevait une entreprise sans `interac` : le bloc « Virement
+    // Interac » qui s'y trouvait était du code mort, il ne s'est jamais
+    // affiché.
+    //
+    // `securityAnswer` est délibérément absent. Cette fonction sert le
+    // chargeur PUBLIC, dont le résultat part dans les propriétés de la page :
+    // l'y mettre rendrait la réponse lisible par quiconque a le lien, ce qui
+    // annule la question. La session authentifiée la mappe, elle, pour les
+    // réglages et les factures — voir src/lib/session.ts.
+    interac: {
+      enabled: Boolean(row.interac_enabled),
+      email: row.interac_email ? String(row.interac_email) : null,
+      recipientName: row.interac_recipient_name ? String(row.interac_recipient_name) : null,
+      securityQuestion: row.interac_security_question
+        ? String(row.interac_security_question)
+        : null,
+      instructions: row.interac_instructions ? String(row.interac_instructions) : null,
+    },
     subscriptionStatus: row.subscription_status ? String(row.subscription_status) : undefined,
     trialEndsAt: row.trial_ends_at ? String(row.trial_ends_at) : null,
   };
