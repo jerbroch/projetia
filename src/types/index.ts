@@ -207,6 +207,8 @@ export interface Quote {
   sentAt?: string;
   viewedAt?: string;
   acceptedAt?: string;
+  /** D'où vient l'acceptation : clic du client, dépôt enregistré, verbal, papier. */
+  acceptedSource?: string;
   rejectedAt?: string;
   depositRequired: boolean;
   depositPercentage?: number;

@@ -13,6 +13,16 @@ export interface E2ESeedData {
   quoteNumber: string;
   scheduledJobId: string;
   scheduledJobTitle: string;
+  /**
+   * La date du chantier semé, en AAAA-MM-JJ.
+   *
+   * Les tests y naviguent (`/schedule?date=…`) au lieu de supposer
+   * « aujourd'hui ». L'amorçage tourne au début d'une suite de quarante
+   * minutes : un passage qui franchit minuit change de jour en cours de
+   * route, et le bloc du chantier disparaît de la vue par défaut. C'est ce
+   * qui a fait échouer le parcours complet à 00 h 23, heure du Québec.
+   */
+  scheduledDate: string;
 }
 
 const SEED_CUSTOMER_NAME = `${E2E_SEED_MARKER} Client`;
@@ -26,7 +36,15 @@ function buildScheduleWindow() {
   start.setHours(9, 0, 0, 0);
   const end = new Date(start);
   end.setHours(11, 0, 0, 0);
-  return { start: start.toISOString(), end: end.toISOString() };
+  // La date est prise sur les composantes LOCALES, pas sur l'ISO : le
+  // calendrier raisonne dans le fuseau du poste, et `toISOString` donnerait
+  // la date UTC — un décalage d'un jour selon l'heure.
+  const date = [
+    start.getFullYear(),
+    String(start.getMonth() + 1).padStart(2, "0"),
+    String(start.getDate()).padStart(2, "0"),
+  ].join("-");
+  return { start: start.toISOString(), end: end.toISOString(), date };
 }
 
 async function deleteExistingSeedData(admin: SupabaseClient, companyId: string) {
@@ -159,7 +177,8 @@ export async function seedE2EBusinessData(
     throw new Error(`E2E seed quote failed: ${quoteError?.message}`);
   }
 
-  const { start, end } = buildScheduleWindow();
+  const fenetre = buildScheduleWindow();
+  const { start, end } = fenetre;
   const jobTitle = `${SEED_QUOTE_TITLE} — ${quote.quote_number}`;
 
   const { data: job, error: jobError } = await admin
@@ -251,6 +270,7 @@ export async function seedE2EBusinessData(
     quoteId: quote.id as string,
     quoteNumber: quote.quote_number as string,
     scheduledJobId: job.id as string,
+    scheduledDate: fenetre.date,
     scheduledJobTitle: job.title as string,
   };
 }

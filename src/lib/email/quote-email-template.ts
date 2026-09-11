@@ -6,6 +6,15 @@ export interface QuoteEmailTemplateInput {
   quoteNumber: string;
   quoteTitle: string;
   publicUrl: string;
+  /**
+   * Le bloc « Comment payer », déjà rendu en HTML de courriel. Construit par
+   * l'appelant avec `buildInteracEmailBlock`, comme pour les factures — le
+   * contenu vient du module commun `@/lib/paiement/bloc-de-paiement`.
+   *
+   * Absent quand aucun dépôt n'est demandé ou que rien n'est configuré : le
+   * gabarit n'affiche alors rien, jamais un cadre vide.
+   */
+  interacBlock?: string | null;
 }
 
 const PLATFORM_NAME = "Construction iOS";
@@ -135,6 +144,7 @@ export function buildQuoteEmailHtml(input: QuoteEmailTemplateInput): string {
                     <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#9ca3af;text-align:center;">
                       Ce lien est sécurisé et personnel. Ne le partagez pas.
                     </p>
+                    ${input.interacBlock ?? ""}
                   </td>
                 </tr>
               </table>

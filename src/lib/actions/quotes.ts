@@ -1,5 +1,6 @@
 "use server";
 
+import { buildInteracEmailBlock } from "@/lib/email/invoice-email-template";
 import {
   refusDeModification,
   regimeDeModification,
@@ -277,6 +278,26 @@ export async function sendQuoteAction(formData: FormData): Promise<SendQuoteResu
 
   const origin = resolveAppOriginFromHeaders(await headers());
   const publicUrl = getPublicQuoteUrl(token, origin);
+  // Le bloc « Comment payer », seulement quand un dépôt est demandé : sans
+  // dépôt, il n'y a rien à virer à ce stade et le bloc inviterait le client à
+  // envoyer de l'argent sans montant.
+  //
+  // `montantDuDepot` n'est pas rappelé ici : le montant a été calculé par lui
+  // à l'enregistrement et vit sur la soumission.
+  const interacBlock = quote.depositRequired
+    ? buildInteracEmailBlock({
+        email: ctx.company.interac?.email,
+        recipientName: ctx.company.interac?.recipientName,
+        securityQuestion: ctx.company.interac?.securityQuestion,
+        securityAnswer: ctx.company.interac?.securityAnswer,
+        instructions: ctx.company.interac?.instructions,
+        invoiceNumber: quote.quoteNumber,
+        montant: quote.depositAmount,
+        // Jamais la réponse à la question de sécurité sur une soumission.
+        afficherLaReponse: false,
+      })
+    : null;
+
   const emailResult = await sendQuoteEmail({
     to: parsed.data.recipientEmail,
     // Le client répond à L'ENTREPRISE, jamais à l'expéditeur : le domaine
@@ -289,6 +310,7 @@ export async function sendQuoteAction(formData: FormData): Promise<SendQuoteResu
     quoteNumber: quote.quoteNumber,
     quoteTitle: quote.title,
     publicUrl,
+    interacBlock,
   });
 
   if (!emailResult.sent) {

@@ -211,3 +211,42 @@ ENTIERS et que le pavé numérique du téléphone leur convient :
 
 Si l'un d'eux devait un jour accepter une décimale, il faudrait le passer à
 `ChampDecimal` — pas ajouter un `step`.
+
+## La réponse à la question de sécurité est écrite dans les courriels de facture
+
+`buildInteracEmailBlock` affiche la question de sécurité du virement Interac
+**et sa réponse**, l'une sous l'autre, dans le même courriel. Ça annule la
+question : quiconque lit le courriel a les deux.
+
+Les SOUMISSIONS passent `afficherLaReponse: false` depuis le 11 septembre 2026 —
+elles partent avant tout engagement, et le risque y est plus grand. Les FACTURES
+gardent le comportement d'avant, faute d'une décision.
+
+CE QU'IL FAUT TRANCHER : retirer la réponse des factures aussi, ou assumer que
+le courriel est le canal de confiance. Le retrait a un coût réel — un client qui
+n'a pas la réponse doit la demander, et l'entrepreneur reçoit un appel de plus
+par facture. C'est un arbitrage, pas un correctif évident.
+
+Le point de décision est unique : `afficherLaReponse` dans
+`src/lib/paiement/bloc-de-paiement.ts`. Le changer d'un seul appel suffit.
+
+
+## Un passage e2e qui franchit minuit ne doit plus rien casser — RÉGLÉ
+
+`11-full-journey` a échoué le 11 septembre 2026 à 00 h 23, heure du Québec.
+L'amorçage plaçait le chantier « aujourd'hui à 9 h », calculé au démarrage à
+23 h 40 ; le test l'attendait quarante minutes plus tard, après minuit. La vue
+par défaut du calendrier montrait alors le jour SUIVANT, et le bloc du chantier
+n'y était pas.
+
+Le fuseau du runner est épinglé à `America/Montreal` depuis longtemps — ce
+n'était donc pas le défaut de divergence UTC déjà corrigé, mais un passage qui
+traverse réellement minuit.
+
+L'amorçage retient désormais `scheduledDate`, et les tests naviguent vers
+`/schedule?date=…` au lieu de supposer « aujourd'hui ». Le calendrier acceptait
+déjà ce paramètre.
+
+CE QUI RESTE : les autres specs qui font `goto("/schedule")` n'attendent pas le
+chantier semé et n'ont donc pas besoin de la date. Si l'une d'elles se met à
+l'attendre, il faudra la dater aussi.

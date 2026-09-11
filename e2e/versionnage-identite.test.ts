@@ -263,9 +263,131 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
 
   it("n'inscrit aucun échec dans le compteur", async () => {
     const { data } = await db
-      .from("versioning_write_failures")
+      .from("write_failures")
       .select("operation, error")
       .eq("company_id", companyId);
     expect(data ?? []).toEqual([]);
+  });
+});
+
+/**
+ * UN VIREMENT REÇU EST UNE ACCEPTATION.
+ *
+ * Le bloc « Comment payer » est sur la soumission dès sa réception : un client
+ * peut donc virer son dépôt avant de cliquer « accepter ». Enregistrer ce
+ * dépôt fait passer la soumission par l'acceptation d'abord — une seule action
+ * de l'entrepreneur, deux transitions tracées séparément.
+ *
+ * Ce test vérifie les deux traces contre la vraie base : `accepted_source` dit
+ * laquelle des deux acceptations s'est produite, et la ligne `payments` porte
+ * le numéro de soumission.
+ */
+describe.skipIf(!identifiantsPresents)("l'acceptation par dépôt reçu", () => {
+  let db: ReturnType<typeof createAdminClient>;
+  let companyId = "";
+  const quotesCreees: string[] = [];
+
+  beforeAll(async () => {
+    db = createAdminClient();
+    cibleConfirmee();
+    const { data: c } = await db
+      .from("companies")
+      .insert({ name: "Dépôt — essai d'acceptation" })
+      .select("id")
+      .single();
+    companyId = String((c as { id: string }).id);
+  });
+
+  afterAll(async () => {
+    if (!companyId) return;
+    await db.from("payments").delete().eq("company_id", companyId);
+    await db.from("quotes").delete().in("id", quotesCreees);
+    await supprimerEntreprise(db as never, companyId);
+  });
+
+  async function soumissionEnvoyee(statut: "sent" | "viewed" | "draft") {
+    const { data, error } = await db
+      .from("quotes")
+      .insert({
+        company_id: companyId,
+        quote_number: `SO-DEP-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: "Remplacer le chauffe-eau",
+        customer_name: "Michel Brochu",
+        amount: 5000,
+        status: statut,
+        deposit_required: true,
+        deposit_percentage: 20,
+        line_items: [{ description: "Travaux", quantity: 1, unit_price: 5000, total: 5000 }],
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    const row = data as { id: string };
+    quotesCreees.push(row.id);
+    return row;
+  }
+
+  it("depuis « sent », accepte PUIS encaisse, et trace les deux", async () => {
+    const q = await soumissionEnvoyee("sent");
+    const { accepterSoumission } = await import("@/lib/data/tenant-data");
+    const { mapQuoteRow } = await import("@/lib/data/tenant-data");
+
+    const accepte = await accepterSoumission(
+      mapQuoteRow(q as unknown as Record<string, unknown>),
+      "depot_enregistre",
+    );
+    expect(accepte.error).toBeUndefined();
+
+    const { data: apres } = await db
+      .from("quotes")
+      .select("status, accepted_at, accepted_source, deposit_amount, deposit_status")
+      .eq("id", q.id)
+      .single();
+    const r = apres as {
+      status: string; accepted_at: string | null; accepted_source: string | null;
+      deposit_amount: number | null; deposit_status: string | null;
+    };
+
+    // Première transition, tracée.
+    expect(r.status).toBe("deposit_pending");
+    expect(r.accepted_at).toBeTruthy();
+    expect(r.accepted_source).toBe("depot_enregistre");
+    expect(r.deposit_status).toBe("pending");
+    // Le dépôt est calculé sur le TOTAL TAXES INCLUSES : 5 000 $ + taxes, à 20 %.
+    expect(Number(r.deposit_amount)).toBeCloseTo(1149.75, 2);
+  });
+
+  it("l'acceptation par le client se distingue dans les données", async () => {
+    const q = await soumissionEnvoyee("viewed");
+    const { accepterSoumission, mapQuoteRow } = await import("@/lib/data/tenant-data");
+    await accepterSoumission(mapQuoteRow(q as unknown as Record<string, unknown>), "client");
+
+    const { data } = await db.from("quotes").select("accepted_source").eq("id", q.id).single();
+    expect((data as { accepted_source: string }).accepted_source).toBe("client");
+  });
+
+  it("refuse une soumission jamais envoyée", async () => {
+    const q = await soumissionEnvoyee("draft");
+    const { accepterSoumission, mapQuoteRow } = await import("@/lib/data/tenant-data");
+    const r = await accepterSoumission(mapQuoteRow(q as unknown as Record<string, unknown>), "depot_enregistre");
+    expect(r.quote).toBeNull();
+    expect(r.error).toContain("ne peut plus être acceptée");
+  });
+
+  it("le compteur d'échecs accepte le domaine « deposit »", async () => {
+    const { noterEchecDEcriture } = await import("@/lib/data/echecs-decriture");
+    await noterEchecDEcriture(db as never, {
+      companyId,
+      quoteId: null,
+      domain: "deposit",
+      operation: "record_payment",
+      erreur: "essai",
+    });
+    const { data } = await db
+      .from("write_failures")
+      .select("domain, operation")
+      .eq("company_id", companyId);
+    expect(data).toEqual([{ domain: "deposit", operation: "record_payment" }]);
+    await db.from("write_failures").delete().eq("company_id", companyId);
   });
 });

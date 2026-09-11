@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Company, Customer, Employee, LaborRateTemplate, Quote, ScheduleEvent, User } from "@/types";
+import { depotEncaissable } from "@/lib/quotes/depot-encaissable";
 
 interface QuotesPageClientProps {
   initialQuotes: Quote[];
@@ -305,7 +306,7 @@ export function QuotesPageClient({
             <Mail className="mr-2 h-4 w-4" />
             Envoyer par courriel
           </DropdownMenuItem>
-          {quote.status === "deposit_pending" && (
+          {depotEncaissable(quote) && (
             <DropdownMenuItem onClick={() => handleDepositReceived(quote)}>
               <Receipt className="mr-2 h-4 w-4" />
               Dépôt reçu

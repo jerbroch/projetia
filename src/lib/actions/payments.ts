@@ -13,6 +13,7 @@ import {
 import { buildInteracEmailBlock } from "@/lib/email/invoice-email-template";
 import { sendReceiptEmail } from "@/lib/email/send-receipt";
 import { adresseDeReponse } from "@/lib/email/expediteur";
+import { noterEchecDEcriture } from "@/lib/data/echecs-decriture";
 
 export interface RecordPaymentInput {
   invoiceId: string;
@@ -289,7 +290,16 @@ export interface RecordDepositInput {
 }
 
 export type RecordDepositResult =
-  | { success: true; depositAmount: number }
+  | {
+      success: true;
+      depositAmount: number;
+      /**
+       * Vrai quand l'acceptation et la confirmation du dépôt ont réussi mais
+       * que l'écriture comptable a échoué. L'appelant peut le dire à l'écran ;
+       * la trace, elle, est dans `write_failures` et se consulte.
+       */
+      paiementNonEnregistre?: boolean;
+    }
   | { success: false; error: string };
 
 /**
@@ -328,11 +338,37 @@ export async function recordQuoteDepositAction(
   if (error || !quote) {
     return { success: false, error: "Soumission introuvable." };
   }
-  if (quote.status !== "deposit_pending") {
+  // UN VIREMENT REÇU EST UNE ACCEPTATION. C'est le geste le plus engageant du
+  // client : s'il a envoyé l'argent avant de cliquer, la soumission est
+  // acceptée dans les faits. On fait donc passer la soumission par
+  // l'acceptation avant d'enregistrer le paiement — une seule action de
+  // l'entrepreneur, deux transitions tracées séparément.
+  //
+  // L'acceptation passe par `accepterSoumission`, le même cœur que le clic du
+  // client : ni le calcul du dépôt ni la machine d'état ne sont recopiés ici.
+  let quoteCourante = quote;
+  if (quote.status === "sent" || quote.status === "viewed") {
+    const { getQuoteById } = await import("@/lib/data/tenant-data");
+    const { accepterSoumission } = await import("@/lib/data/tenant-data");
+    const complete = await getQuoteById(ctx.company.id, String(quote.id), false);
+    if (!complete) {
+      return { success: false, error: "Soumission introuvable." };
+    }
+    const accepte = await accepterSoumission(complete, "depot_enregistre");
+    if (!accepte.quote) {
+      return { success: false, error: accepte.error ?? "Impossible d'accepter la soumission." };
+    }
+    const { data: relue } = await admin
+      .from("quotes")
+      .select("id, quote_number, status, deposit_amount")
+      .eq("id", quote.id)
+      .maybeSingle();
+    if (relue) quoteCourante = relue as typeof quote;
+  } else if (quote.status !== "deposit_pending") {
     return { success: false, error: "Aucun dépôt en attente pour cette soumission." };
   }
 
-  const depositAmount = Number(quote.deposit_amount ?? 0);
+  const depositAmount = Number(quoteCourante.deposit_amount ?? 0);
   if (!Number.isFinite(depositAmount) || depositAmount <= 0) {
     return { success: false, error: "Le montant du dépôt n'est pas défini." };
   }
@@ -340,7 +376,7 @@ export async function recordQuoteDepositAction(
   const { error: updateError } = await admin
     .from("quotes")
     .update({ status: "deposit_paid", deposit_status: "paid" })
-    .eq("id", quote.id)
+    .eq("id", quoteCourante.id)
     .eq("company_id", ctx.company.id);
 
   if (updateError) {
@@ -351,24 +387,35 @@ export async function recordQuoteDepositAction(
   // précède la facturation. `invoice_id` reste nul, la table l'autorise.
   const { error: paymentError } = await admin.from("payments").insert({
     company_id: ctx.company.id,
-    invoice_number: quote.quote_number ? `Dépôt ${quote.quote_number}` : "Dépôt",
+    invoice_number: quoteCourante.quote_number ? `Dépôt ${quoteCourante.quote_number}` : "Dépôt",
     amount: depositAmount,
     method: input.method,
     status: "completed",
     received_at: input.receivedAt ?? new Date().toISOString().slice(0, 10),
     reference: input.reference?.trim() || null,
-    note: `Dépôt sur la soumission ${quote.quote_number ?? quote.id}`,
+    note: `Dépôt sur la soumission ${quoteCourante.quote_number ?? quoteCourante.id}`,
     recorded_by: ctx.user.id,
   });
 
   if (paymentError) {
-    // Le dépôt est confirmé sur la soumission ; l'écriture comptable a
-    // échoué. On le signale plutôt que de laisser un trou silencieux.
+    // Le dépôt est confirmé sur la soumission ; l'écriture comptable a échoué.
+    //
+    // Ça ne doit PAS vivre seulement dans les logs du serveur : ils ne sont
+    // jamais lus. La trace s'inscrit dans `write_failures`, d'où on peut tirer
+    // la liste des dépôts acceptés dont le paiement n'est pas enregistré.
+    // C'est le même cas que le versionnage qui échouait en silence.
     console.error("[recordQuoteDepositAction] écriture du paiement échouée:", paymentError.message);
+    await noterEchecDEcriture(admin as never, {
+      companyId: ctx.company.id,
+      quoteId: String(quoteCourante.id),
+      domain: "deposit",
+      operation: "record_payment",
+      erreur: paymentError.message,
+    });
   }
 
   revalidatePath("/quotes");
   revalidatePath("/payments");
 
-  return { success: true, depositAmount };
+  return { success: true, depositAmount, paiementNonEnregistre: Boolean(paymentError) };
 }

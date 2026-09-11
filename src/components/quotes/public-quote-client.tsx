@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { blocDePaiement } from "@/lib/paiement/bloc-de-paiement";
 import {
   acceptPublicQuoteAction,
   rejectPublicQuoteAction,
@@ -57,6 +58,24 @@ export function PublicQuoteClient({
   const lineItems = getQuoteLineItems(quote);
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
   const totals = calculateQuoteTotals(subtotal, company);
+
+  // Le CONTENU du bloc de paiement, produit par le module commun. Il rend
+  // `null` quand rien n'est configuré, et c'est lui seul qui en décide :
+  // aucune surface ne peut afficher un cadre « Comment payer » vide.
+  //
+  // Le montant vient de `montantDuDepot` — le calcul du dépôt vit à un seul
+  // endroit depuis qu'il s'était mis à donner deux résultats différents pour
+  // la même soumission.
+  const blocPaiement = blocDePaiement({
+    interac: company.interac,
+    reference: quote.quoteNumber,
+    montant: quote.depositRequired
+      ? montantDuDepot(subtotal, quote.depositPercentage ?? 20, company)
+      : undefined,
+    // Jamais la réponse à la question de sécurité sur une soumission :
+    // l'écrire sous la question annule la question.
+    afficherLaReponse: false,
+  });
 
   function accepterVraiment() {
     setConfirmation(null);
@@ -176,36 +195,12 @@ export function PublicQuoteClient({
             .
           </p>
 
-          {company.interac?.enabled && company.interac.email ? (
-            <div className="mt-4 space-y-2 rounded-md border bg-muted/40 p-4 text-sm">
-              <p className="font-medium">Virement Interac</p>
-              <dl className="space-y-1">
-                <div className="flex flex-wrap gap-x-2">
-                  <dt className="text-muted-foreground">Destinataire :</dt>
-                  <dd className="font-medium">
-                    {company.interac.recipientName ?? company.name}
-                  </dd>
-                </div>
-                <div className="flex flex-wrap gap-x-2">
-                  <dt className="text-muted-foreground">Courriel :</dt>
-                  <dd className="font-medium">{company.interac.email}</dd>
-                </div>
-                {company.interac.securityQuestion && (
-                  <div className="flex flex-wrap gap-x-2">
-                    <dt className="text-muted-foreground">Question de sécurité :</dt>
-                    <dd className="font-medium">{company.interac.securityQuestion}</dd>
-                  </div>
-                )}
-              </dl>
-              {company.interac.instructions && (
-                <p className="text-muted-foreground">{company.interac.instructions}</p>
-              )}
-              <p className="text-muted-foreground">
-                Indiquez le numéro de soumission {quote.quoteNumber} dans le message du
-                virement.
-              </p>
-            </div>
-          ) : (
+          {/*
+            Le bloc « Comment payer » est déjà sur la soumission au-dessus, dès
+            sa réception : le répéter ici en ferait deux à l'écran. On garde
+            seulement le repli, pour l'entrepreneur qui n'a rien configuré.
+          */}
+          {!blocPaiement && (
             <p className="mt-4 rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
               {company.name} vous contactera pour convenir des modalités de paiement du
               dépôt.

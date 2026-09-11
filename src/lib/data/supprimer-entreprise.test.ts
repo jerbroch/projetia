@@ -30,7 +30,7 @@ describe("supprimerEntreprises", () => {
       "quote_line_versions",
       "quote_line_items",
       "quote_versions",
-      "versioning_write_failures",
+      "write_failures",
       "companies",
     ]);
   });
