@@ -1,3 +1,4 @@
+import { blocDePaiement, type BlocDePaiement } from "@/lib/paiement/bloc-de-paiement";
 export interface InvoiceEmailLineItem {
   description: string;
   quantity: number;
@@ -122,54 +123,92 @@ export function buildInteracEmailBlock(input: {
   instructions?: string | null;
   /** Le numéro que le client doit inscrire au message du virement. */
   invoiceNumber?: string | null;
+  /**
+   * Montrer la réponse à la question de sécurité. Vrai par défaut : c'est le
+   * comportement des factures depuis toujours. Les soumissions passent faux —
+   * écrire la réponse sous la question, dans le même envoi, annule la
+   * question. Voir le journal des dettes : il faudra trancher pour les
+   * factures aussi.
+   */
+  afficherLaReponse?: boolean;
+  /** Le montant attendu, quand il y en a un — le dépôt d'une soumission. */
+  montant?: number | null;
 }): string | null {
-  const numero = input.invoiceNumber ? escapeHtml(input.invoiceNumber) : null;
-  if (!input.email && !numero) return null;
+  // Le CONTENU vient du module commun ; ici on ne fait que le mettre en HTML
+  // de courriel. Une modification du contenu se répercute donc aussi sur
+  // l'écran, sans qu'on ait à y penser.
+  const bloc = blocDePaiement({
+    interac: {
+      enabled: true,
+      email: input.email,
+      recipientName: input.recipientName,
+      securityQuestion: input.securityQuestion,
+      securityAnswer: input.securityAnswer,
+      instructions: input.instructions,
+    },
+    reference: input.invoiceNumber,
+    montant: input.montant,
+    afficherLaReponse: input.afficherLaReponse ?? true,
+  });
+  if (!bloc) return null;
+  return rendreBlocEnHtmlCourriel(bloc);
+}
 
-  const titre = `<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#111827;">Comment payer</p>`;
+/**
+ * LE RENDU COURRIEL du bloc de paiement.
+ *
+ * Tableaux et styles en ligne : les puces CSS et les flexbox ne survivent pas
+ * à Outlook. C'est la seule raison pour laquelle ce rendu diffère de celui de
+ * l'écran — le contenu, lui, est le même objet.
+ */
+export function rendreBlocEnHtmlCourriel(bloc: BlocDePaiement): string {
+  const titre = `<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#111827;">${escapeHtml(bloc.titre)}</p>`;
 
-  const etapes: string[] = [];
-
-  if (input.email) {
-    etapes.push(
-      etape(
-        1,
-        "Ouvrez un virement Interac depuis votre institution bancaire.",
-        null,
-      ),
-      etape(
-        2,
-        `Envoyez-le à <strong>${escapeHtml(input.email)}</strong>` +
-          (input.recipientName ? ` (${escapeHtml(input.recipientName)})` : ""),
-        input.securityQuestion
-          ? `Question de sécurité : <strong>${escapeHtml(input.securityQuestion)}</strong>` +
-              (input.securityAnswer ? `<br />Réponse : <strong>${escapeHtml(input.securityAnswer)}</strong>` : "")
-          : null,
-      ),
-    );
-  }
-
-  if (numero) {
-    // La ligne la plus importante du courriel, du point de vue de
-    // l'entrepreneur : sans elle, il ne sait pas de qui vient l'argent.
-    etapes.push(
-      etape(
-        etapes.length + 1,
-        "Dans le <strong>message</strong> du virement, écrivez&nbsp;:",
-        null,
-        `<div style="margin:8px 0 0 0;padding:10px 14px;background:#ffffff;border:2px dashed #2563eb;border-radius:6px;text-align:center;">
-           <span style="font-family:'Courier New',Courier,monospace;font-size:20px;font-weight:700;letter-spacing:1px;color:#1d4ed8;">${numero}</span>
-         </div>
-         <p style="margin:6px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;">C'est ce qui nous permet d'associer votre paiement à cette facture.</p>`,
-      ),
-    );
-  }
-
-  const instructions = input.instructions
-    ? `<p style="margin:12px 0 0 0;padding-top:12px;border-top:1px solid #bfdbfe;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(input.instructions)}</p>`
+  const montant = bloc.montant
+    ? `<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#111827;">Montant à verser&nbsp;: <strong>${escapeHtml(formatMoney(bloc.montant))}</strong></p>`
     : "";
 
-  return `<div style="margin-top:20px;padding:16px;background-color:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">${titre}${etapes.join("")}${instructions}</div>`;
+  const etapes = bloc.etapes.map((e, i) => {
+    const [avant, ...reste] = e.texte.split(/(?<=:)$/);
+    // Le courriel met en valeur l'adresse et le nom ; on remonte la mise en
+    // forme ici plutôt que de la coder dans le contenu, qui doit rester
+    // lisible par les deux rendus.
+    const texte = escapeHtml(e.texte).replace(
+      /([\w.+-]+@[\w.-]+\.\w+)/,
+      "<strong>$1</strong>",
+    );
+    void avant;
+    void reste;
+
+    const precision = e.precision
+      ? escapeHtml(e.precision)
+          .split("\n")
+          .map((ligne) => {
+            const [etiquette, ...valeur] = ligne.split(" : ");
+            return valeur.length
+              ? `${etiquette} : <strong>${valeur.join(" : ")}</strong>`
+              : ligne;
+          })
+          .join("<br />")
+      : null;
+
+    const extra = e.reference
+      ? `<div style="margin:8px 0 0 0;padding:10px 14px;background:#ffffff;border:2px dashed #2563eb;border-radius:6px;text-align:center;">
+           <span style="font-family:'Courier New',Courier,monospace;font-size:20px;font-weight:700;letter-spacing:1px;color:#1d4ed8;">${escapeHtml(e.reference)}</span>
+         </div>` +
+        (e.referenceNote
+          ? `<p style="margin:6px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#6b7280;">${escapeHtml(e.referenceNote)}</p>`
+          : "")
+      : undefined;
+
+    return etape(i + 1, texte, precision, extra);
+  });
+
+  const instructions = bloc.instructions
+    ? `<p style="margin:12px 0 0 0;padding-top:12px;border-top:1px solid #bfdbfe;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#374151;white-space:pre-wrap;">${escapeHtml(bloc.instructions)}</p>`
+    : "";
+
+  return `<div style="margin-top:20px;padding:16px;background-color:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">${titre}${montant}${etapes.join("")}${instructions}</div>`;
 }
 
 /** Une étape numérotée. En tableau : les puces CSS ne survivent pas à Outlook. */

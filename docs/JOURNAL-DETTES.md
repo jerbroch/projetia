@@ -211,3 +211,21 @@ ENTIERS et que le pavé numérique du téléphone leur convient :
 
 Si l'un d'eux devait un jour accepter une décimale, il faudrait le passer à
 `ChampDecimal` — pas ajouter un `step`.
+
+## La réponse à la question de sécurité est écrite dans les courriels de facture
+
+`buildInteracEmailBlock` affiche la question de sécurité du virement Interac
+**et sa réponse**, l'une sous l'autre, dans le même courriel. Ça annule la
+question : quiconque lit le courriel a les deux.
+
+Les SOUMISSIONS passent `afficherLaReponse: false` depuis le 11 septembre 2026 —
+elles partent avant tout engagement, et le risque y est plus grand. Les FACTURES
+gardent le comportement d'avant, faute d'une décision.
+
+CE QU'IL FAUT TRANCHER : retirer la réponse des factures aussi, ou assumer que
+le courriel est le canal de confiance. Le retrait a un coût réel — un client qui
+n'a pas la réponse doit la demander, et l'entrepreneur reçoit un appel de plus
+par facture. C'est un arbitrage, pas un correctif évident.
+
+Le point de décision est unique : `afficherLaReponse` dans
+`src/lib/paiement/bloc-de-paiement.ts`. Le changer d'un seul appel suffit.

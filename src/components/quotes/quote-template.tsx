@@ -1,6 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { blocDePaiement } from "@/lib/paiement/bloc-de-paiement";
+import { BlocDePaiementAffiche } from "@/components/paiement/bloc-de-paiement";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   calculateQuoteTotals,
@@ -189,6 +191,24 @@ export function QuoteTemplate({
               </span>
             )}
           </p>
+
+          {/*
+            LE BLOC DE PAIEMENT, sur la soumission telle qu'elle est reçue.
+            Ce gabarit sert à la fois la page publique et le document
+            imprimable : un seul rendu couvre les deux surfaces.
+
+            `blocDePaiement` rend `null` quand rien n'est configuré, et le
+            composant ne rend alors rien du tout — jamais un cadre vide.
+          */}
+          <BlocDePaiementAffiche
+            bloc={blocDePaiement({
+              interac: company.interac,
+              reference: quote.quoteNumber,
+              montant: quote.depositAmount,
+              // Jamais la réponse à la question de sécurité ici.
+              afficherLaReponse: false,
+            })}
+          />
         </div>
       )}
 
