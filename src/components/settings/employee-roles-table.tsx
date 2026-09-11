@@ -9,6 +9,8 @@ import {
 } from "@/lib/actions/employee-roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import type { EmployeeRole } from "@/types";
 
 /**
@@ -70,7 +72,9 @@ export function EmployeeRolesTable({ disabled = false }: { disabled?: boolean })
         name: l.name,
         // Un champ laissé vide vaut « pas encore renseigné », pas zéro : c'est
         // cette distinction qui permet d'avertir sans se tromper.
-        defaultHourlyRate: l.taux.trim() === "" ? null : Number(l.taux),
+        // `Number("22,50")` rend NaN : le taux serait enregistré vide alors
+        // qu'il vient d'être tapé. Voir src/lib/nombre-decimal.ts.
+        defaultHourlyRate: l.taux.trim() === "" ? null : decimalDepuisTexte(l.taux),
         sortOrder: ordre,
         isActive: l.isActive,
       });
@@ -140,16 +144,13 @@ export function EmployeeRolesTable({ disabled = false }: { disabled?: boolean })
                     />
                   </td>
                   <td className="px-1 py-1.5">
-                    <Input
+                    <ChampDecimal
                       aria-label={`Salaire horaire — ${r.name}`}
-                      type="number"
-                      step="0.01"
-                      min="0"
                       placeholder="à remplir"
                       className="w-28 text-right"
                       value={l.taux}
                       disabled={disabled}
-                      onChange={(e) => modifier(r.id, "taux", e.target.value)}
+                      onValeurChange={(v) => modifier(r.id, "taux", v)}
                     />
                   </td>
                   <td className="px-2 py-1.5 text-center">
@@ -199,15 +200,12 @@ export function EmployeeRolesTable({ disabled = false }: { disabled?: boolean })
                   />
                 </td>
                 <td className="px-1 py-1.5">
-                  <Input
+                  <ChampDecimal
                     aria-label="Salaire horaire du nouveau rôle"
-                    type="number"
-                    step="0.01"
-                    min="0"
                     placeholder="à remplir"
                     className="w-28 text-right"
                     value={nouveau.taux}
-                    onChange={(e) => setNouveau({ ...nouveau, taux: e.target.value })}
+                    onValeurChange={(v) => setNouveau({ ...nouveau, taux: v })}
                   />
                 </td>
                 <td className="px-2 py-1.5 text-center">—</td>

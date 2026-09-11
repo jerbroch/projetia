@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { ImageIcon, Loader2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChampDecimalNonControle } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateCompanySettingsAction } from "@/lib/actions/auth";
@@ -179,11 +180,11 @@ export function CompanySettingsForm({ company }: CompanySettingsFormProps) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="gstRate">TPS (décimal)</Label>
-              <Input id="gstRate" name="gstRate" type="number" step="0.001" defaultValue={company.gstRate ?? 0.05} />
+              <ChampDecimalNonControle id="gstRate" name="gstRate" decimales={5} defaultValue={company.gstRate ?? 0.05} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="qstRate">TVQ (décimal)</Label>
-              <Input id="qstRate" name="qstRate" type="number" step="0.00001" defaultValue={company.qstRate ?? 0.09975} />
+              <ChampDecimalNonControle id="qstRate" name="qstRate" decimales={5} defaultValue={company.qstRate ?? 0.09975} />
             </div>
           </div>
           <Button type="submit" disabled={loading || isPending || company.isDemo}>

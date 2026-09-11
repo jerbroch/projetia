@@ -1,4 +1,5 @@
 import type { FullConfig } from "@playwright/test";
+import { supprimerEntreprise } from "@/lib/data/supprimer-entreprise";
 import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { resetAuditFile } from "./helpers/audit";
@@ -90,7 +91,7 @@ async function createTenantUser(admin: ReturnType<typeof createAdmin>, runId: st
   });
 
   if (profileError) {
-    await admin.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(admin as never, company.id);
     await admin.auth.admin.deleteUser(userId);
     throw new Error(`Failed to create tenant profile: ${profileError.message}`);
   }
@@ -111,7 +112,7 @@ async function createTenantUser(admin: ReturnType<typeof createAdmin>, runId: st
 
   if (memberError) {
     await admin.from("profiles").delete().eq("id", userId);
-    await admin.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(admin as never, company.id);
     await admin.auth.admin.deleteUser(userId);
     throw new Error(`Failed to create tenant membership: ${memberError.message}`);
   }
@@ -180,7 +181,7 @@ async function ensureSuperAdminUser(admin: ReturnType<typeof createAdmin>, runId
     });
 
     if (profileError) {
-      await admin.from("companies").delete().eq("id", company.id);
+      await supprimerEntreprise(admin as never, company.id);
       await admin.auth.admin.deleteUser(userId);
       throw new Error(`Failed to create super admin profile: ${profileError.message}`);
     }

@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -285,14 +286,11 @@ export function QuoteForm({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="amount">Montant ($)</Label>
-              <Input
+              <ChampDecimal
                 id="amount"
-                type="number"
-                min="0"
-                step="0.01"
                 value={form.amount}
-                onChange={(e) => {
-                  updateField("amount", e.target.value);
+                onValeurChange={(v) => {
+                  updateField("amount", v);
                   if (!form.manualPriceOverride && hasCostEstimationLines(form.costEstimation)) {
                     updateField("manualPriceOverride", true);
                   }
@@ -344,13 +342,10 @@ export function QuoteForm({
             {form.depositRequired && (
               <div className="space-y-2 pl-6">
                 <Label htmlFor="depositPercentage">Pourcentage du dépôt (%)</Label>
-                <Input
+                <ChampDecimal
                   id="depositPercentage"
-                  type="number"
-                  min="1"
-                  max="100"
                   value={form.depositPercentage}
-                  onChange={(e) => updateField("depositPercentage", e.target.value)}
+                  onValeurChange={(v) => updateField("depositPercentage", v)}
                 />
               </div>
             )}

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { supprimerEntreprise } from "@/lib/data/supprimer-entreprise";
 import "./load-env";
 import { cibleConfirmee } from "./target-guard";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -86,12 +87,9 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
     if (!companyId) return;
     // L'ordre compte : company_id est en ON DELETE RESTRICT vers companies,
     // exactement la conséquence notée au journal des dettes.
-    await db.from("quote_line_versions").delete().eq("company_id", companyId);
-    await db.from("quote_line_items").delete().eq("company_id", companyId);
-    await db.from("quote_versions").delete().eq("company_id", companyId);
-    await db.from("versioning_write_failures").delete().eq("company_id", companyId);
     if (quoteId) await db.from("quotes").delete().eq("id", quoteId);
-    await db.from("companies").delete().eq("id", companyId);
+    // Le versionnage est en ON DELETE RESTRICT : le geste partagé s'en occupe.
+    await supprimerEntreprise(db as never, companyId);
   });
 
   /** Les identités en base, indexées par l'identifiant que porte l'éditeur. */
@@ -178,6 +176,35 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
     expect(apres.get("ql-c")).toBe(avant.get("ql-c"));
     expect(lignes.map((l) => l.item)).not.toContain(avant.get("ql-c"));
     expect(lignes).toHaveLength(3);
+  });
+
+  it("des heures décimales arrivent en base sans arrondi", async () => {
+    // L'autre chemin des heures : la soumission. `labor_hours` est un
+    // numeric(8,2) — une heure et demie doit y arriver telle quelle, et
+    // 1,5 h × 2 travailleurs doit faire 3 h, pas 1 h.
+    const r = await ecrireVersionCourante(db as never, {
+      companyId,
+      quoteId,
+      estimation: {
+        labor: [
+          { id: "ql-dec-1", category: "compagnon", hours: 1.5, hourlyRate: 125, workerCount: 1, total: 187.5 },
+          { id: "ql-dec-2", category: "compagnon", hours: 1.5, hourlyRate: 125, workerCount: 2, total: 375 },
+          { id: "ql-dec-3", category: "compagnon", hours: 7.25, hourlyRate: 125, workerCount: 1, total: 906.25 },
+        ],
+        materials: [],
+        fees: [],
+      },
+      operation: "update",
+    });
+    expect(r.erreur).toBeUndefined();
+
+    const { data } = await db
+      .from("quote_line_versions")
+      .select("labor_hours, quote_line_item_id")
+      .eq("quote_version_id", r.quoteVersionId!)
+      .order("sort_order");
+    const heures = (data ?? []).map((x) => Number((x as { labor_hours: number }).labor_hours));
+    expect(heures).toEqual([1.5, 3, 7.25]);
   });
 
   it("une soumission dupliquée reçoit de NOUVELLES identités, jamais les mêmes", async () => {

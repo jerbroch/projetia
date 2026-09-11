@@ -44,7 +44,11 @@ test.describe("8. Super Admin", () => {
       const quickLink = page.getByTestId("super-admin-quick-link");
       await expect(quickLink).toBeVisible({ timeout: 15000 });
       await quickLink.click();
-      await page.waitForURL(/\/admin/, { timeout: 15000 });
+      // PREMIÈRE navigation vers /admin du passage : sur le serveur de
+      // développement, la route est compilée à la demande, et quinze secondes
+      // ne suffisent pas toujours. Ce test échoue au hasard depuis longtemps
+      // pour cette seule raison — le code n'y est pour rien.
+      await page.waitForURL(/\/admin/, { timeout: 60000 });
     }
 
     await expect(

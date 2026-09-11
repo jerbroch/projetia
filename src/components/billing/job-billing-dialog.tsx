@@ -45,6 +45,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -84,6 +86,17 @@ interface JobBillingDialogProps {
   /** Archives mode — allow editing invoiced sheets and sync to invoice */
   archiveMode?: boolean;
   onBillingUpdated?: () => void;
+}
+
+/**
+ * `parseFloat("1,5")` rend 1 : il s'arrête à la virgule, sans rien signaler.
+ * Une heure et demie devenait une heure sur la facture. On lit désormais les
+ * deux séparateurs, et on rend NaN comme avant quand il n'y a pas de nombre —
+ * les tests d'existence écrits autour continuent de fonctionner tels quels.
+ */
+function lireNombre(texte: string | null | undefined): number {
+  const n = decimalDepuisTexte(texte, 2);
+  return n === null ? NaN : n;
 }
 
 export function JobBillingDialog({
@@ -228,7 +241,7 @@ export function JobBillingDialog({
   }
 
   function handleAddLabor() {
-    const hours = parseFloat(laborHours);
+    const hours = lireNombre(laborHours);
     if (!selectedTemplate || !hours || hours <= 0) {
       setError("Sélectionnez un modèle et des heures valides.");
       return;
@@ -269,9 +282,9 @@ export function JobBillingDialog({
   }
 
   function handleAddCustomLabor() {
-    const hours = parseFloat(customLaborHours);
+    const hours = lireNombre(customLaborHours);
     const workerCount = parseInt(customLaborWorkers, 10);
-    const hourlyRate = showPrices ? parseFloat(customLaborRate) : 0;
+    const hourlyRate = showPrices ? lireNombre(customLaborRate) : 0;
     if (!customLaborDesc.trim() || !hours || hours <= 0) {
       setError("Description et heures valides requises.");
       return;
@@ -328,7 +341,7 @@ export function JobBillingDialog({
   }
 
   function handleAddMaterial() {
-    const qty = parseFloat(materialQty);
+    const qty = lireNombre(materialQty);
     if (!selectedMaterial || !qty || qty <= 0) {
       setError("Sélectionnez un matériel et une quantité valide.");
       return;
@@ -336,7 +349,7 @@ export function JobBillingDialog({
     setError("");
 
     const unitPrice = showPrices && materialPriceInput
-      ? parseFloat(materialPriceInput)
+      ? lireNombre(materialPriceInput)
       : selectedMaterial.effectivePrice ?? selectedMaterial.unitCost ?? 0;
 
     if (isDemo) {
@@ -363,7 +376,7 @@ export function JobBillingDialog({
       if (showPrices && materialPriceInput && selectedMaterial) {
         const priceResult = await updateCatalogCustomPriceAction({
           catalogItemId: selectedMaterial.id,
-          customPrice: parseFloat(materialPriceInput),
+          customPrice: lireNombre(materialPriceInput),
         });
         if (!priceResult.success) {
           setError(priceResult.error);
@@ -386,12 +399,12 @@ export function JobBillingDialog({
   }
 
   function handleAddDivers() {
-    const qty = parseFloat(diversQty);
+    const qty = lireNombre(diversQty);
     if (!diversDesc.trim() || !qty || qty <= 0) {
       setError("Description et quantité requises pour Divers.");
       return;
     }
-    const unitPrice = showPrices ? parseFloat(diversPrice) : 0;
+    const unitPrice = showPrices ? lireNombre(diversPrice) : 0;
     if (showPrices && (!unitPrice || unitPrice <= 0)) {
       setError("Prix unitaire requis.");
       return;
@@ -475,7 +488,7 @@ export function JobBillingDialog({
   }
 
   function handleSaveSheetMargin() {
-    const pct = parseFloat(sheetMarginInput) / 100;
+    const pct = lireNombre(sheetMarginInput) / 100;
     if (Number.isNaN(pct) || pct < 0) {
       setError("Marge invalide.");
       return;
@@ -644,12 +657,11 @@ export function JobBillingDialog({
                       </div>
                       <div className="w-24 space-y-1">
                         <Label>Heures</Label>
-                        <Input
-                          type="number"
-                          min="0.25"
-                          step="0.25"
+                        <ChampDecimal
+                          aria-label="Heures"
+                          placeholder="1,5"
                           value={laborHours}
-                          onChange={(e) => setLaborHours(e.target.value)}
+                          onValeurChange={setLaborHours}
                         />
                       </div>
                       <Button onClick={handleAddLabor} disabled={isPending}>
@@ -677,12 +689,11 @@ export function JobBillingDialog({
                           </div>
                           <div className="space-y-1">
                             <Label>Heures</Label>
-                            <Input
-                              type="number"
-                              min="0.25"
-                              step="0.25"
+                            <ChampDecimal
+                              aria-label="Heures"
+                              placeholder="1,5"
                               value={customLaborHours}
-                              onChange={(e) => setCustomLaborHours(e.target.value)}
+                              onValeurChange={setCustomLaborHours}
                             />
                           </div>
                           <div className="space-y-1">
@@ -698,13 +709,11 @@ export function JobBillingDialog({
                           {showPrices && (
                             <div className="space-y-1">
                               <Label>Taux ($/h)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                              <ChampDecimal
+                                aria-label="Taux horaire"
                                 value={customLaborRate}
-                                onChange={(e) => setCustomLaborRate(e.target.value)}
-                                placeholder="185.00"
+                                onValeurChange={setCustomLaborRate}
+                                placeholder="185,00"
                               />
                             </div>
                           )}
@@ -774,22 +783,19 @@ export function JobBillingDialog({
                         </p>
                         <div className="w-24 space-y-1">
                           <Label>Qté</Label>
-                          <Input
-                            type="number"
-                            min="1"
+                          <ChampDecimal
+                            aria-label="Quantité"
                             value={materialQty}
-                            onChange={(e) => setMaterialQty(e.target.value)}
+                            onValeurChange={setMaterialQty}
                           />
                         </div>
                         {showPrices && (
                           <div className="w-28 space-y-1">
                             <Label>Prix unitaire ($)</Label>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
+                            <ChampDecimal
+                              aria-label="Prix unitaire"
                               value={materialPriceInput}
-                              onChange={(e) => setMaterialPriceInput(e.target.value)}
+                              onValeurChange={setMaterialPriceInput}
                               placeholder="0.00"
                             />
                           </div>
@@ -822,22 +828,19 @@ export function JobBillingDialog({
                           </div>
                           <div className="space-y-1">
                             <Label>Quantité</Label>
-                            <Input
-                              type="number"
-                              min="1"
+                            <ChampDecimal
+                              aria-label="Quantité"
                               value={diversQty}
-                              onChange={(e) => setDiversQty(e.target.value)}
+                              onValeurChange={setDiversQty}
                             />
                           </div>
                           {showPrices && (
                             <div className="space-y-1">
                               <Label>Prix unitaire ($)</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                              <ChampDecimal
+                                aria-label="Prix unitaire"
                                 value={diversPrice}
-                                onChange={(e) => setDiversPrice(e.target.value)}
+                                onValeurChange={setDiversPrice}
                               />
                             </div>
                           )}
@@ -898,12 +901,11 @@ export function JobBillingDialog({
                     <div className="flex flex-wrap items-end gap-2 py-2">
                       <div className="w-32 space-y-1">
                         <Label htmlFor="sheetMargin">Marge matériaux (%)</Label>
-                        <Input
+                        <ChampDecimal
+                          aria-label="Marge matériaux"
                           id="sheetMargin"
-                          type="number"
-                          min="0"
                           value={sheetMarginInput}
-                          onChange={(e) => setSheetMarginInput(e.target.value)}
+                          onValeurChange={setSheetMarginInput}
                         />
                       </div>
                       <Button size="sm" variant="outline" onClick={handleSaveSheetMargin} disabled={isPending}>
@@ -1087,17 +1089,15 @@ function BillingLinesTable({
               {showPrices && materialOnly && (
                 <td className="p-2 text-right">
                   {!disabled && onUpdatePrice ? (
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                    <ChampDecimal
+                      aria-label="Prix coûtant"
                       className="ml-auto h-8 w-24 text-right"
                       value={editingPrice[line.id] ?? String(line.unitCost)}
-                      onChange={(e) =>
-                        setEditingPrice((prev) => ({ ...prev, [line.id]: e.target.value }))
+                      onValeurChange={(v) =>
+                        setEditingPrice((prev) => ({ ...prev, [line.id]: v }))
                       }
                       onBlur={() => {
-                        const val = parseFloat(editingPrice[line.id] ?? String(line.unitCost));
+                        const val = lireNombre(editingPrice[line.id] ?? String(line.unitCost));
                         if (!Number.isNaN(val) && val >= 0 && val !== line.unitCost) {
                           onUpdatePrice(line.id, val);
                         }
@@ -1113,17 +1113,15 @@ function BillingLinesTable({
                   <td className="p-2 text-right">{formatCurrency(line.unitCost)}</td>
                   <td className="p-2 text-right">
                     {!disabled && onUpdatePrice ? (
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
+                      <ChampDecimal
+                        aria-label="Prix de vente"
                         className="ml-auto h-8 w-24 text-right"
                         value={editingPrice[line.id] ?? String(line.unitSellPrice)}
-                        onChange={(e) =>
-                          setEditingPrice((prev) => ({ ...prev, [line.id]: e.target.value }))
+                        onValeurChange={(v) =>
+                          setEditingPrice((prev) => ({ ...prev, [line.id]: v }))
                         }
                         onBlur={() => {
-                          const val = parseFloat(
+                          const val = lireNombre(
                             editingPrice[line.id] ?? String(line.unitSellPrice)
                           );
                           if (!Number.isNaN(val) && val >= 0 && val !== line.unitSellPrice) {

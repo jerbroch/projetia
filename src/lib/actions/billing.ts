@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import {
   calculateLineTotal,
   calculateMarginFromPrices,
@@ -616,8 +617,11 @@ export async function saveLaborRateTemplateAction(
     id,
     name,
     workerCount: Number(formData.get("workerCount") ?? 1),
-    costPerHr: Number(formData.get("costPerHr") ?? 0),
-    billRate: Number(formData.get("billRate") ?? 0),
+    // `Number("12,5")` rend NaN : le taux serait refusé ou enregistré vide
+    // alors qu'il vient d'être tapé. Le champ n'est qu'une moitié de la
+    // correction — voir src/lib/nombre-decimal.ts.
+    costPerHr: decimalDepuisTexte(formData.get("costPerHr") as string) ?? 0,
+    billRate: decimalDepuisTexte(formData.get("billRate") as string) ?? 0,
     rateType: (formData.get("rateType") as LaborRateTemplate["rateType"]) ?? "regular",
     sortOrder: Number(formData.get("sortOrder") ?? 0),
     isActive: formData.get("isActive") !== "false",

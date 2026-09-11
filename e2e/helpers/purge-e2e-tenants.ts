@@ -15,6 +15,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cibleConfirmee, DOMAINE_E2E } from "../target-guard";
+import { supprimerEntreprises } from "@/lib/data/supprimer-entreprise";
 
 /**
  * Âge en deçà duquel une entreprise e2e est considérée comme APPARTENANT À UN
@@ -104,20 +105,16 @@ export async function purgeE2ETenants(
     .filter((p) => p.company_id && entreprises.includes(String(p.company_id)))
     .map((p) => String(p.id));
 
-  // 2. Les entreprises d'abord : neuf tables cascadent avec elles, dont
-  //    `profiles`. Deux passent en SET NULL — `platform_test_users` et
-  //    `admin_activity_log` — ce qui préserve le journal d'audit.
+  // 2. Les entreprises, versionnage compris. Le versionnage est en ON DELETE
+  //    RESTRICT (migration 045) : sans ce passage, la purge échoue et les
+  //    locataires de test s'accumulent dans la base de développement. Le geste
+  //    est partagé — voir supprimer-entreprise.ts, sept chemins s'en servent.
   if (entreprises.length) {
-    const { error: suppression } = await admin
-      .from("companies")
-      .delete()
-      .in("id", entreprises);
-    if (suppression) {
-      throw new Error(`suppression des entreprises impossible : ${suppression.message}`);
-    }
+    const r = await supprimerEntreprises(admin as never, entreprises);
+    if (!r.ok) throw new Error(r.erreur!);
   }
 
-  // 3. Les comptes auth ensuite : ils ne cascadent pas avec l'entreprise et
+  // 4. Les comptes auth ensuite : ils ne cascadent pas avec l'entreprise et
   //    resteraient orphelins, ce qui finirait par bloquer une réinscription
   //    sur le même courriel.
   let comptesSupprimes = 0;

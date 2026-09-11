@@ -17,6 +17,8 @@ import { DEFAULT_MATERIAL_MARGIN } from "@/lib/billing-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -95,7 +97,9 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
   }
 
   function handleSaveMargin() {
-    const pct = parseFloat(marginInput) / 100;
+    // `parseFloat("37,5")` rend 37 : il s'arrête à la virgule. Une marge de
+    // 37,5 % devenait 37 %.
+    const pct = (decimalDepuisTexte(marginInput) ?? NaN) / 100;
     if (Number.isNaN(pct) || pct < 0) {
       setError("Marge invalide.");
       return;
@@ -199,12 +203,10 @@ export function BillingSettingsForm({ company, isDemo }: BillingSettingsFormProp
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="w-32 space-y-1">
             <Label htmlFor="defaultMargin">Marge (%)</Label>
-            <Input
+            <ChampDecimal
               id="defaultMargin"
-              type="number"
-              min="0"
               value={marginInput}
-              onChange={(e) => setMarginInput(e.target.value)}
+              onValeurChange={setMarginInput}
               disabled={isDemo}
             />
           </div>

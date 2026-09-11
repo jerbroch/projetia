@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zNombreDecimal } from "@/lib/nombre-decimal";
 
 const emailSchema = z
   .string()
@@ -67,8 +68,10 @@ export const onboardingCompanySchema = z.object({
   province: z.string().trim().default("QC"),
   postalCode: z.string().trim().optional(),
   logoUrl: z.string().url().optional().or(z.literal("")),
-  gstRate: z.coerce.number().min(0).max(1).default(0.05),
-  qstRate: z.coerce.number().min(0).max(1).default(0.09975),
+  // Cinq décimales : la TVQ est 0,09975. Deux l'arrondiraient à 0,10 et
+  // chaque facture serait fausse de quelques cents.
+  gstRate: zNombreDecimal(z.number().min(0).max(1), 5).default(0.05),
+  qstRate: zNombreDecimal(z.number().min(0).max(1), 5).default(0.09975),
 });
 
 export const onboardingEmployeeSchema = z.object({

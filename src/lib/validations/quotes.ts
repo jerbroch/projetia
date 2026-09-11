@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { zNombreDecimal } from "@/lib/nombre-decimal";
 
 const quoteStatusSchema = z.enum([
   "draft",
@@ -71,11 +72,11 @@ export const quoteFormSchema = z.object({
   customerId: z.string().trim().optional(),
   customerName: z.string().trim().min(1, "Le nom du client est requis"),
   customerEmail: z.string().trim().email("Courriel invalide").optional().or(z.literal("")),
-  amount: z.coerce.number().min(0, "Le montant doit être positif"),
+  amount: zNombreDecimal(z.number().min(0, "Le montant doit être positif")),
   status: quoteStatusSchema,
   validUntil: z.string().trim().optional(),
   depositRequired: z.coerce.boolean().optional().default(false),
-  depositPercentage: z.coerce.number().min(1).max(100).optional(),
+  depositPercentage: zNombreDecimal(z.number().min(1).max(100)).optional(),
   terms: z.string().trim().optional(),
   costEstimation: quoteCostEstimationSchema.optional(),
   manualPriceOverride: z.coerce.boolean().optional().default(false),

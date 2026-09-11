@@ -1,6 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { supprimerEntreprise } from "@/lib/data/supprimer-entreprise";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, isSupabaseConfigured } from "@/lib/supabase/admin";
 import { clearDemoSession, setDemoSession } from "@/lib/demo/session";
@@ -137,7 +139,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
   });
 
   if (profileError) {
-    await admin.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(admin as never, company.id);
     await admin.auth.admin.deleteUser(userId);
     return safeError("Impossible de créer le profil. Veuillez réessayer.");
   }
@@ -150,7 +152,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
 
   if (memberError) {
     await admin.from("profiles").delete().eq("id", userId);
-    await admin.from("companies").delete().eq("id", company.id);
+    await supprimerEntreprise(admin as never, company.id);
     await admin.auth.admin.deleteUser(userId);
     return safeError("Impossible de finaliser l'inscription. Veuillez réessayer.");
   }
@@ -427,8 +429,9 @@ export async function updateCompanySettingsAction(formData: FormData): Promise<A
     province: formData.get("province") || "QC",
     postal_code: formData.get("postalCode") || null,
     primary_color: formData.get("primaryColor") || null,
-    gst_rate: Number(formData.get("gstRate") ?? 0.05),
-    qst_rate: Number(formData.get("qstRate") ?? 0.09975),
+    // Cinq décimales : la TVQ est 0,09975.
+    gst_rate: decimalDepuisTexte(formData.get("gstRate") as string, 5) ?? 0.05,
+    qst_rate: decimalDepuisTexte(formData.get("qstRate") as string, 5) ?? 0.09975,
   });
 
   if (error) return safeError("Impossible de sauvegarder.");

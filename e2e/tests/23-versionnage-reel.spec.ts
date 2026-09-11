@@ -1,6 +1,6 @@
-import { test, expect, tenantAuth } from "../fixtures/base";
+import { test, expect } from "../fixtures/base";
 import { readTestCredentials } from "../helpers/test-data";
-import { ensureDashboardAccess } from "../helpers/auth";
+import { connexionLocataire, ensureDashboardAccess, loginWithCredentials } from "../helpers/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readFileSync } from "node:fs";
 import path from "path";
@@ -74,7 +74,11 @@ function estimationRiche(articles: Array<{ id: string; name: string; unit: strin
 }
 
 test.describe("23. Versionnage sur une soumission réelle", () => {
-  test.use({ storageState: tenantAuth, pageName: "Versionnage" });
+  // PAS de storageState. La suite complète dure près de cinquante minutes, et
+  // ce spec tourne à la fin : l'état de session écrit par `auth.setup` au
+  // début n'est plus valable, et la page de connexion s'affiche à la place de
+  // /quotes. On se connecte au moment où on en a besoin.
+  test.use({ pageName: "Versionnage" });
 
   let companyId = "";
 
@@ -193,6 +197,7 @@ test.describe("23. Versionnage sur une soumission réelle", () => {
 
   /** Ouvre la soumission par son titre et clique Enregistrer. Rien d'autre. */
   async function sauvegarderParLeFormulaire(page: import("@playwright/test").Page, titre: string) {
+    await connexionLocataire(page);
     await page.goto("/quotes");
     await ensureDashboardAccess(page);
 

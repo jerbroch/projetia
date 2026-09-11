@@ -5,6 +5,8 @@ import { Loader2, Plus } from "lucide-react";
 import { saveLaborRateTemplateAction } from "@/lib/actions/billing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ChampDecimal } from "@/components/ui/champ-decimal";
+import { decimalDepuisTexte } from "@/lib/nombre-decimal";
 import {
   Select,
   SelectContent,
@@ -164,29 +166,25 @@ export function LaborTemplatesTable({
                     />
                   </td>
                   <td className="px-1 py-1.5">
-                    <Input
+                    <ChampDecimal
                       aria-label={`Coût horaire — ${t.name}`}
-                      type="number"
-                      step="0.01"
                       className="w-24 text-right"
                       value={l.costPerHr}
                       disabled={disabled}
-                      onChange={(e) => modifier(t.id, "costPerHr", e.target.value)}
+                      onValeurChange={(v) => modifier(t.id, "costPerHr", v)}
                     />
                   </td>
                   <td className="px-1 py-1.5">
-                    <Input
+                    <ChampDecimal
                       aria-label={`Prix de vente horaire — ${t.name}`}
-                      type="number"
-                      step="0.01"
                       className="w-24 text-right"
                       value={l.billRate}
                       disabled={disabled}
-                      onChange={(e) => modifier(t.id, "billRate", e.target.value)}
+                      onValeurChange={(v) => modifier(t.id, "billRate", v)}
                     />
                   </td>
                   <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
-                    {marge(Number(l.costPerHr) || 0, Number(l.billRate) || 0)}
+                    {marge(decimalDepuisTexte(l.costPerHr) ?? 0, decimalDepuisTexte(l.billRate) ?? 0)}
                   </td>
                   <td className="px-1 py-1.5">
                     <Select
@@ -250,23 +248,23 @@ export function LaborTemplatesTable({
                   />
                 </td>
                 <td className="px-1 py-1.5">
-                  <Input
+                  <ChampDecimal
                     aria-label="Coût horaire du nouveau gabarit"
-                    type="number" step="0.01" className="w-24 text-right"
+                    className="w-24 text-right"
                     value={nouveau.costPerHr}
-                    onChange={(e) => setNouveau({ ...nouveau, costPerHr: e.target.value })}
+                    onValeurChange={(v) => setNouveau({ ...nouveau, costPerHr: v })}
                   />
                 </td>
                 <td className="px-1 py-1.5">
-                  <Input
+                  <ChampDecimal
                     aria-label="Prix de vente du nouveau gabarit"
-                    type="number" step="0.01" className="w-24 text-right"
+                    className="w-24 text-right"
                     value={nouveau.billRate}
-                    onChange={(e) => setNouveau({ ...nouveau, billRate: e.target.value })}
+                    onValeurChange={(v) => setNouveau({ ...nouveau, billRate: v })}
                   />
                 </td>
                 <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
-                  {marge(Number(nouveau.costPerHr) || 0, Number(nouveau.billRate) || 0)}
+                  {marge(decimalDepuisTexte(nouveau.costPerHr) ?? 0, decimalDepuisTexte(nouveau.billRate) ?? 0)}
                 </td>
                 <td className="px-1 py-1.5">
                   <Select

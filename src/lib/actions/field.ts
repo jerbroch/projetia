@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { zNombreDecimal } from "@/lib/nombre-decimal";
 import {
   countOpenToolsForEmployee,
   getFieldJobById,
@@ -41,7 +42,10 @@ const fieldHourSchema = z.object({
   workDate: z.string().min(1),
   startTime: z.string().optional(),
   endTime: z.string().optional(),
-  hours: z.coerce.number().positive("Les heures doivent être supérieures à 0"),
+  // `z.coerce.number()` sur « 1,5 » rendait NaN, et le formulaire répondait
+  // « les heures doivent être supérieures à 0 » alors qu'une heure et demie
+  // venait d'être tapée. Le champ n'était qu'une moitié de la correction.
+  hours: zNombreDecimal(z.number().positive("Les heures doivent être supérieures à 0")),
   laborType: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -51,7 +55,7 @@ const fieldMaterialSchema = z.object({
   catalogItemId: z.string().uuid().optional(),
   name: z.string().trim().min(1, "Le nom est requis"),
   description: z.string().optional(),
-  quantity: z.coerce.number().positive("La quantité doit être supérieure à 0"),
+  quantity: zNombreDecimal(z.number().positive("La quantité doit être supérieure à 0")),
   unit: z.string().trim().min(1).default("unité"),
   notes: z.string().optional(),
   isCustom: z.coerce.boolean().optional(),
