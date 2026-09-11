@@ -2,6 +2,7 @@ import type { createClient } from "@/lib/supabase/server";
 import type { QuoteCostEstimation } from "@/types";
 import { lignesVoulues, planifier, type LigneVoulue } from "@/lib/quotes/versionnage";
 import { mapCostEstimationFromDb } from "@/lib/quote-cost-utils";
+import { noterEchecDEcriture } from "@/lib/data/echecs-decriture";
 
 /**
  * ALIMENTER LES TABLES DE VERSIONNAGE À CHAQUE SAUVEGARDE.
@@ -14,7 +15,7 @@ import { mapCostEstimationFromDb } from "@/lib/quote-cost-utils";
  * transaction sur plusieurs instructions, donc les deux écritures ne peuvent
  * pas être atomiques sans passer par une fonction Postgres. Mais un échec
  * journalisé dans les logs du serveur n'est jamais lu : chaque échec s'inscrit
- * dans `versioning_write_failures`, qui se consulte.
+ * dans `write_failures`, qui se consulte.
  */
 
 export type OperationDeSauvegarde = "create" | "update" | "duplicate";
@@ -76,16 +77,13 @@ async function noterEchec(
   operation: OperationDeSauvegarde,
   erreur: string
 ): Promise<void> {
-  try {
-    await supabase.from("versioning_write_failures").insert({
-      company_id: companyId,
-      quote_id: quoteId,
-      operation,
-      error: erreur.slice(0, 2000),
-    });
-  } catch {
-    // Volontairement muet : on ne casse pas une sauvegarde réussie pour ça.
-  }
+  await noterEchecDEcriture(supabase as never, {
+    companyId,
+    quoteId,
+    domain: "versioning",
+    operation,
+    erreur,
+  });
 }
 
 async function ecrire(supabase: Client, p: Parametres): Promise<ResultatVersionnage> {

@@ -192,7 +192,7 @@ test.describe("23. Versionnage sur une soumission réelle", () => {
     await db.from("quote_line_items").delete().in("quote_id", ids);
     await db.from("quote_versions").delete().in("quote_id", ids);
     await db.from("quotes").delete().in("id", ids);
-    await db.from("versioning_write_failures").delete().eq("company_id", companyId);
+    await db.from("write_failures").delete().eq("company_id", companyId);
   });
 
   /** Ouvre la soumission par son titre et clique Enregistrer. Rien d'autre. */
@@ -225,7 +225,7 @@ test.describe("23. Versionnage sur une soumission réelle", () => {
   test("aucun échec n'est inscrit au compteur", async () => {
     const db = createAdminClient();
     const { data } = await db
-      .from("versioning_write_failures")
+      .from("write_failures")
       .select("operation, error, quote_id")
       .eq("company_id", companyId);
     expect(data ?? []).toEqual([]);

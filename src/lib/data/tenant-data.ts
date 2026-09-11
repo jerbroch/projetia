@@ -265,6 +265,7 @@ export function mapQuoteRow(row: Record<string, unknown>): Quote {
     sentAt: row.sent_at ? String(row.sent_at) : undefined,
     viewedAt: row.viewed_at ? String(row.viewed_at) : undefined,
     acceptedAt: row.accepted_at ? String(row.accepted_at) : undefined,
+    acceptedSource: row.accepted_source ? String(row.accepted_source) : undefined,
     rejectedAt: row.rejected_at ? String(row.rejected_at) : undefined,
     depositRequired: Boolean(row.deposit_required ?? false),
     depositPercentage: row.deposit_percentage != null ? Number(row.deposit_percentage) : undefined,
@@ -675,9 +676,28 @@ export async function sendQuoteForCompany(
   return { quote: mapQuoteRow(data), token };
 }
 
-export async function acceptQuoteByToken(token: string): Promise<{ quote: Quote | null; error?: string }> {
-  const quote = await getQuoteByPublicToken(token);
-  if (!quote) return { quote: null, error: "Soumission introuvable." };
+/** D'où vient l'acceptation. La contrainte de la table porte les mêmes valeurs. */
+export type SourceDAcceptation = "client" | "depot_enregistre" | "verbal" | "papier";
+
+/**
+ * LE CŒUR DE L'ACCEPTATION, APPELÉ PAR LES DEUX CHEMINS.
+ *
+ * Le client qui clique sur la page publique et l'entrepreneur qui enregistre
+ * un dépôt reçu font la même chose : ils acceptent la soumission. Un virement
+ * reçu EST une acceptation — c'est le geste le plus engageant du client.
+ *
+ * Les deux passent donc par ici plutôt que d'avoir chacun sa copie. Si un
+ * courriel ou un chantier s'ajoute un jour à l'acceptation, les deux chemins
+ * l'auront sans qu'on y pense. Aujourd'hui, l'acceptation ne fait qu'une
+ * chose : mettre à jour la ligne.
+ *
+ * `source` est enregistrée pour qu'on sache APRÈS COUP laquelle des deux s'est
+ * produite. Sans elle, `accepted_at` ne distingue rien.
+ */
+export async function accepterSoumission(
+  quote: Quote,
+  source: SourceDAcceptation,
+): Promise<{ quote: Quote | null; error?: string }> {
   if (!["sent", "viewed"].includes(quote.status)) {
     return { quote: null, error: "Cette soumission ne peut plus être acceptée." };
   }
@@ -704,10 +724,11 @@ export async function acceptQuoteByToken(token: string): Promise<{ quote: Quote 
     .update({
       status: newStatus,
       accepted_at: now,
+      accepted_source: source,
       deposit_amount: depositAmount,
       deposit_status: quote.depositRequired ? "pending" : "not_required",
     })
-    .eq("public_token", token)
+    .eq("id", quote.id)
     .select("*")
     .single();
 
@@ -716,6 +737,13 @@ export async function acceptQuoteByToken(token: string): Promise<{ quote: Quote 
   }
 
   return { quote: mapQuoteRow(data) };
+}
+
+/** L'acceptation par le client, depuis la page publique. */
+export async function acceptQuoteByToken(token: string): Promise<{ quote: Quote | null; error?: string }> {
+  const quote = await getQuoteByPublicToken(token);
+  if (!quote) return { quote: null, error: "Soumission introuvable." };
+  return accepterSoumission(quote, "client");
 }
 
 export async function rejectQuoteByToken(
