@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { setInitialPasswordAction } from "@/lib/actions/set-initial-password";
 import { createClient } from "@/lib/supabase/client";
+import { ChampMotDePasse, CourrielDuCompte } from "@/components/ui/champ-mot-de-passe";
 
 /**
  * Écran où l'employé invité choisit son mot de passe.
@@ -29,6 +30,7 @@ export function SetInitialPasswordForm() {
   const [error, setError] = useState("");
   const [sessionError, setSessionError] = useState(false);
   const [ready, setReady] = useState(false);
+  const [courriel, setCourriel] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -41,6 +43,10 @@ export function SetInitialPasswordForm() {
         setSessionError(true);
         return;
       }
+      // Le courriel du compte, pour que le trousseau sache à QUI appartient
+      // le nouveau mot de passe. Sans lui, iOS et Google Password Manager
+      // n'offrent pas de l'enregistrer.
+      setCourriel(session.user?.email ?? null);
       setReady(true);
     }
     void verifierSession();
@@ -90,12 +96,12 @@ export function SetInitialPasswordForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <CourrielDuCompte courriel={courriel} />
           <div className="space-y-2">
             <Label htmlFor="password">Mot de passe</Label>
-            <Input
+            <ChampMotDePasse
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               required
               disabled={!ready || isPending}
@@ -103,13 +109,13 @@ export function SetInitialPasswordForm() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirmez le mot de passe</Label>
-            <Input
+            <ChampMotDePasse
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               required
               disabled={!ready || isPending}
+              etiquette="confirmation"
             />
           </div>
 

@@ -8,7 +8,7 @@ export async function loginWithCredentials(
 ): Promise<void> {
   await page.goto("/login");
   await page.getByLabel("Courriel").fill(email);
-  await page.getByLabel("Mot de passe").fill(password);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Se connecter" }).click();
 }
 

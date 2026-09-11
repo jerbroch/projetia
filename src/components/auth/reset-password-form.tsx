@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { resetPasswordAction } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { ChampMotDePasse, CourrielDuCompte } from "@/components/ui/champ-mot-de-passe";
 
 export function ResetPasswordForm() {
   const [error, setError] = useState("");
   const [sessionError, setSessionError] = useState("");
   const [ready, setReady] = useState(false);
+  const [courriel, setCourriel] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -42,6 +44,10 @@ export function ResetPasswordForm() {
         return;
       }
 
+      // Le courriel du compte, pour que le trousseau sache à QUI appartient
+      // le nouveau mot de passe. Sans lui, iOS et Google Password Manager
+      // n'offrent pas de l'enregistrer.
+      setCourriel(session.user?.email ?? null);
       setReady(true);
     }
 
@@ -103,17 +109,18 @@ export function ResetPasswordForm() {
           <CardDescription>Choisissez un mot de passe sécurisé</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
+          <CourrielDuCompte courriel={courriel} />
           <CardContent className="space-y-4">
             {error && (
               <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
             )}
             <div className="space-y-2">
               <Label htmlFor="password">Nouveau mot de passe</Label>
-              <Input id="password" name="password" type="password" required minLength={10} />
+              <ChampMotDePasse id="password" name="password" required minLength={10} autoComplete="new-password" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-              <Input id="confirmPassword" name="confirmPassword" type="password" required />
+              <ChampMotDePasse id="confirmPassword" name="confirmPassword" required autoComplete="new-password" etiquette="confirmation" />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
