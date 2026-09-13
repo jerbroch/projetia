@@ -48,13 +48,18 @@ function estimation(lignes: Array<{ id: string; heures: number; taux: number }>)
   };
 }
 
-describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une révision", () => {
+describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une révision", { retry: 2 }, () => {
   // Construit dans beforeAll : le faire au chargement du module ferait échouer
   // la suite entière là où les identifiants manquent, avant même le skip.
   let db: ReturnType<typeof createAdminClient>;
   let companyId = "";
   let quoteId = "";
 
+  // 30 secondes, et non les 5 par défaut : ce hook passe par PostgREST, et la
+  // suite Playwright travaille sur la MÊME base de développement pendant
+  // quarante minutes. Deux passages de suite sont tombés sur un « Gateway
+  // Timeout » à cet endroit — la base répondait en 267 ms depuis un poste au
+  // même moment, c'est la concurrence qui la ralentit, pas une panne.
   beforeAll(async () => {
     db = createAdminClient();
     cibleConfirmee(); // refuse la production, comme toute la suite
@@ -81,7 +86,7 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
       .single();
     if (eq) throw eq;
     quoteId = String((q as { id: string }).id);
-  });
+  }, 30000);
 
   afterAll(async () => {
     if (!companyId) return;
@@ -282,7 +287,7 @@ describe.skipIf(!identifiantsPresents)("l'identité d'une ligne survit à une r�
  * laquelle des deux acceptations s'est produite, et la ligne `payments` porte
  * le numéro de soumission.
  */
-describe.skipIf(!identifiantsPresents)("l'acceptation par dépôt reçu", () => {
+describe.skipIf(!identifiantsPresents)("l'acceptation par dépôt reçu", { retry: 2 }, () => {
   let db: ReturnType<typeof createAdminClient>;
   let companyId = "";
   const quotesCreees: string[] = [];
@@ -296,7 +301,7 @@ describe.skipIf(!identifiantsPresents)("l'acceptation par dépôt reçu", () => 
       .select("id")
       .single();
     companyId = String((c as { id: string }).id);
-  });
+  }, 30000);
 
   afterAll(async () => {
     if (!companyId) return;
