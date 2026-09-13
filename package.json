@@ -14,7 +14,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "verify:css": "node scripts/verify-css-health.mjs",
-    "verify": "npm run typecheck && npm run test && npm run build && npm run verify:css && npm run verify:prices",
+    "verify": "npm run typecheck && npm run test && npm run build && npm run verify:css && npm run verify:prices && npm run verify:webhook",
     "test": "vitest run",
     "supabase:check": "node scripts/test-supabase-admin.mjs",
     "kill-ports": "node scripts/kill-dev-servers.mjs",
@@ -23,7 +23,8 @@
     "verify:prices": "tsx scripts/verify-stripe-prices.mjs",
     "stripe:setup": "tsx scripts/setup-stripe-catalog.mjs",
     "invoices:backfill": "tsx scripts/backfill-platform-invoices.mjs",
-    "dev:e2e": "node scripts/dev-e2e.mjs"
+    "dev:e2e": "node scripts/dev-e2e.mjs",
+    "verify:webhook": "tsx scripts/verify-stripe-webhook.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

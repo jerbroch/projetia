@@ -6,6 +6,7 @@ import { isSuperAdminUser } from "@/lib/platform/super-admin";
 import { requireVerifiedUser, getTenantContext } from "@/lib/session";
 import { coordonneesDuSoutien } from "@/lib/coordonnees";
 import { getCompanySubscriptionSummary } from "@/lib/billing/company-subscription";
+import { raisonDuChoix } from "@/lib/billing/raison-du-choix";
 
 interface ChoosePlanPageProps {
   searchParams: Promise<{ checkout?: string; session_id?: string; upgrade?: string }>;
@@ -27,6 +28,10 @@ export default async function ChoosePlanPage({ searchParams }: ChoosePlanPagePro
 
   let pendingPlan: string | null = null;
 
+  let requiresChoice: boolean | null = null;
+
+  let trialEndsAt: string | null = null;
+
   if (isSupabaseConfigured()) {
     const isPlatformAdmin = await isSuperAdminUser(ctx.user.id);
     const admin = createAdminClient();
@@ -40,6 +45,13 @@ export default async function ChoosePlanPage({ searchParams }: ChoosePlanPagePro
 
     if (company) {
       pendingPlan = company.pending_plan ? String(company.pending_plan) : null;
+      // Ces deux-là distinguent un compte NEUF d'un essai terminé : à
+      // l'inscription, subscription_status vaut déjà « cancelled ».
+      requiresChoice =
+        company.requires_access_choice != null
+          ? Boolean(company.requires_access_choice)
+          : null;
+      trialEndsAt = company.trial_ends_at ? String(company.trial_ends_at) : null;
 
       const hasAccess = companyHasAppAccess(
         {
@@ -85,6 +97,15 @@ export default async function ChoosePlanPage({ searchParams }: ChoosePlanPagePro
       pendingPlan={pendingPlan}
       checkoutStatus={checkout === "success" || checkout === "cancel" ? checkout : null}
       checkoutSessionId={sessionId ?? null}
+      raison={raisonDuChoix({
+        subscriptionStatus: subscription?.status ?? null,
+        accessType: subscription?.accessType ?? null,
+        // `cancelled` est aussi l'état INITIAL d'une inscription : sans ces
+        // deux signaux, un compte neuf lirait « votre essai est terminé ».
+        requiresAccessChoice: requiresChoice,
+        tier: subscription?.tier ?? null,
+        trialEndsAt: trialEndsAt,
+      })}
     />
   );
 }

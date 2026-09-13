@@ -23,6 +23,7 @@ import {
 } from "@/lib/billing/tiers";
 import { ContactBlock } from "@/components/shared/contact-block";
 import type { Coordonnees } from "@/lib/coordonnees";
+import { messageDuChoix, type RaisonDuChoix } from "@/lib/billing/raison-du-choix";
 
 interface ChoosePlanClientProps {
   coordonnees: Coordonnees;
@@ -40,6 +41,11 @@ interface ChoosePlanClientProps {
   /** Retour de Stripe Checkout */
   checkoutStatus?: "success" | "cancel" | null;
   checkoutSessionId?: string | null;
+  /**
+   * Pourquoi cette personne est ici. La page disait « Bienvenue » à tout le
+   * monde, y compris à l'entrepreneur dont l'essai venait de finir.
+   */
+  raison?: RaisonDuChoix;
 }
 
 export function ChoosePlanClient({
@@ -51,7 +57,15 @@ export function ChoosePlanClient({
   pendingPlan,
   checkoutStatus = null,
   checkoutSessionId = null,
+  raison,
 }: ChoosePlanClientProps) {
+  // Le message dépend du chemin par lequel on arrive : première visite, essai
+  // terminé, abonnement arrêté, ou simple changement de forfait.
+  const message = messageDuChoix(
+    raison ?? (currentTier ? "changement" : "premiere-visite"),
+    companyName,
+  );
+
   const [cycle, setCycle] = useState<BillingCycle>(
     currentCycle ?? (pendingPlan === "annual" ? "annual" : "monthly"),
   );
@@ -122,12 +136,13 @@ export function ChoosePlanClient({
     <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center p-4 py-10">
       <div className="mb-6 text-center">
         <ConstructionIosLogo size="sm" showName={false} className="mx-auto justify-center" />
-        <h1 className="text-2xl font-bold">Choisissez votre forfait</h1>
-        <p className="mt-2 text-muted-foreground">
-          {currentTier
-            ? `${companyName} — projets et chantiers illimités sur tous les forfaits.`
-            : `Bienvenue, ${companyName}. Projets et chantiers illimités sur tous les forfaits.`}
-        </p>
+        <h1 className="text-2xl font-bold">{message.titre}</h1>
+        <p className="mt-2 text-muted-foreground">{message.explication}</p>
+        {message.rassurance && (
+          <p className="mx-auto mt-3 max-w-xl rounded-md border bg-muted/40 px-4 py-2 text-sm">
+            {message.rassurance}
+          </p>
+        )}
         {canSwitchTierInPortal && (
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
             Le changement de forfait se fait dans le portail Stripe : votre
