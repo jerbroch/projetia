@@ -15,20 +15,42 @@ export type RaisonDuChoix = "premiere-visite" | "essai-termine" | "abonnement-fi
 export interface EtatPourChoix {
   subscriptionStatus?: string | null;
   accessType?: string | null;
-  /** Vrai quand l'entreprise a déjà eu un abonnement Stripe. */
-  aDejaPaye?: boolean;
+  /** Vrai tant que l'entreprise n'a jamais choisi : posé à l'inscription. */
+  requiresAccessChoice?: boolean | null;
+  /** Un palier enregistré prouve qu'un abonnement Stripe a existé. */
+  tier?: string | null;
+  /** Fin d'essai enregistrée, quand il y en a eu une. */
+  trialEndsAt?: string | null;
 }
 
+/**
+ * ATTENTION AU STATUT `cancelled`.
+ *
+ * Ce n'est PAS un état de fin : c'est aussi l'état INITIAL d'une inscription.
+ * `src/lib/actions/auth.ts` pose `subscription_status: "cancelled"`,
+ * `access_type: "pending"`, `requires_access_choice: true`.
+ *
+ * Une première version de cette fonction en déduisait « essai terminé », et
+ * tout nouveau venu lisait « Votre essai est terminé — les 30 jours de
+ * <entreprise> sont écoulés » à sa toute première visite. Le test
+ * d'inscription l'a attrapé ; il faut des signaux qui disent qu'un essai a
+ * VRAIMENT eu lieu, pas l'absence d'abonnement.
+ */
 export function raisonDuChoix(e: EtatPourChoix): RaisonDuChoix {
-  // Quelqu'un qui a encore un accès vient regarder les forfaits : il change.
   if (e.subscriptionStatus === "active" || e.subscriptionStatus === "trial") {
     return "changement";
   }
-  if (e.subscriptionStatus === "cancelled") {
-    // On distingue l'essai qui se termine de l'abonnement qui s'arrête : ce
-    // n'est pas la même nouvelle à annoncer.
-    return e.aDejaPaye ? "abonnement-fini" : "essai-termine";
-  }
+
+  // Jamais rien choisi : c'est une première visite, quel que soit le statut.
+  if (e.requiresAccessChoice && !e.tier) return "premiere-visite";
+  if (e.accessType === "pending" && !e.tier) return "premiere-visite";
+
+  // Un essai qui s'est vraiment terminé a laissé une date derrière lui.
+  if (e.trialEndsAt && new Date(e.trialEndsAt) <= new Date()) return "essai-termine";
+
+  // Un palier enregistré prouve qu'un abonnement a existé et n'est plus actif.
+  if (e.tier) return "abonnement-fini";
+
   return "premiere-visite";
 }
 

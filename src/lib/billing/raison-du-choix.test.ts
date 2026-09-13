@@ -2,13 +2,40 @@ import { describe, expect, it } from "vitest";
 import { messageDuChoix, raisonDuChoix } from "@/lib/billing/raison-du-choix";
 
 describe("raisonDuChoix", () => {
-  it("un essai terminé n'est pas une première visite", () => {
-    expect(raisonDuChoix({ subscriptionStatus: "cancelled", aDejaPaye: false })).toBe("essai-termine");
+  it("UN COMPTE NEUF N'A PAS D'ESSAI TERMINÉ", () => {
+    // `cancelled` est l'état INITIAL d'une inscription, pas un état de fin —
+    // auth.ts le pose avec access_type "pending". Une version antérieure en
+    // déduisait « essai terminé », et tout nouveau venu lisait « Les 30 jours
+    // d'essai de <entreprise> sont écoulés » à sa première visite.
+    expect(
+      raisonDuChoix({
+        subscriptionStatus: "cancelled",
+        accessType: "pending",
+        requiresAccessChoice: true,
+        tier: null,
+        trialEndsAt: null,
+      }),
+    ).toBe("premiere-visite");
   });
 
-  it("un abonnement arrêté se distingue d'un essai terminé", () => {
-    // Ce n'est pas la même nouvelle à annoncer.
-    expect(raisonDuChoix({ subscriptionStatus: "cancelled", aDejaPaye: true })).toBe("abonnement-fini");
+  it("un essai terminé demande une date d'essai passée", () => {
+    const hier = new Date(Date.now() - 86400000).toISOString();
+    expect(
+      raisonDuChoix({ subscriptionStatus: "cancelled", trialEndsAt: hier, tier: "solo" }),
+    ).toBe("essai-termine");
+  });
+
+  it("un essai encore en cours n'est pas terminé", () => {
+    const demain = new Date(Date.now() + 86400000).toISOString();
+    expect(
+      raisonDuChoix({ subscriptionStatus: "cancelled", trialEndsAt: demain, tier: "solo" }),
+    ).toBe("abonnement-fini");
+  });
+
+  it("un abonnement arrêté se reconnaît à son palier", () => {
+    expect(raisonDuChoix({ subscriptionStatus: "cancelled", tier: "entrepreneur" })).toBe(
+      "abonnement-fini",
+    );
   });
 
   it("quelqu'un qui a encore accès vient changer de forfait", () => {
@@ -18,6 +45,10 @@ describe("raisonDuChoix", () => {
 
   it("un nouveau venu est une première visite", () => {
     expect(raisonDuChoix({ subscriptionStatus: null, accessType: "pending" })).toBe("premiere-visite");
+  });
+
+  it("rend « première visite » plutôt que d'inventer, faute de signal", () => {
+    expect(raisonDuChoix({})).toBe("premiere-visite");
   });
 });
 
