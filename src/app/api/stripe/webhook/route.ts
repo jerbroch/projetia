@@ -7,6 +7,9 @@ import { invoiceSubscriptionId, stripeIdOf } from "@/lib/billing/stripe-payload"
 import { recordPlatformInvoice } from "@/lib/billing/record-invoice";
 import { logAdminActivity } from "@/lib/data/platform-data";
 import type { AdminActivityEventType } from "@/types/platform";
+import { envoyerAvisAbonnement } from "@/lib/email/send-avis-abonnement";
+import type { EvenementAbonnement } from "@/lib/email/avis-abonnement";
+import { deviseDe, montantEnCents } from "@/lib/billing/enregistrement-abonnement";
 
 // Signature Stripe : le corps brut est requis, donc pas de cache ni d'Edge.
 export const runtime = "nodejs";
@@ -132,6 +135,10 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
           result.companyId,
           { tier: result.tier, cycle: result.cycle, stripe_status: result.status },
         );
+        await avertir("abonnement", result, {
+          montantCents: session.amount_total,
+          devise: session.currency,
+        });
       }
       return result?.companyId ?? companyId;
     }
@@ -148,6 +155,10 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
           result.companyId,
           { stripe_status: result.status },
         );
+        await avertir("annulation", result, {
+          montantCents: montantEnCents(subscription),
+          devise: deviseDe(subscription),
+        });
       }
       return result?.companyId ?? null;
     }
@@ -185,12 +196,51 @@ async function handleEvent(event: Stripe.Event): Promise<string | null> {
           result.companyId,
           { stripe_status: result.status },
         );
+        await avertir("echec_paiement", result, {
+          montantCents: invoice.amount_due,
+          devise: invoice.currency,
+        });
       }
       return result?.companyId ?? null;
     }
 
     default:
       return null;
+  }
+}
+
+/**
+ * Prévient l'exploitant par courriel, en plus du journal.
+ *
+ * Le nom de l'entreprise n'est pas dans le résultat de la synchronisation : on
+ * le lit ici. Un échec de lecture ne doit pas empêcher l'avis — on envoie avec
+ * l'identifiant plutôt que rien.
+ */
+async function avertir(
+  evenement: EvenementAbonnement,
+  result: { companyId: string; tier: string | null; cycle: string | null; status: string },
+  montant: { montantCents?: number | null; devise?: string | null },
+): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("companies")
+      .select("name")
+      .eq("id", result.companyId)
+      .maybeSingle();
+    await envoyerAvisAbonnement({
+      evenement,
+      nomEntreprise: (data as { name?: string } | null)?.name ?? result.companyId,
+      tier: result.tier,
+      cycle: result.cycle,
+      montantCents: montant.montantCents,
+      devise: montant.devise,
+      statutStripe: result.status,
+    });
+  } catch (e) {
+    // L'abonnement est enregistré ; seul l'avis a manqué. Faire échouer le
+    // webhook ferait redélivrer l'événement en boucle par Stripe.
+    console.error("[webhook] avis non envoyé:", e);
   }
 }
 

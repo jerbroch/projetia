@@ -6,6 +6,7 @@ import { isSuperAdminUser } from "@/lib/platform/super-admin";
 import { requireVerifiedUser, getTenantContext } from "@/lib/session";
 import { coordonneesDuSoutien } from "@/lib/coordonnees";
 import { getCompanySubscriptionSummary } from "@/lib/billing/company-subscription";
+import { raisonDuChoix } from "@/lib/billing/raison-du-choix";
 
 interface ChoosePlanPageProps {
   searchParams: Promise<{ checkout?: string; session_id?: string; upgrade?: string }>;
@@ -85,6 +86,12 @@ export default async function ChoosePlanPage({ searchParams }: ChoosePlanPagePro
       pendingPlan={pendingPlan}
       checkoutStatus={checkout === "success" || checkout === "cancel" ? checkout : null}
       checkoutSessionId={sessionId ?? null}
+      raison={raisonDuChoix({
+        subscriptionStatus: subscription?.status ?? null,
+        // Un abonnement Stripe déjà existant distingue « l'essai est fini » de
+        // « l'abonnement est fini » : ce n'est pas la même nouvelle.
+        aDejaPaye: Boolean(subscription?.tier),
+      })}
     />
   );
 }
