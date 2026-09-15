@@ -139,6 +139,22 @@ test.describe("29. Connexion refondue", () => {
     await p2.waitForTimeout(1500);
     await p2.screenshot({ path: "test-results/connexion-telephone.png", fullPage: true });
     await tel.close();
+
+    // L'animation de succès elle-même. Elle dure le temps du chargement réel,
+    // donc on la saisit au vol, juste après le clic.
+    const anim = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const p3 = await anim.newPage();
+    const creds = readTestCredentials();
+    await p3.goto("/login");
+    await p3.getByLabel("Courriel").fill(creds.tenantEmail);
+    await p3.getByLabel("Mot de passe", { exact: true }).fill(creds.tenantPassword);
+    await p3.getByRole("button", { name: /Se connecter/ }).click();
+    await p3
+      .getByText("Préparation de votre espace de travail…")
+      .waitFor({ timeout: 15000 })
+      .catch(() => {});
+    await p3.screenshot({ path: "test-results/connexion-animation.png" });
+    await anim.close();
     console.log("CONNEXION >>> captures faites");
   });
 

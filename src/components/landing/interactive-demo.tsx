@@ -11,6 +11,20 @@ import {
   Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  argent,
+  cents,
+  COUDE,
+  DEPOT,
+  FACTURE,
+  GAIN,
+  MATERIAUX,
+  MO_PREVUE,
+  MO_REELLE,
+  SOLDE,
+  SOUMISSION,
+  type Ligne,
+} from "@/lib/demo-chantier";
 
 const STEP_DURATION_MS = 6500;
 const TICK_MS = 40;
@@ -31,56 +45,11 @@ const TICK_MS = 40;
  * J'ai faussé trois additions dans ce fichier en les écrivant en dur.
  */
 
-const TPS = 0.05;
-const TVQ = 0.09975;
-const cents = (n: number) => Math.round(n * 100) / 100;
-
-/** Montant en dollars canadiens, écrit à la québécoise. */
-function argent(n: number): string {
-  return `${n.toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
-}
-
-interface Ligne {
-  d: string;
-  q: number;
-  unite?: string;
-  p: number;
-  /** Ajouté au chantier par l'employé — souligné dans la facture. */
-  terrain?: boolean;
-}
-
-const somme = (lignes: readonly Ligne[]) => cents(lignes.reduce((s, l) => s + l.q * l.p, 0));
-
-function totaux(sousTotal: number) {
-  const tps = cents(sousTotal * TPS);
-  const tvq = cents(sousTotal * TVQ);
-  return { sousTotal, tps, tvq, total: cents(sousTotal + tps + tvq) };
-}
-
-// ── Le chantier ────────────────────────────────────────────────────────────
-const MO_PREVUE: Ligne[] = [
-  { d: "Compagnon", q: 24, unite: "h", p: 125 },
-  { d: "Apprenti", q: 24, unite: "h", p: 85 },
-];
-const MATERIAUX: Ligne[] = [
-  { d: "Chauffe-eau 60 gal Giant", q: 1, p: 1245 },
-  { d: "Tuyau PEX ½ po — rouleau 100 pi", q: 2, p: 89.5 },
-  { d: "Raccords PEX sertis", q: 24, p: 3.75 },
-  { d: "Robinetterie Moen", q: 2, p: 389 },
-  { d: "Drain de douche ABS", q: 2, p: 62 },
-  { d: "Valve d'arrêt ¼ tour", q: 6, p: 18.5 },
-];
-const MO_REELLE: Ligne[] = [
-  { d: "Compagnon", q: 27.5, unite: "h", p: 125 },
-  { d: "Apprenti", q: 26, unite: "h", p: 85 },
-];
-const COUDE: Ligne = { d: "Coude ½ po", q: 4, p: 9.5, terrain: true };
-
-const SOUMISSION = totaux(cents(somme(MO_PREVUE) + somme(MATERIAUX)));
-const DEPOT = cents(SOUMISSION.total * 0.3);
-const FACTURE = totaux(cents(somme(MO_REELLE) + somme([...MATERIAUX, COUDE])));
-const GAIN = cents(FACTURE.total - SOUMISSION.total);
-const SOLDE = cents(FACTURE.total - DEPOT);
+/**
+ * Les chiffres viennent de `@/lib/demo-chantier` : la page d'accueil annonce
+ * l'écart de 742,17 $ que cette démo démontre. Un seul endroit où ils vivent,
+ * sinon l'un des deux finit par mentir.
+ */
 
 function LigneTotal({
   libelle,
@@ -466,8 +435,33 @@ export function InteractiveDemo() {
           </div>
         </div>
 
-        <div className="border-t bg-muted/20 lg:col-span-2 lg:border-l lg:border-t-0">
-          <ul className="divide-y" role="tablist" aria-orientation="vertical">
+        <div className="relative border-t bg-muted/20 lg:col-span-2 lg:border-l lg:border-t-0">
+          {/*
+            LA LIGNE QUI RELIE LES CINQ ÉTAPES.
+
+            Un travail n'est pas cinq écrans séparés : c'est une seule chose qui
+            avance, de la soumission au paiement. La liste seule ne dit pas ça —
+            elle dit « voici cinq fonctionnalités ». La ligne le dit.
+
+            Elle se remplit à mesure : sa hauteur suit l'étape en cours, donc on
+            voit où on en est sans compter les puces. `aria-hidden` — c'est le
+            `aria-selected` des onglets qui porte l'information pour un lecteur
+            d'écran ; répéter une barre de progression décorative n'ajouterait
+            que du bruit.
+          */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-4 left-[31px] top-4 w-px bg-border"
+          >
+            <div
+              className="w-px bg-primary transition-[height] duration-500 ease-out"
+              style={{
+                height: `${((activeStep + (progress / 100)) / (chapters.length - 1)) * 100}%`,
+                maxHeight: "100%",
+              }}
+            />
+          </div>
+          <ul className="relative divide-y" role="tablist" aria-orientation="vertical">
             {chapters.map((chapter, index) => {
               const isActive = index === activeStep;
               return (
