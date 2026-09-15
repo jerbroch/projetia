@@ -53,14 +53,37 @@ const TICK_MS = 40;
  * sinon l'un des deux finit par mentir.
  */
 
+/**
+ * Vrai après `delai`, tout de suite si les animations sont réduites.
+ *
+ * Les maquettes se remontent à chaque changement d'étape (`key={activeStep}`),
+ * donc le geste se rejoue quand on revient sur l'étape — et jamais en boucle
+ * pendant qu'on la regarde.
+ */
+function useApres(delai: number): boolean {
+  const [passe, setPasse] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setPasse(true);
+      return;
+    }
+    const t = window.setTimeout(() => setPasse(true), delai);
+    return () => window.clearTimeout(t);
+  }, [delai]);
+  return passe;
+}
+
 function LigneTotal({
   libelle,
   montant,
   fort = false,
+  monte = false,
 }: {
   libelle: string;
   montant: string;
   fort?: boolean;
+  /** Le montant vient de changer : on le signale, sinon le geste passe inaperçu. */
+  monte?: boolean;
 }) {
   return (
     <div
@@ -70,7 +93,15 @@ function LigneTotal({
       )}
     >
       <span>{libelle}</span>
-      <span className={cn("tabular-nums", fort && "text-lg")}>{montant}</span>
+      <span
+        className={cn(
+          "tabular-nums transition-colors duration-700",
+          fort && "text-lg",
+          monte && "text-emerald-600 dark:text-emerald-400",
+        )}
+      >
+        {montant}
+      </span>
     </div>
   );
 }
@@ -285,6 +316,9 @@ function CalendrierMockup() {
 }
 
 function TerrainMockup() {
+  // L'EMPLOYÉ DÉMARRE SON QUART. C'est le geste de l'étape : sans lui, on
+  // montre un téléphone immobile et on raconte qu'il se passe quelque chose.
+  const demarre = useApres(1100);
   // Copié sur /terrain/calls/[id] : ce sont les vrais boutons, dans cet ordre.
   //
   // Le téléphone est BORNÉ à la hauteur de la zone, comme les tableaux des
@@ -308,8 +342,18 @@ function TerrainMockup() {
             <div className="rounded border py-0.5 text-center text-[8px] text-muted-foreground sm:text-[9px]">
               Je suis en route
             </div>
-            <div className="rounded bg-primary py-1 text-center text-[9px] font-semibold text-primary-foreground sm:text-[10px]">
-              Commencer les travaux
+            <div
+              className={cn(
+                "flex items-center justify-center gap-1 rounded py-1 text-center text-[9px] font-semibold transition-colors duration-500 sm:text-[10px]",
+                demarre
+                  ? "bg-emerald-600 text-white"
+                  : "bg-primary text-primary-foreground",
+              )}
+            >
+              {demarre && (
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden />
+              )}
+              {demarre ? "Travaux en cours" : "Commencer les travaux"}
             </div>
             <div className="rounded border py-0.5 text-center text-[8px] text-muted-foreground sm:text-[9px]">
               Travaux terminés
@@ -351,6 +395,10 @@ function TerrainMockup() {
 }
 
 function FactureMockup() {
+  // LA FACTURE SE MONTE TOUTE SEULE à partir des heures réelles. Le total
+  // compte plutôt que d'être posé : c'est ce qui se passe vraiment quand les
+  // lignes du terrain remontent, et c'est ce que l'étape promet.
+  const monte = useApres(250);
   return (
     <div className="flex h-full flex-col gap-2 overflow-hidden">
       <div className="flex items-baseline justify-between gap-2">
@@ -380,7 +428,12 @@ function FactureMockup() {
           <LigneTotal libelle="Sous-total" montant={argent(FACTURE.sousTotal)} />
           <LigneTotal libelle="TPS 5 %" montant={argent(FACTURE.tps)} />
           <LigneTotal libelle="TVQ 9,975 %" montant={argent(FACTURE.tvq)} />
-          <LigneTotal libelle="Total" montant={argent(FACTURE.total)} fort />
+          <LigneTotal
+            libelle="Total"
+            montant={argent(monte ? FACTURE.total : SOUMISSION.total)}
+            fort
+            monte={monte}
+          />
         </div>
       </div>
     </div>

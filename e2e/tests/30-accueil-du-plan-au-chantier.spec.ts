@@ -147,4 +147,33 @@ test.describe("30. L'accueil, du plan au chantier", () => {
     console.log("ACCUEIL >>> tabulation :", JSON.stringify(vus));
     expect(vus.filter((v) => v.includes("INVISIBLE")), "tout focus doit se voir").toHaveLength(0);
   });
+
+  test("aucune fonction n'a disparu de l'accueil", async ({ page }) => {
+    await page.goto("/");
+    // Tout ce que la page portait avant la refonte doit y être encore.
+    const attendu = [
+      "Soumissions professionnelles",
+      "Acceptation en ligne",
+      "Dépôt optionnel",
+      "Planification des employés",
+      "Suivi des travaux",
+      "Facturation",
+      "Gestion depuis ordinateur ou mobile",
+    ];
+    // `exact` : « Facturation » est aussi un mot du sous-titre du héros.
+    for (const f of attendu) {
+      await expect(page.getByText(f, { exact: true }).first(), f).toBeVisible();
+    }
+    // Et les chemins d'entrée.
+    await expect(page.locator('a[href="/register"]').first()).toBeVisible();
+    await expect(page.locator('a[href="/login"]').first()).toBeVisible();
+    await expect(page.locator("#nous-joindre")).toBeAttached();
+  });
+
+  test("les routes publiques répondent toujours", async ({ page }) => {
+    for (const route of ["/", "/login", "/register", "/forgot-password"]) {
+      const r = await page.goto(route);
+      expect(r?.status(), route).toBeLessThan(400);
+    }
+  });
 });
