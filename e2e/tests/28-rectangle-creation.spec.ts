@@ -1,3 +1,4 @@
+import { erreursAffichees } from "../helpers/erreurs-affichees";
 import { test, expect } from "../fixtures/base";
 import { connexionLocataire } from "../helpers/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -112,9 +113,7 @@ test.describe("28. Le rectangle de création", () => {
     // Si l'enregistrement refuse, on veut LIRE pourquoi plutôt que de regarder
     // un compteur rester à zéro.
     await page.waitForTimeout(2500);
-    const refus = (await page.locator(".text-destructive, [role='alert']").allInnerTexts())
-      .map((t) => t.trim())
-      .filter(Boolean);
+    const refus = await erreursAffichees(page);
     if (refus.length) {
       throw new Error(`l'application a refusé la création : ${refus.join(" | ")}`);
     }
