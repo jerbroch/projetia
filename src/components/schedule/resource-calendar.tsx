@@ -5,7 +5,6 @@ import {
   addDays,
   addWeeks,
   format,
-  isSameDay,
   parseISO,
   startOfWeek,
   subDays,
@@ -20,7 +19,6 @@ import {
   CALENDAR_START_HOUR,
   HOUR_WIDTH,
   LEFT_COLUMN_WIDTH,
-  ROW_HEIGHT,
   metriquesDeLigne,
   clampMinutes,
   getDayTimelineWidth,
@@ -42,6 +40,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { VueSemaine } from "@/components/schedule/vue-semaine";
 import {
   Select,
   SelectContent,
@@ -119,7 +118,12 @@ export function ResourceCalendar({
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(currentDate), i)),
+    () =>
+      // LUNDI, comme partout ailleurs. `startOfWeek` sans option commence le
+      // dimanche : l'employeur voyait donc « la semaine du 13 » quand son
+      // employé, dont /terrain utilise déjà `weekStartsOn: 1`, voyait « la
+      // semaine du 14 ». Deux personnes qui ne parlent pas de la même semaine.
+      Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), i)),
     [currentDate]
   );
 
@@ -145,7 +149,6 @@ export function ResourceCalendar({
 
   const visibleDays = view === "day" ? [currentDate] : weekDays;
   const timelineWidth = getTimelineWidth(view);
-  const dayWidth = getDayTimelineWidth();
 
   function eventsForRow(employeeId: string | null) {
     return filteredEvents.filter((event) => {
@@ -305,6 +308,33 @@ export function ResourceCalendar({
       </div>
 
       <CardContent className="p-0">
+        {/*
+          LA SEMAINE A SON PROPRE OUTIL.
+
+          Étirer la ligne de temps du jour donnait 7 616 px de large — on
+          voyait un jour et on défilait pour trouver les autres, ce qui revient
+          à ne pas avoir de vue semaine. Dès qu'on renonce à placer les blocs
+          au pixel près, les sept jours tiennent à l'écran.
+
+          Le glisser, le redimensionnement et le rectangle de création restent
+          la vue jour, où ils ont un sens : on ne dessine pas une plage horaire
+          dans une case qui ne représente pas les heures.
+        */}
+        {view === "week" ? (
+          <div className="p-4">
+            <VueSemaine
+              jours={weekDays}
+              employes={filteredEmployees}
+              evenements={filteredEvents}
+              onEvenementClick={onEventClick}
+              onCaseClick={(employeeId, jour) => {
+                // Sans heure : 8 h, l'heure à laquelle une journée commence.
+                onSlotClick(employeeId, jour, 8 * 60);
+              }}
+            />
+          </div>
+        ) : (
+        <>
         <div ref={scrollRef} className="max-w-full overflow-x-auto overflow-y-auto">
           <div className="min-w-[720px]">
             <div className="flex border-b bg-muted/30">
@@ -315,15 +345,6 @@ export function ResourceCalendar({
                 Employé
               </div>
               <div className="relative" style={{ width: timelineWidth, minWidth: timelineWidth }}>
-                {view === "week" && weekDays.map((day, index) => (
-                  <div
-                    key={day.toISOString()}
-                    className="absolute top-0 border-r border-border/60 bg-muted/20 px-2 py-2 text-xs font-semibold"
-                    style={{ left: index * dayWidth, width: dayWidth, height: "100%" }}
-                  >
-                    {format(day, "EEE d", { locale: fr })}
-                  </div>
-                ))}
                 <div className="relative h-10">
                   {getHourMarkers(view, weekDays).map((marker) => (
                     <div
@@ -413,23 +434,12 @@ export function ResourceCalendar({
                       handleTimelineClick(e, row.id);
                     }}
                   >
-                    {view === "week" &&
-                      weekDays.map((day, index) => (
-                        <div
-                          key={day.toISOString()}
-                          className={cn(
-                            "absolute inset-y-0 border-r border-border/40",
-                            isSameDay(day, new Date()) && "bg-primary/5"
-                          )}
-                          style={{ left: index * dayWidth, width: dayWidth }}
-                        />
-                      ))}
 
                     {Array.from({ length: CALENDAR_END_HOUR - CALENDAR_START_HOUR }).map((_, i) => (
                       <div
                         key={i}
                         className="absolute inset-y-0 border-r border-border/20"
-                        style={{ left: (view === "week" ? 0 : 0) + i * HOUR_WIDTH }}
+                        style={{ left: i * HOUR_WIDTH }}
                       />
                     ))}
 
@@ -438,7 +448,7 @@ export function ResourceCalendar({
                         plage={brouillon.plage}
                         top={LIGNE_PADDING}
                         hauteur={Math.max(28, rowHeight - LIGNE_PADDING * 2)}
-                        decalageGauche={view === "week" ? brouillon.dayIndex * dayWidth : 0}
+                        decalageGauche={0}
                         minutesSousLeCurseur={getMinutesFromClientX}
                         onPlageChange={(plage) => setBrouillon({ ...brouillon, plage })}
                         onConfirmer={() => {
@@ -489,6 +499,8 @@ export function ResourceCalendar({
             })}
           </div>
         </div>
+        </>
+        )}
       </CardContent>
     </Card>
   );
