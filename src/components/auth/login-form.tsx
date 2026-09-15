@@ -1,47 +1,92 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
-import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { HardHat, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, HardHat, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChampMotDePasse } from "@/components/ui/champ-mot-de-passe";
+import { VoletPlan } from "@/components/auth/volet-plan";
+import { TransitionConnexion } from "@/components/auth/transition-connexion";
+import { PlanArchitectural } from "@/components/brand/plan-architectural";
 import { demoLoginAction, loginAction } from "@/lib/actions/auth";
 import { isDemoLoginEnabled } from "@/lib/demo/constants";
-import { ChampMotDePasse } from "@/components/ui/champ-mot-de-passe";
+
+/**
+ * LA PORTE D'ENTRÉE DE CONSTRUCTION iOS.
+ *
+ * Deux volets sur ordinateur : le plan à gauche, la connexion à droite. Sur
+ * téléphone, le formulaire d'abord — le plan y devient un bandeau, parce
+ * qu'on ouvre cette page pour taper son courriel, pas pour regarder un décor.
+ *
+ * L'ANIMATION DE SUCCÈS NE PEUT PAS MENTIR. Elle n'est montée que lorsque
+ * `loginAction` a rendu une destination, ce qui n'arrive qu'après une
+ * authentification confirmée par Supabase. Mot de passe refusé, compte non
+ * confirmé, coupure réseau : aucun de ces chemins ne la traverse.
+ *
+ * Et elle ne ralentit rien : la navigation part en même temps qu'elle.
+ */
+type EtatBouton = "repos" | "chargement" | "succes" | "erreur";
 
 export function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  /** Vrai quand l'échec a une suite : aller confirmer son adresse. */
+  const [aConfirmer, setAConfirmer] = useState(false);
+  const [etat, setEtat] = useState<EtatBouton>("repos");
   const [demoLoading, setDemoLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
   const showDemo = isDemoLoginEnabled();
 
+  /** La destination rendue par le serveur. Le client n'en choisit aucune. */
+  const destination = useRef<string | null>(null);
+  /** Empêche la double soumission, y compris par la touche Entrée. */
+  const enVol = useRef(false);
+  /** Retenu pour pouvoir renvoyer le courriel de confirmation à la bonne adresse. */
+  const courriel = useRef("");
+
   useEffect(() => {
-    if (searchParams.get("reset") === "success") {
-      setError("");
-    }
+    if (searchParams.get("reset") === "success") setError("");
   }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
+    // Deux barrières : l'état désactive le bouton, la référence attrape le
+    // double clic parti avant le rendu suivant.
+    if (enVol.current) return;
+    enVol.current = true;
+
+    setEtat("chargement");
     setError("");
+    setAConfirmer(false);
 
     const formData = new FormData(e.currentTarget);
+    courriel.current = String(formData.get("email") ?? "");
     startTransition(async () => {
       const result = await loginAction(formData);
-      if (result && !result.success) {
+      if (!result.success) {
         setError(result.error);
-        setLoading(false);
+        setAConfirmer(result.motif === "non-confirme");
+        setEtat("erreur");
+        enVol.current = false;
+        return;
       }
+      // Supabase a confirmé. C'est le SEUL chemin vers l'animation.
+      destination.current = result.destination;
+      setEtat("succes");
     });
   }
 
+  const naviguer = useCallback(() => {
+    if (destination.current) router.push(destination.current);
+  }, [router]);
+
   async function handleDemoLogin() {
+    if (enVol.current) return;
+    enVol.current = true;
     setDemoLoading(true);
     setError("");
     startTransition(async () => {
@@ -49,37 +94,72 @@ export function LoginForm() {
       if (result && !result.success) {
         setError(result.error);
         setDemoLoading(false);
+        enVol.current = false;
       }
     });
   }
 
-  const successMessage = searchParams.get("reset") === "success"
-    ? "Mot de passe mis à jour. Vous pouvez vous connecter."
-    : null;
+  const successMessage =
+    searchParams.get("reset") === "success"
+      ? "Mot de passe mis à jour. Vous pouvez vous connecter."
+      : null;
 
   // Destination posée par le middleware quand l'utilisateur a été intercepté.
   // Revalidée côté serveur dans loginAction — jamais suivie telle quelle.
   const nextPath = searchParams.get("next");
+  const occupe = etat === "chargement" || isPending;
+
+  if (etat === "succes") {
+    return <TransitionConnexion onPret={naviguer} />;
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <HardHat className="h-6 w-6" />
+    <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
+      <VoletPlan />
+
+      <main className="relative flex items-center justify-center bg-background px-4 py-10 sm:px-8">
+        {/* Sur téléphone, le plan reste présent mais discret, derrière le
+            formulaire, et ne prend aucune hauteur à lui seul. La grille
+            SEULE : les cotes du plan complet tombaient derrière le texte et
+            se lisaient comme lui. */}
+        <div className="absolute inset-0 opacity-[0.35] lg:hidden">
+          <PlanArchitectural pas={26} variante="grille" />
+        </div>
+
+        <div className="relative w-full max-w-sm">
+          <div className="plan-monter flex items-center gap-3 lg:hidden">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <HardHat className="h-6 w-6" aria-hidden />
+            </div>
+            <span className="text-lg font-bold tracking-tight">Construction iOS</span>
           </div>
-          <CardTitle className="text-2xl">Bienvenue sur ConstructionIOS</CardTitle>
-          <CardDescription>Connectez-vous pour gérer votre entreprise de construction</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          {nextPath && <input type="hidden" name="next" value={nextPath} />}
-          <CardContent className="space-y-4">
-            {successMessage && (
-              <div className="rounded-md bg-green-500/10 p-3 text-sm text-green-700">{successMessage}</div>
-            )}
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
-            )}
+
+          <div className="plan-monter mt-8 lg:mt-0" style={{ animationDelay: "60ms" }}>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Bon retour sur votre chantier numérique
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Vos soumissions, vos chantiers et votre facturation vous attendent.
+            </p>
+          </div>
+
+          {successMessage && (
+            <p
+              role="status"
+              className="plan-monter mt-6 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300"
+            >
+              {successMessage}
+            </p>
+          )}
+
+          <form
+            onSubmit={handleSubmit}
+            className="plan-monter mt-8 space-y-5"
+            style={{ animationDelay: "120ms" }}
+            noValidate={false}
+          >
+            {nextPath && <input type="hidden" name="next" value={nextPath} />}
+
             <div className="space-y-2">
               <Label htmlFor="email">Courriel</Label>
               <Input
@@ -89,12 +169,18 @@ export function LoginForm() {
                 placeholder="vous@entreprise.com"
                 required
                 autoComplete="username"
+                autoFocus
+                className="h-11"
               />
             </div>
+
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Mot de passe</Label>
-                <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-primary hover:underline"
+                >
                   Mot de passe oublié?
                 </Link>
               </div>
@@ -104,17 +190,62 @@ export function LoginForm() {
                 placeholder="Votre mot de passe"
                 required
                 autoComplete="current-password"
+                className="h-11"
               />
             </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading || isPending}>
-              {(loading || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Se connecter
+
+            {/*
+              L'ERREUR EST ANNONCÉE, pas seulement affichée : sans `role`, un
+              lecteur d'écran laisse la personne devant un formulaire qui n'a
+              simplement rien fait.
+            */}
+            {error && (
+              <p
+                role="alert"
+                data-testid="erreur-connexion"
+                className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              >
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                <span>
+                  {error}
+                  {/* Une erreur sans issue est un cul-de-sac. Celle-ci en a
+                      une : renvoyer le courriel de confirmation. */}
+                  {aConfirmer && (
+                    <>
+                      {" "}
+                      <Link
+                        href={`/verify-email?email=${encodeURIComponent(courriel.current)}`}
+                        className="font-semibold underline underline-offset-2"
+                      >
+                        Renvoyer le courriel
+                      </Link>
+                    </>
+                  )}
+                </span>
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              className="group h-11 w-full text-base"
+              disabled={occupe}
+              aria-busy={occupe}
+            >
+              {occupe ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                  Connexion…
+                </>
+              ) : (
+                <>
+                  Se connecter
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </>
+              )}
             </Button>
 
             {showDemo && (
-              <div className="w-full space-y-2 rounded-lg border border-dashed p-3">
+              <div className="space-y-2 rounded-lg border border-dashed p-3">
                 <p className="text-center text-xs font-medium text-muted-foreground">
                   Compte de démonstration
                 </p>
@@ -125,7 +256,7 @@ export function LoginForm() {
                   disabled={demoLoading || isPending}
                   onClick={handleDemoLogin}
                 >
-                  {demoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {demoLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
                   Explorer la démo
                 </Button>
                 {process.env.NODE_ENV === "development" && (
@@ -142,9 +273,9 @@ export function LoginForm() {
                 S&apos;inscrire
               </Link>
             </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
