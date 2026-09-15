@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   addDays,
   addWeeks,
@@ -35,6 +35,7 @@ import {
   pxToMinutesInWeek,
   type CalendarView,
   type PlacedEvent,
+  LIGNE_PADDING,
 } from "@/lib/calendar-utils";
 import { CalendarJobBlock } from "@/components/schedule/calendar-job-block";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -52,6 +53,9 @@ import { filterScheduleCalendarEvents } from "@/lib/schedule-utils";
 import { calendarDayKey } from "@/lib/schedule-timezone";
 import { cn } from "@/lib/utils";
 import { gaucheEnPixels } from "@/lib/calendar-drag-preview";
+import { BlocBrouillon } from "@/components/schedule/bloc-brouillon";
+import { creerBrouillon } from "@/lib/calendar-brouillon";
+import type { ApercuPlage } from "@/lib/calendar-drag-preview";
 
 export interface ScheduleFilters {
   workerId: string;
@@ -69,6 +73,16 @@ interface ResourceCalendarProps {
   filters: ScheduleFilters;
   onFiltersChange: (filters: ScheduleFilters) => void;
   onSlotClick: (employeeId: string | null, date: Date, startMinutes: number) => void;
+  /**
+   * Création directe depuis le rectangle, sans ouvrir le formulaire.
+   * `onSlotClick` reste le chemin « Détails… », pour qui en a besoin.
+   */
+  onBrouillonConfirm: (
+    employeeId: string | null,
+    date: Date,
+    startMinutes: number,
+    endMinutes: number,
+  ) => void;
   onEventClick: (event: ScheduleEvent) => void;
   onEventMove: (
     event: ScheduleEvent,
@@ -94,6 +108,7 @@ export function ResourceCalendar({
   filters,
   onFiltersChange,
   onSlotClick,
+  onBrouillonConfirm,
   onEventClick,
   onEventMove,
   onEventResizeStart,
@@ -119,6 +134,14 @@ export function ResourceCalendar({
   });
 
   const filteredEvents = filterScheduleCalendarEvents(events, filters, employees);
+
+  // Le rectangle posé au premier contact, avant tout formulaire.
+  const [brouillon, setBrouillon] = useState<{
+    employeeId: string | null;
+    day: Date;
+    dayIndex: number;
+    plage: ApercuPlage;
+  } | null>(null);
 
   const visibleDays = view === "day" ? [currentDate] : weekDays;
   const timelineWidth = getTimelineWidth(view);
@@ -173,15 +196,22 @@ export function ResourceCalendar({
 
   function handleTimelineClick(e: React.MouseEvent<HTMLDivElement>, employeeId: string | null) {
     const x = getTimelineX(e.clientX);
-    let startMinutes: number;
     if (view === "week") {
       const dayIndex = getWeekDayIndexFromPx(x);
-      startMinutes = pxToMinutesInWeek(x, dayIndex);
-      onSlotClick(employeeId, weekDays[dayIndex], startMinutes);
+      setBrouillon({
+        employeeId,
+        day: weekDays[dayIndex],
+        dayIndex,
+        plage: creerBrouillon(pxToMinutesInWeek(x, dayIndex)),
+      });
       return;
     }
-    startMinutes = pxToMinutes(x);
-    onSlotClick(employeeId, currentDate, startMinutes);
+    setBrouillon({
+      employeeId,
+      day: currentDate,
+      dayIndex: 0,
+      plage: creerBrouillon(pxToMinutes(x)),
+    });
   }
 
   function getMinutesFromClientX(clientX: number): number {
@@ -403,6 +433,30 @@ export function ResourceCalendar({
                       />
                     ))}
 
+                    {brouillon && brouillon.employeeId === row.id && (
+                      <BlocBrouillon
+                        plage={brouillon.plage}
+                        top={LIGNE_PADDING}
+                        hauteur={Math.max(28, rowHeight - LIGNE_PADDING * 2)}
+                        decalageGauche={view === "week" ? brouillon.dayIndex * dayWidth : 0}
+                        minutesSousLeCurseur={getMinutesFromClientX}
+                        onPlageChange={(plage) => setBrouillon({ ...brouillon, plage })}
+                        onConfirmer={() => {
+                          onBrouillonConfirm(
+                            brouillon.employeeId,
+                            brouillon.day,
+                            brouillon.plage.startMinutes,
+                            brouillon.plage.endMinutes,
+                          );
+                          setBrouillon(null);
+                        }}
+                        onDetails={() => {
+                          onSlotClick(brouillon.employeeId, brouillon.day, brouillon.plage.startMinutes);
+                          setBrouillon(null);
+                        }}
+                        onAnnuler={() => setBrouillon(null)}
+                      />
+                    )}
                     {items.map(({ event, left, width, lane }) => (
                       <CalendarJobBlock
                         key={`${rowKey}-${event.id}`}
