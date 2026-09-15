@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, HardHat, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Check, HardHat, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +28,14 @@ import { isDemoLoginEnabled } from "@/lib/demo/constants";
  *
  * Et elle ne ralentit rien : la navigation part en même temps qu'elle.
  */
-type EtatBouton = "repos" | "chargement" | "succes" | "erreur";
+type EtatBouton = "repos" | "chargement" | "confirme" | "succes" | "erreur";
+
+/**
+ * Le temps que le crochet reste seul à l'écran avant que la transition prenne
+ * le relais. Assez pour être vu, trop court pour être attendu — et il tombe
+ * DANS le temps de chargement du tableau de bord, qu'il ne rallonge pas.
+ */
+const DUREE_CROCHET_MS = 260;
 
 export function LoginForm() {
   const router = useRouter();
@@ -76,7 +83,14 @@ export function LoginForm() {
       }
       // Supabase a confirmé. C'est le SEUL chemin vers l'animation.
       destination.current = result.destination;
-      setEtat("succes");
+      // LE CROCHET D'ABORD, la transition ensuite. J'avais d'abord rendu la
+      // transition immédiatement, ce qui rendait l'état « succès » du bouton
+      // inatteignable — je l'avais alors supprimé comme mort, au lieu de
+      // réordonner la séquence pour qu'il vive. Le crochet est le moment où
+      // l'on apprend que ça a marché ; l'escamoter, c'est passer du doute au
+      // tableau de bord sans jamais dire « c'est bon ».
+      setEtat("confirme");
+      window.setTimeout(() => setEtat("succes"), DUREE_CROCHET_MS);
     });
   }
 
@@ -108,6 +122,7 @@ export function LoginForm() {
   // Revalidée côté serveur dans loginAction — jamais suivie telle quelle.
   const nextPath = searchParams.get("next");
   const occupe = etat === "chargement" || isPending;
+  const confirme = etat === "confirme";
 
   if (etat === "succes") {
     return <TransitionConnexion onPret={naviguer} />;
@@ -126,7 +141,13 @@ export function LoginForm() {
           <PlanArchitectural pas={26} variante="grille" />
         </div>
 
-        <div className="relative w-full max-w-sm">
+        {/*
+          LA CARTE. Le formulaire était posé à plat sur le fond : rien ne
+          disait où s'arrêtait le décor et où commençait ce qu'on doit
+          remplir. Le verre dépoli sépare les deux sans poser un mur — on voit
+          encore le plan au travers, ce qui est tout l'objet du décor.
+        */}
+        <div className="relative w-full max-w-sm rounded-2xl border border-border/60 bg-background/70 p-6 shadow-[0_8px_40px_-12px_rgb(0_0_0/0.25)] backdrop-blur-xl sm:p-8">
           <div className="plan-monter flex items-center gap-3 lg:hidden">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <HardHat className="h-6 w-6" aria-hidden />
@@ -228,10 +249,15 @@ export function LoginForm() {
             <Button
               type="submit"
               className="group h-11 w-full text-base"
-              disabled={occupe}
+              disabled={occupe || confirme}
               aria-busy={occupe}
             >
-              {occupe ? (
+              {confirme ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" aria-hidden />
+                  Connexion réussie
+                </>
+              ) : occupe ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
                   Connexion…

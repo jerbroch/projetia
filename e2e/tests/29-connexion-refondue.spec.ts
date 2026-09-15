@@ -201,4 +201,44 @@ test.describe("29. Connexion refondue", () => {
       await db.auth.admin.deleteUser(id);
     }
   });
+
+  test("le crochet de confirmation précède la transition, et jamais un échec", async ({ page }) => {
+    // D'abord l'échec : aucun « Connexion réussie » ne doit paraître.
+    await page.goto("/login");
+    await page.getByLabel("Courriel").fill("inconnu@exemple.ca");
+    await page.getByLabel("Mot de passe", { exact: true }).fill("MauvaisMotDePasse1!");
+    await page.getByRole("button", { name: /Se connecter/ }).click();
+    await page.getByTestId("erreur-connexion").waitFor({ timeout: 20000 });
+    expect(await page.getByText("Connexion réussie").count(), "jamais sur un échec").toBe(0);
+
+    // Puis le succès. Le crochet ne dure que ~260 ms et la navigation détruit
+    // le document juste après : un `waitFor` se fait emporter par la
+    // navigation et rapporte un faux négatif. On échantillonne le bouton.
+    const creds = readTestCredentials();
+    await page.goto("/login");
+    await page.getByLabel("Courriel").fill(creds.tenantEmail);
+    await page.getByLabel("Mot de passe", { exact: true }).fill(creds.tenantPassword);
+
+    const vus: string[] = [];
+    const echantillon = setInterval(() => {
+      void page
+        .locator("button[type=submit]")
+        .innerText({ timeout: 200 })
+        .then((t) => {
+          if (t && !vus.includes(t)) vus.push(t);
+        })
+        .catch(() => {});
+    }, 40);
+
+    await page.getByRole("button", { name: /Se connecter/ }).click();
+    await page.waitForURL(/\/(dashboard|choose-plan|onboarding)/, { timeout: 60000 });
+    clearInterval(echantillon);
+
+    console.log("CONNEXION >>> états du bouton :", JSON.stringify(vus));
+    expect(vus.some((t) => t.includes("Connexion réussie")), "le crochet doit paraître").toBe(true);
+    // Et dans le bon ordre : on ne confirme pas avant d'avoir chargé.
+    expect(vus.findIndex((t) => t.includes("Connexion…"))).toBeLessThan(
+      vus.findIndex((t) => t.includes("Connexion réussie")),
+    );
+  });
 });
