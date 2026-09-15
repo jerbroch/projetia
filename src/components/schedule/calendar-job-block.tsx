@@ -196,6 +196,11 @@ export function CalendarJobBlock({
       data-event-id={event.id}
       className={cn(
         "absolute overflow-hidden rounded-md border px-2 py-1 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing",
+        // `touch-none` est ce qui rend le glissement possible AU DOIGT. Sans
+        // lui, le navigateur interprète le mouvement comme un défilement de
+        // page et le bloc ne bouge jamais : les gestes marchaient à la souris
+        // et nulle part ailleurs.
+        "touch-none select-none",
         // Pendant le geste on passe au-dessus des voisins et on coupe la
         // transition : une animation ferait traîner le bloc derrière la souris.
         enGeste ? "z-30 shadow-lg ring-2 ring-primary/60" : "z-10 transition-shadow",
@@ -232,7 +237,14 @@ export function CalendarJobBlock({
       <div
         data-handle="resize"
         title="Reculer ou avancer le début"
-        className="absolute bottom-0 left-0 top-0 w-2 cursor-ew-resize bg-black/10"
+        className={cn(
+          "absolute bottom-0 left-0 top-0 cursor-ew-resize bg-black/10 touch-none",
+          // 8 px se visent à la souris, jamais au doigt. Sur un écran tactile
+          // la zone de saisie passe à 24 px — un compromis : le minimum
+          // confortable est 44, mais deux poignées de 44 px mangeraient un
+          // bloc de deux heures, qui fait 128 px de large.
+          "w-2 [@media(pointer:coarse)]:w-6",
+        )}
         onPointerDown={beginResizeStart}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -241,7 +253,10 @@ export function CalendarJobBlock({
       <div
         data-handle="resize"
         title="Allonger ou raccourcir la fin"
-        className="absolute bottom-0 right-0 top-0 w-2 cursor-ew-resize bg-black/10"
+        className={cn(
+          "absolute bottom-0 right-0 top-0 cursor-ew-resize bg-black/10 touch-none",
+          "w-2 [@media(pointer:coarse)]:w-6",
+        )}
         onPointerDown={beginResize}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
