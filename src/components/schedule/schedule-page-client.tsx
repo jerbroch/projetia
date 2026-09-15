@@ -51,6 +51,7 @@ import type {
   User,
 } from "@/types";
 import type { JobShift } from "@/lib/job-shifts";
+import { format } from "date-fns";
 
 interface SchedulePageClientProps {
   quotes?: Quote[];
@@ -301,6 +302,47 @@ export function SchedulePageClient({
     });
   }
 
+  /**
+   * CRÉATION DIRECTE DEPUIS LE RECTANGLE.
+   *
+   * Le geste le plus fréquent du calendrier devait prendre trois secondes, pas
+   * trente. On enregistre la plage choisie sans ouvrir le formulaire.
+   *
+   * LE TITRE EST OBLIGATOIRE en base, et on n'en a pas encore : le call porte
+   * donc sa plage horaire comme nom provisoire — « Travail 9:00 – 11:00 ». Un
+   * titre vide serait refusé, et « Sans titre » ne dirait rien à l'employé qui
+   * le voit sur son calendrier. Il se renomme d'une tape sur le bloc.
+   */
+  function handleBrouillonConfirm(
+    employeeId: string | null,
+    date: Date,
+    startMinutes: number,
+    endMinutes: number,
+  ) {
+    const debut = minutesToTimeValue(startMinutes);
+    const fin = minutesToTimeValue(endMinutes);
+
+    const fd = new FormData();
+    fd.set("title", `Travail ${debut} – ${fin}`);
+    fd.set("date", format(date, "yyyy-MM-dd"));
+    fd.set("startTime", debut);
+    fd.set("endTime", fin);
+    fd.set("status", "scheduled");
+    fd.set("type", "job");
+    if (employeeId) fd.append("employeeIds", employeeId);
+
+    startTransition(async () => {
+      const r = await saveScheduleJobAction(fd);
+      if (!r.success) {
+        // Un échec ne doit pas disparaître : sans ça, le rectangle s'efface et
+        // rien n'apparaît au calendrier, sans un mot.
+        setActionError(r.error ?? "Impossible de créer le travail.");
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function handleSlotClick(employeeId: string | null, date: Date, startMinutes: number) {
     const endMinutes = startMinutes + 120;
     openCreateForm({
@@ -369,6 +411,7 @@ export function SchedulePageClient({
         filters={filters}
         onFiltersChange={setFilters}
         onSlotClick={handleSlotClick}
+        onBrouillonConfirm={handleBrouillonConfirm}
         onEventClick={openQuickActions}
         onEventMove={handleEventMove}
         onEventResizeStart={handleEventResizeStart}
