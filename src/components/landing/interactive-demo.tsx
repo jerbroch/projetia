@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Calendar,
+  CheckCircle2,
   CreditCard,
   FileText,
+  Users,
   Pause,
   Play,
   Receipt,
@@ -135,6 +137,107 @@ function SoumissionMockup() {
           <LigneTotal libelle="Total" montant={argent(SOUMISSION.total)} fort />
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * L'ACCEPTATION PAR LE CLIENT — ce qui se passe de SON côté.
+ *
+ * C'est l'étape que la démo sautait : on passait de la soumission au
+ * calendrier comme si le chantier se planifiait tout seul. Or c'est le geste
+ * du client qui déclenche tout le reste, et c'est le seul écran du parcours
+ * que l'entrepreneur ne voit jamais lui-même.
+ */
+function AcceptationMockup() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-3">
+      <div className="mx-auto w-full max-w-sm rounded-xl border bg-card p-4 shadow-sm">
+        <p className="text-xs text-muted-foreground">
+          Lien reçu par courriel — aucun compte à créer
+        </p>
+        <p className="mt-1 font-semibold text-foreground">Soumission SO-2026-0141</p>
+        <p className="text-xs text-muted-foreground">
+          Réfection plomberie — 118, rue Saint-Joseph, Lévis
+        </p>
+        <div className="mt-3 flex items-baseline justify-between border-t pt-2">
+          <span className="text-sm text-muted-foreground">Total</span>
+          <span className="text-lg font-bold tabular-nums text-foreground">
+            {argent(SOUMISSION.total)}
+          </span>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <span className="flex-1 rounded-md bg-primary px-3 py-2 text-center text-xs font-semibold text-primary-foreground">
+            Accepter la soumission
+          </span>
+          <span className="rounded-md border px-3 py-2 text-center text-xs text-muted-foreground">
+            Refuser
+          </span>
+        </div>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Dépôt de 30 % à l&apos;acceptation : {argent(DEPOT)}
+        </p>
+      </div>
+      <div className="flex items-center justify-center gap-2 text-xs">
+        <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-700 dark:text-emerald-300">
+          Acceptée
+        </span>
+        <span className="text-muted-foreground">
+          — vous recevez l&apos;avis, le statut change tout seul
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * L'ASSIGNATION DES EMPLOYÉS — qui va sur le chantier, et à quel taux.
+ *
+ * Distincte du calendrier : le calendrier dit QUAND, celle-ci dit QUI et à
+ * COMBIEN. C'est le taux choisi ici qui fera le prix de vente des heures dans
+ * la facture, et c'est pour ça qu'elle méritait son propre écran.
+ */
+function AssignationMockup() {
+  const gens = [
+    { nom: "Marc Tremblay", role: "Compagnon", taux: MO_PREVUE[0].p },
+    { nom: "Luc Gagnon", role: "Apprenti", taux: MO_PREVUE[1].p },
+  ];
+  return (
+    <div className="flex h-full flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="font-semibold text-foreground">Réfection plomberie — Gagnon</span>
+        <span className="text-xs text-muted-foreground">2 employés assignés</span>
+      </div>
+      <ul className="flex-1 space-y-2">
+        {gens.map((g) => (
+          <li
+            key={g.nom}
+            className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5"
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {g.nom
+                  .split(" ")
+                  .map((m) => m[0])
+                  .join("")}
+              </span>
+              <span>
+                <span className="block text-sm font-medium text-foreground">{g.nom}</span>
+                <span className="block text-xs text-muted-foreground">{g.role}</span>
+              </span>
+            </span>
+            <span className="text-right">
+              <span className="block text-sm font-semibold tabular-nums text-foreground">
+                {argent(g.taux)}/h
+              </span>
+              <span className="block text-[11px] text-muted-foreground">prix de vente</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">
+        Chacun voit son horaire sur son téléphone, avec l&apos;adresse du chantier.
+      </p>
     </div>
   );
 }
@@ -316,12 +419,28 @@ const chapters = [
     Mockup: SoumissionMockup,
   },
   {
+    title: "L'acceptation",
+    description: "Le client accepte en ligne, sans créer de compte.",
+    caption:
+      "Marie ouvre le lien, accepte et verse son dépôt. Vous recevez l'avis : le chantier est confirmé avant même que vous ayez rappelé.",
+    icon: CheckCircle2,
+    Mockup: AcceptationMockup,
+  },
+  {
     title: "Le calendrier",
-    description: "Vos hommes assignés au chantier, chacun à ses heures.",
+    description: "Quand le chantier se fait, et pour combien de temps.",
     caption:
       "Marc entre à 7 h, Luc à 9 h. Chacun sa plage sur le même chantier, et la caméra d'inspection part au nom de Marc.",
     icon: Calendar,
     Mockup: CalendrierMockup,
+  },
+  {
+    title: "Les employés",
+    description: "Qui va sur le chantier, et à quel taux.",
+    caption:
+      "Marc et Luc sont assignés avec leur taux. C'est ce taux qui fera le prix de vente de leurs heures — vous ne le ressaisirez pas à la facture.",
+    icon: Users,
+    Mockup: AssignationMockup,
   },
   {
     title: "Le terrain",

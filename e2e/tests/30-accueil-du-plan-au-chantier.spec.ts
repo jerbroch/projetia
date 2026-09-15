@@ -15,6 +15,11 @@ test.describe("30. L'accueil, du plan au chantier", () => {
       page.getByRole("heading", { name: "De la première soumission au dernier paiement." }),
     ).toBeVisible();
     await expect(page.getByText("Du plan au chantier").first()).toBeVisible();
+    // Les deux appels à l'action, avec la gratuité nommée ET bornée.
+    await expect(page.getByRole("link", { name: "Essayer 30 jours gratuits" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Voir Construction iOS en action" }),
+    ).toBeVisible();
     // La mention bêta reste — c'est une information, pas un ornement.
     await expect(page.getByText(/bêta privée/i)).toBeVisible();
   });
@@ -30,12 +35,17 @@ test.describe("30. L'accueil, du plan au chantier", () => {
     ).toBeVisible();
   });
 
-  test("les quatre questions sont là, sans statistique inventée", async ({ page }) => {
+  test("les cinq questions sont là, sans statistique inventée", async ({ page }) => {
     await page.goto("/");
-    await expect(
-      page.getByText("Combien d'heures avez-vous oublié de facturer le mois passé?"),
-    ).toBeVisible();
-    await expect(page.getByText("Qui travaille où, mardi prochain?")).toBeVisible();
+    for (const q of [
+      "Combien d'heures n'ont pas été facturées ce mois-ci?",
+      "Où est rendue cette soumission?",
+      "Qui travaille sur quel chantier demain?",
+      "Quels outils sont encore dans le camion?",
+      "Est-ce que le client a payé son dépôt?",
+    ]) {
+      await expect(page.getByText(q), q).toBeVisible();
+    }
 
     // Aucun pourcentage brandi comme preuve, aucun témoignage.
     const corps = await page.locator("main").innerText();

@@ -7,6 +7,8 @@ import { coordonneesDuSoutien } from "@/lib/coordonnees";
 import { InteractiveDemo } from "@/components/landing/interactive-demo";
 import { Button } from "@/components/ui/button";
 import { argent, ECARTS, GAIN } from "@/lib/demo-chantier";
+import { QuestionsReelles } from "@/components/landing/questions-reelles";
+import { VoirEnAction } from "@/components/landing/voir-en-action";
 
 const benefits = [
   "Soumissions professionnelles",
@@ -16,37 +18,6 @@ const benefits = [
   "Suivi des travaux",
   "Facturation",
   "Gestion depuis ordinateur ou mobile",
-] as const;
-
-/**
- * LES QUESTIONS, PAS LES ARGUMENTS.
- *
- * Aucune n'est inventée et aucune ne contient de chiffre que nous n'aurions
- * pas mesuré : ce sont des questions, et c'est l'entrepreneur qui connaît la
- * réponse. Une fausse statistique (« 32 % des PME perdent… ») serait plus
- * facile à écrire et se retournerait contre nous à la première vérification.
- *
- * Chacune vise un moment précis où l'argent ou le temps s'échappe, dans
- * l'ordre où il s'échappe : pendant le travail, après le travail, avant le
- * prochain.
- */
-const questions = [
-  {
-    q: "Combien d'heures avez-vous oublié de facturer le mois passé?",
-    r: "Une demi-heure de plus ici, un coude de cuivre là. Personne ne les note, donc personne ne les facture.",
-  },
-  {
-    q: "Combien de jours entre la fin des travaux et l'envoi de la facture?",
-    r: "Chaque jour de retard est un jour de plus avant d'être payé — et un détail de moins dont quelqu'un se souvient.",
-  },
-  {
-    q: "Qui travaille où, mardi prochain?",
-    r: "Si la réponse est dans votre tête ou dans un texto, elle n'est pas dans celle de vos employés.",
-  },
-  {
-    q: "Ce chantier-là vous a-t-il fait gagner de l'argent?",
-    r: "Sans les heures réelles et les matériaux réels en face du prix soumis, la question reste sans réponse.",
-  },
 ] as const;
 
 export function LandingPage() {
@@ -104,9 +75,8 @@ export function LandingPage() {
                 className="plan-monter mx-auto mt-6 max-w-2xl text-pretty text-lg text-[hsl(var(--plan-trait))]/85 sm:text-xl"
                 style={{ animationDelay: "220ms" }}
               >
-                Clients, soumissions, planification, suivi des travaux, facturation et
-                paiements — un seul espace de travail, pensé pour les entrepreneurs en
-                construction du Québec.
+                Construction iOS réunit vos clients, vos soumissions, vos employés, vos
+                chantiers et votre facturation dans un seul espace de travail.
               </p>
 
               <div
@@ -115,16 +85,12 @@ export function LandingPage() {
               >
                 <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                   <Button asChild size="lg" className="w-full sm:w-auto">
-                    <Link href="/register">Créer un compte</Link>
+                    {/* La gratuité est NOMMÉE ET BORNÉE : « Démarrer gratuitement »
+                        laisserait croire à un produit gratuit, et la surprise
+                        arriverait au trentième jour. */}
+                    <Link href="/register">Essayer 30 jours gratuits</Link>
                   </Button>
-                  <Button
-                    asChild
-                    variant="outline"
-                    size="lg"
-                    className="w-full border-[hsl(var(--plan-ligne)/0.5)] bg-transparent text-[hsl(var(--plan-trait))] hover:bg-[hsl(var(--plan-trait)/0.08)] hover:text-[hsl(var(--plan-trait))] sm:w-auto"
-                  >
-                    <Link href="/login">Se connecter</Link>
-                  </Button>
+                  <VoirEnAction />
                 </div>
                 <p className="max-w-md text-xs text-[hsl(var(--plan-trait))]/70 sm:text-sm">
                   Vous avez un code bêta ou promo ? Vous pourrez l&apos;utiliser lors de
@@ -175,7 +141,11 @@ export function LandingPage() {
         </section>
 
         {/* LE PARCOURS. */}
-        <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
+        <section
+          id="demonstration"
+          tabIndex={-1}
+          className="mx-auto max-w-6xl px-4 py-14 outline-none sm:px-6 sm:py-16 lg:px-8"
+        >
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
               Un chantier, du premier prix au dernier dollar encaissé
@@ -196,30 +166,14 @@ export function LandingPage() {
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                Quatre questions, et vous saurez si ça vous parle
+                Cinq questions, et vous saurez si ça vous parle
               </h2>
               <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-                Si vous avez une réponse claire aux quatre, vous n&apos;avez pas besoin de
+                Si vous avez une réponse claire aux cinq, vous n&apos;avez pas besoin de
                 nous.
               </p>
             </div>
-            <ul className="mx-auto mt-10 grid max-w-4xl gap-4 sm:grid-cols-2">
-              {questions.map(({ q, r }) => (
-                <li
-                  key={q}
-                  className="group rounded-xl border bg-card p-5 shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Le trait orange reprend la signature du plan. */}
-                    <span className="mt-1.5 h-8 w-1 shrink-0 rounded-full bg-primary/30 transition-colors duration-200 group-hover:bg-primary" />
-                    <div>
-                      <p className="text-base font-semibold leading-snug text-foreground">{q}</p>
-                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{r}</p>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <QuestionsReelles />
           </div>
         </section>
 
