@@ -60,7 +60,11 @@ test.describe("30. L'accueil, du plan au chantier", () => {
     await expect(demo).toBeVisible();
     // Cinq étapes, et un trait qui les traverse.
     await expect(demo.getByRole("tab", { name: /1\. La soumission/ })).toBeVisible();
-    await expect(demo.getByRole("tab", { name: /5\. Le paiement/ })).toBeVisible();
+    // Sept étapes : la soumission, l'acceptation, le calendrier, les
+    // employés, le terrain, la facture, le paiement.
+    await expect(demo.getByRole("tab", { name: /2\. L'acceptation/ })).toBeVisible();
+    await expect(demo.getByRole("tab", { name: /4\. Les employés/ })).toBeVisible();
+    await expect(demo.getByRole("tab", { name: /7\. Le paiement/ })).toBeVisible();
   });
 
   test("le contact reste joignable", async ({ page }) => {
@@ -89,5 +93,58 @@ test.describe("30. L'accueil, du plan au chantier", () => {
     await p.screenshot({ path: "test-results/accueil-complet.png", fullPage: true });
     await ctx.close();
     console.log("ACCUEIL >>> captures faites");
+  });
+
+  test("le plan devient l'application : pointillé, puis objets", async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 } });
+    const page = await ctx.newPage();
+    await page.goto("/");
+
+    // Le héros précisément : « SO-2026-0141 » paraît aussi dans la démo.
+    const carte = page.getByTestId("plan-devenu-application").locator("li").first();
+    // Au départ : un rectangle de plan, en pointillé et vide.
+    const avant = await carte.evaluate((e) => getComputedStyle(e).borderStyle);
+    await page.waitForTimeout(2600);
+    const apres = await carte.evaluate((e) => getComputedStyle(e).borderStyle);
+    console.log(`ACCUEIL >>> bordure : ${avant} → ${apres}`);
+    expect(avant, "au départ, un trait de plan").toBe("dashed");
+    expect(apres, "à l'arrivée, un objet").toBe("solid");
+    await expect(page.getByText("Acceptée").first()).toBeVisible();
+    await ctx.close();
+  });
+
+  test("animations réduites : le plan est déjà devenu l'application", async ({ browser }) => {
+    // Couper l'animation ne doit pas couper le contenu : on arrive
+    // directement à l'état final, lisible.
+    const ctx = await browser.newContext({
+      viewport: { width: 1440, height: 950 },
+      reducedMotion: "reduce",
+    });
+    const page = await ctx.newPage();
+    await page.goto("/");
+    const carte = page.getByTestId("plan-devenu-application").locator("li").first();
+    await expect(carte).toHaveCSS("border-style", "solid", { timeout: 4000 });
+    await ctx.close();
+  });
+
+  test("le focus clavier est visible et suit l'ordre de lecture", async ({ page }) => {
+    await page.goto("/");
+    const vus: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press("Tab");
+      const info = await page.evaluate(() => {
+        const a = document.activeElement as HTMLElement | null;
+        if (!a) return null;
+        const s = getComputedStyle(a);
+        return {
+          texte: (a.textContent ?? "").trim().slice(0, 40),
+          // Un focus qui ne se voit pas n'existe pas.
+          visible: s.outlineStyle !== "none" || s.boxShadow !== "none",
+        };
+      });
+      if (info) vus.push(`${info.texte}${info.visible ? "" : " [INVISIBLE]"}`);
+    }
+    console.log("ACCUEIL >>> tabulation :", JSON.stringify(vus));
+    expect(vus.filter((v) => v.includes("INVISIBLE")), "tout focus doit se voir").toHaveLength(0);
   });
 });

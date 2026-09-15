@@ -8,6 +8,8 @@ import { InteractiveDemo } from "@/components/landing/interactive-demo";
 import { Button } from "@/components/ui/button";
 import { argent, ECARTS, GAIN } from "@/lib/demo-chantier";
 import { QuestionsReelles } from "@/components/landing/questions-reelles";
+import { LigneDevenueCarte } from "@/components/landing/ligne-devenue-carte";
+import { LogoQuiSeConstruit } from "@/components/brand/logo-qui-se-construit";
 import { VoirEnAction } from "@/components/landing/voir-en-action";
 
 const benefits = [
@@ -59,12 +61,17 @@ export function LandingPage() {
 
           <div className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
             <div className="mx-auto max-w-3xl text-center">
-              <p
-                className="plan-monter text-sm font-semibold uppercase tracking-[0.18em] text-primary"
-                style={{ animationDelay: "60ms" }}
-              >
-                Du plan au chantier
-              </p>
+              {/* Le logo se construit AVANT le titre : c'est le geste qui
+                  annonce le concept, pas une décoration qui le suit. */}
+              <div className="flex flex-col items-center gap-3">
+                <LogoQuiSeConstruit taille={60} delaiMs={120} />
+                <p
+                  className="plan-monter text-sm font-semibold uppercase tracking-[0.18em] text-primary"
+                  style={{ animationDelay: "60ms" }}
+                >
+                  Du plan au chantier
+                </p>
+              </div>
               <h1
                 className="plan-monter mt-4 text-balance text-4xl font-bold tracking-tight text-white sm:text-5xl lg:text-6xl"
                 style={{ animationDelay: "140ms" }}
@@ -98,6 +105,9 @@ export function LandingPage() {
                 </p>
               </div>
             </div>
+
+            {/* Le plan devient l'application, littéralement. */}
+            <LigneDevenueCarte />
           </div>
         </section>
 
