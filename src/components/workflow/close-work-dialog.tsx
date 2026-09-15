@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/lib/utils";
 import type { Company, ProfileRole, ScheduleEvent } from "@/types";
+import { messageClientARemplir } from "@/lib/client-a-remplir";
 
 interface CloseWorkDialogProps {
   open: boolean;
@@ -110,6 +111,11 @@ export function CloseWorkDialog({
   const canClose = canSubmitJobStatus(event.status);
   /** Une feuille vide empêche la fermeture : c'est elle qui deviendra la facture. */
   const feuilleVide = !isDemo && lineCount === 0;
+  /**
+   * Sans client, la facture partirait sans nom. Même principe que la feuille
+   * vide : on le DIT avant le clic plutôt que de griser un bouton muet.
+   */
+  const refusClient = isDemo ? null : messageClientARemplir(event);
 
   return (
     <>
@@ -193,6 +199,16 @@ export function CloseWorkDialog({
                   </p>
                 )}
               </div>
+
+              {refusClient && (
+                <div
+                  data-testid="refus-client"
+                  className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30"
+                >
+                  <p className="font-medium text-amber-900 dark:text-amber-200">Client manquant</p>
+                  <p className="mt-1 text-amber-900/90 dark:text-amber-200/90">{refusClient}</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -201,7 +217,7 @@ export function CloseWorkDialog({
               Annuler
             </Button>
             {canClose && (
-              <Button onClick={handleSubmit} disabled={isPending || feuilleVide}>
+              <Button onClick={handleSubmit} disabled={isPending || feuilleVide || Boolean(refusClient)}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Fermer le travail
               </Button>

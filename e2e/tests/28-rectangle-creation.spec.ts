@@ -2,6 +2,7 @@ import { test, expect } from "../fixtures/base";
 import { connexionLocataire } from "../helpers/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readTestCredentials } from "../helpers/test-data";
+import { messageClientARemplir } from "@/lib/client-a-remplir";
 
 /**
  * LE GESTE DE TROIS SECONDES.
@@ -129,6 +130,21 @@ test.describe("28. Le rectangle de création", () => {
         return (data ?? []).map((r) => (r as { title: string }).title);
       }, { timeout: 20000 })
       .toContain(`Travail ${plage![1]} – ${plage![2]}`);
+
+    // UN CALL DU RECTANGLE N'A PAS DE CLIENT, et c'est assumé : le geste doit
+    // rester à trois secondes. Mais la fermeture doit alors le refuser, sinon
+    // la facture partirait avec le mot « Client » à la place du nom.
+    const { data: cree } = await db
+      .from("scheduled_jobs")
+      .select("customer_id, customer_name")
+      .eq("company_id", companyId)
+      .eq("title", `Travail ${plage![1]} – ${plage![2]}`)
+      .single();
+    const c = cree as { customer_id: string | null; customer_name: string | null };
+    const refusFermeture = messageClientARemplir({ customerId: c.customer_id, customerName: c.customer_name });
+    console.log(`RECTANGLE >>> refus à la fermeture : ${refusFermeture ?? "AUCUN"}`);
+    expect(refusFermeture, "la fermeture doit refuser un call sans client").toBeTruthy();
+    expect(refusFermeture).toContain("Modifier le call");
 
     console.log(`RECTANGLE >>> créé : « Travail ${plage![1]} – ${plage![2]} »`);
   });
