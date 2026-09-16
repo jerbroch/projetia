@@ -89,9 +89,18 @@ export function Header({
         personne au lecteur d'écran sait ainsi de quelle page relèvent ces
         commandes, sans qu'un second titre soit lu à voix haute.
       */}
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {/*
+          Le nom de l'entreprise n'apparaît que lorsque le menu est replié.
+          Sous 1024 px, l'aside bleu pétrole disparaît et avec lui la seule
+          marque de l'écran : la barre n'affichait plus qu'un hamburger dans
+          le vide, sans rien dire de l'endroit où l'on se trouve.
+        */}
+        <span className="truncate text-sm font-semibold tracking-tight lg:hidden">
+          {company.name}
+        </span>
         {isDemo && (
-          <span className="rounded-full bg-attente/10 px-2 py-0.5 text-xs font-medium text-attente">
+          <span className="shrink-0 rounded-full bg-attente/10 px-2 py-0.5 text-xs font-medium text-attente">
             Démo
           </span>
         )}

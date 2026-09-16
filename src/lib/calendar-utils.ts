@@ -3,7 +3,6 @@ import {
   differenceInMinutes,
   format,
   parseISO,
-  setHours,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -263,7 +262,10 @@ export function getHourMarkers(view: CalendarView, weekDays: Date[]): { label: s
   if (view === "day") {
     for (let hour = CALENDAR_START_HOUR; hour <= CALENDAR_END_HOUR; hour++) {
       markers.push({
-        label: format(setHours(new Date(), hour), "ha"),
+        // « 5 h » plutôt que « 5AM » : l'heure de l'après-midi s'écrit 13 h
+        // au Québec, et « 1PM » au milieu d'une interface française se
+        // remarque autant qu'une faute d'orthographe.
+        label: `${hour} h`,
         left: (hour - CALENDAR_START_HOUR) * HOUR_WIDTH,
       });
     }
@@ -278,7 +280,7 @@ export function getHourMarkers(view: CalendarView, weekDays: Date[]): { label: s
     });
     for (let hour = CALENDAR_START_HOUR; hour < CALENDAR_END_HOUR; hour += 4) {
       markers.push({
-        label: format(setHours(day, hour), "ha"),
+        label: `${hour} h`,
         left: dayOffset + (hour - CALENDAR_START_HOUR) * HOUR_WIDTH,
       });
     }
