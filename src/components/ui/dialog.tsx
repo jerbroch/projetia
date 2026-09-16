@@ -64,12 +64,22 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {/*
-        La croix visait 16 px. Elle offre maintenant 44 px au doigt — c'est
-        le bouton qu'on cherche quand on s'est trompé de fenêtre.
+        La croix visait 16 px. Elle offre maintenant 44 px PLEINS au doigt —
+        `h-11` seul rendait 43,2 px une fois le rem arrondi par le
+        navigateur, soit juste sous la cible. `min-h`/`min-w` en pixels ne
+        laissent pas la place au doute. C'est le bouton qu'on cherche quand
+        on s'est trompé de fenêtre.
       */}
-      <DialogPrimitive.Close className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors duration-rapide hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none motion-reduce:transition-none sm:right-3 sm:top-3 sm:h-9 sm:w-9">
+      <DialogPrimitive.Close className="absolute right-2 top-2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-md text-muted-foreground transition-colors duration-rapide hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none motion-reduce:transition-none sm:right-3 sm:top-3">
         <X className="h-4 w-4" />
-        <span className="sr-only">Fermer</span>
+        {/*
+          « Fermer LA FENÊTRE », pas « Fermer ». Plusieurs formulaires portent
+          déjà un bouton « Fermer » parmi leurs actions : en traduisant le
+          « Close » d'origine par le même mot, j'ai créé deux boutons de même
+          nom dans le même dialogue. Le parcours complet est tombé dessus —
+          « resolved to 2 elements ». Le nom doit désigner une seule chose.
+        */}
+        <span className="sr-only">Fermer la fenêtre</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </DialogPortal>

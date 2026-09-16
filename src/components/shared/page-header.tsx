@@ -17,7 +17,9 @@ export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0">
-        <h2 className="text-balance text-xl font-bold tracking-tight sm:text-2xl">{title}</h2>
+        {/* `h1` : depuis que la barre ne porte plus de titre, c'est ici
+            qu'est le titre principal de la page. */}
+        <h1 className="text-balance text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
         {description && (
           <p className="mt-0.5 text-sm text-muted-foreground sm:text-base">{description}</p>
         )}

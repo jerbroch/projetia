@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Calendar,
   DollarSign,
@@ -64,6 +65,10 @@ export default async function DashboardPage() {
       isDemo={ctx.isDemo}
     >
       <div className="space-y-6">
+        <PageHeader
+          title="Tableau de bord"
+          description="Aperçu de votre entreprise de construction"
+        />
         {isEmpty ? (
           <EmptyState
             title="Bienvenue sur ConstructionIOS!"

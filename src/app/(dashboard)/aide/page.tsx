@@ -1,4 +1,5 @@
 import { ContactBlock } from "@/components/shared/contact-block";
+import { PageHeader } from "@/components/shared/page-header";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { coordonneesDuSoutien } from "@/lib/coordonnees";
@@ -23,6 +24,10 @@ export default async function AidePage() {
       title="Nous joindre"
       description="Une question, un blocage, une idée — écrivez ou appelez"
     >
+      <PageHeader
+        title="Nous joindre"
+        description="Une question, un blocage, une idée — écrivez ou appelez"
+      />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>

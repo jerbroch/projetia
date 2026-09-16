@@ -21,15 +21,20 @@ test.describe("35. Les fenêtres modales", () => {
 
     const dialogue = page.getByRole("dialog");
     await expect(dialogue).toBeVisible({ timeout: 10000 });
-    // L'animation d'ouverture applique un `scale` qui écrase le centrage le
-    // temps qu'elle dure. Mesurer pendant, c'est mesurer une position qui
-    // n'existe que 200 ms.
+    /*
+     * ATTENDRE LA FIN RÉELLE DE L'ANIMATION, pas une valeur intermédiaire.
+     *
+     * L'ouverture applique un `scale` qui part de 0,95 : tant qu'elle court,
+     * la bounding box rend 44 × 0,95 ≈ 42 px et la position n'est pas encore
+     * la bonne. Guetter « le transform ne contient plus 0.95 » ne suffit pas
+     * — il passe par 0,96, 0,97… On demande donc aux animations elles-mêmes
+     * si elles ont fini.
+     */
     await page.waitForFunction(
       () => {
         const d = document.querySelector('[role="dialog"]') as HTMLElement | null;
         if (!d) return false;
-        const t = getComputedStyle(d).transform;
-        return !t.includes("0.95");
+        return d.getAnimations().every((a) => a.playState === "finished");
       },
       { timeout: 5000 },
     );
@@ -45,10 +50,11 @@ test.describe("35. Les fenêtres modales", () => {
     expect(boite!.x + boite!.width, "elle ne sort pas à droite").toBeLessThanOrEqual(vue.width + 1);
 
     // Et la croix offre une vraie zone tactile.
-    const croix = dialogue.getByRole("button", { name: "Fermer" });
+    const croix = dialogue.getByRole("button", { name: "Fermer la fenêtre" });
     const bc = await croix.boundingBox();
     console.log(`MODALE >>> croix ${Math.round(bc!.width)}×${Math.round(bc!.height)} px`);
-    expect(Math.min(bc!.width, bc!.height), "44 px au doigt").toBeGreaterThanOrEqual(40);
+    // 44 px PLEINS : c'est la cible, pas une approximation.
+    expect(Math.min(bc!.width, bc!.height), "44 px au doigt").toBeGreaterThanOrEqual(44);
   });
 
   test("la fenêtre se ferme au clavier et rend le focus", async ({ page }) => {

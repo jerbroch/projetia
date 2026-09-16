@@ -19,6 +19,10 @@ import type { Company, User as AppUser } from "@/types";
 
 interface HeaderProps {
   title: string;
+  /**
+   * Conservée dans l'API pour ne rien casser chez les appelants, mais la
+   * barre ne l'affiche plus : la description utile est celle de l'écran.
+   */
   description?: string;
   user: AppUser;
   company: Company;
@@ -30,7 +34,7 @@ interface HeaderProps {
 
 export function Header({
   title,
-  description,
+  description: _description,
   user,
   company,
   isDemo,
@@ -49,7 +53,10 @@ export function Header({
   const accountSummary = [user.name, user.email, company.name, roleLabel].filter(Boolean).join(" / ");
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:gap-4 lg:px-6">
+    <header
+      aria-label={`Barre de navigation — ${title}`}
+      className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:gap-4 lg:px-6"
+    >
       {/*
         Le bouton du menu occupe SA place dans l'en-tête. Il était posé en
         `fixed` par-dessus la page et recouvrait le coin supérieur gauche de
@@ -66,25 +73,27 @@ export function Header({
           <Menu className="h-5 w-5" />
         </Button>
       )}
+      {/*
+        LA BARRE NE PORTE PLUS LE TITRE.
+
+        Elle affichait « Clients / Gérez vos relations clients » pendant que
+        l'écran affichait « Clients / Consultez et gérez tous vos clients »
+        quatre-vingts pixels plus bas. Deux titres pour une seule page, deux
+        descriptions qui disaient la même chose autrement : le lecteur
+        hésitait sur ce qu'il devait lire.
+
+        Le titre appartient au contenu — c'est lui qui est le `h1`. La barre
+        garde ce qui lui revient : le menu, la recherche, les avis, le compte.
+
+        `title` reste dans l'API et sert de nom accessible à la barre : une
+        personne au lecteur d'écran sait ainsi de quelle page relèvent ces
+        commandes, sans qu'un second titre soit lu à voix haute.
+      */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg lg:text-xl">
-            {title}
-          </h1>
-          {isDemo && (
-            <span className="shrink-0 rounded-full bg-attente/10 px-2 py-0.5 text-xs font-medium text-attente">
-              Démo
-            </span>
-          )}
-        </div>
-        {/*
-          LA DESCRIPTION DISPARAÎT SUR TÉLÉPHONE. Dans une bande de 64 px,
-          le titre et sa description passaient sur trois lignes et
-          débordaient — alors que l'écran répète déjà les deux juste en
-          dessous, dans son propre en-tête de page.
-        */}
-        {description && (
-          <p className="hidden truncate text-sm text-muted-foreground lg:block">{description}</p>
+        {isDemo && (
+          <span className="rounded-full bg-attente/10 px-2 py-0.5 text-xs font-medium text-attente">
+            Démo
+          </span>
         )}
       </div>
 
