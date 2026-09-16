@@ -92,7 +92,7 @@ export function AdminDashboardClient({ summary, recentAlerts }: AdminDashboardCl
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Alertes récentes</CardTitle>
-          <Link href="/admin/alerts" className="text-sm text-primary hover:underline">
+          <Link href="/admin/alerts" className="text-sm text-accent-encre hover:underline">
             Voir tout
           </Link>
         </CardHeader>

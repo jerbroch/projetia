@@ -377,7 +377,7 @@ export function ResourceCalendar({
                           {row.employee.profilePhoto ? (
                             <AvatarImage src={row.employee.profilePhoto} alt={row.label} />
                           ) : null}
-                          <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                          <AvatarFallback className="bg-primary/10 text-accent-encre text-[10px]">
                             {getEmployeeInitials(row.employee)}
                           </AvatarFallback>
                         </Avatar>

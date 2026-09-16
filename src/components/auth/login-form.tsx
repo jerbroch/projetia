@@ -200,7 +200,7 @@ export function LoginForm() {
                 <Label htmlFor="password">Mot de passe</Label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs font-medium text-primary hover:underline"
+                  className="text-xs font-medium text-accent-encre hover:underline"
                 >
                   Mot de passe oublié?
                 </Link>
@@ -295,7 +295,7 @@ export function LoginForm() {
 
             <p className="text-center text-sm text-muted-foreground">
               Pas encore de compte?{" "}
-              <Link href="/register" className="font-medium text-primary hover:underline">
+              <Link href="/register" className="font-medium text-accent-encre hover:underline">
                 S&apos;inscrire
               </Link>
             </p>

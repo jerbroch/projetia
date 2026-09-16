@@ -65,7 +65,7 @@ export function ForgotPasswordForm() {
               {(loading || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Envoyer le lien
             </Button>
-            <Link href="/login" className="text-sm text-primary hover:underline">
+            <Link href="/login" className="text-sm text-accent-encre hover:underline">
               Retour à la connexion
             </Link>
           </CardFooter>

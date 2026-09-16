@@ -58,7 +58,7 @@ export function SubscriptionSettingsForm({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-accent-encre">
             <CreditCard className="h-5 w-5" />
           </div>
           <div>

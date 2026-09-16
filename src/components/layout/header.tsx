@@ -125,7 +125,7 @@ export function Header({
               </p>
             </div>
             <Avatar className="h-9 w-9 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-accent-encre">{initials}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>

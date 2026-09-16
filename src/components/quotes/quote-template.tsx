@@ -183,7 +183,7 @@ export function QuoteTemplate({
       {showDepositSection && quote.depositRequired && quote.depositAmount != null && (
         <div className="border-b py-6">
           <p className="text-sm font-medium">Dépôt requis à l&apos;acceptation</p>
-          <p className="text-2xl font-bold text-primary">
+          <p className="text-2xl font-bold text-accent-encre">
             {formatCurrency(quote.depositAmount)}
             {quote.depositPercentage != null && (
               <span className="ml-2 text-sm font-normal text-muted-foreground">

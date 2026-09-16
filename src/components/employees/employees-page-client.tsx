@@ -253,7 +253,7 @@ export function EmployeesPageClient({
                             {employee.profilePhoto ? (
                               <AvatarImage src={employee.profilePhoto} alt={getEmployeeFullName(employee)} />
                             ) : null}
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                            <AvatarFallback className="bg-primary/10 text-accent-encre text-xs">
                               {getEmployeeInitials(employee)}
                             </AvatarFallback>
                           </Avatar>

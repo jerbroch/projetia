@@ -77,7 +77,7 @@ export function ResetPasswordForm() {
             <CardDescription>{sessionError}</CardDescription>
           </CardHeader>
           <CardFooter className="flex flex-col gap-4">
-            <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+            <Link href="/forgot-password" className="text-sm text-accent-encre hover:underline">
               Demander un nouveau lien
             </Link>
             <Link href="/login" className="text-sm text-muted-foreground hover:underline">
@@ -127,7 +127,7 @@ export function ResetPasswordForm() {
               {(loading || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Mettre à jour
             </Button>
-            <Link href="/login" className="text-sm text-primary hover:underline">
+            <Link href="/login" className="text-sm text-accent-encre hover:underline">
               Retour à la connexion
             </Link>
           </CardFooter>

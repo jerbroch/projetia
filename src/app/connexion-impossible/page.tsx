@@ -50,7 +50,7 @@ export default async function ConnexionImpossiblePage({
 
         <p className="mt-4 text-xs text-muted-foreground">
           Si cela se répète, vous pouvez{" "}
-          <Link href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="text-accent-encre hover:underline">
             vous reconnecter
           </Link>
           .

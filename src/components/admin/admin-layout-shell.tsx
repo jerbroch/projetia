@@ -43,7 +43,7 @@ export function AdminSidebar({ unreadAlerts = 0 }: AdminSidebarProps) {
   return (
     <aside className="flex w-64 flex-col border-r bg-background">
       <div className="flex h-16 items-center gap-2 border-b px-6">
-        <Shield className="h-5 w-5 text-primary" />
+        <Shield className="h-5 w-5 text-accent-encre" />
         <div>
           <span className="block text-sm font-bold">Super Admin</span>
           <span className="block text-[10px] text-muted-foreground">Construction iOS</span>
@@ -62,7 +62,7 @@ export function AdminSidebar({ unreadAlerts = 0 }: AdminSidebarProps) {
               className={cn(
                 "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary/10 text-accent-encre"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >

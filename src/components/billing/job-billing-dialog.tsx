@@ -948,7 +948,7 @@ export function JobBillingDialog({
                     </div>
                   )}
                   {depositApplied > 0 && (
-                    <div className="flex justify-between text-lg font-bold text-primary">
+                    <div className="flex justify-between text-lg font-bold text-accent-encre">
                       <span>Solde à payer</span>
                       <span>{formatCurrency(Math.max(0, (sheet?.total ?? 0) - depositApplied))}</span>
                     </div>
@@ -1057,7 +1057,7 @@ function BillingLinesTable({
                 {/* Une ligne venue du terrain se distingue d'une ligne tapée à la
                     main : c'est elle qu'un réimport peut remplacer. */}
                 {line.sourceKind && (
-                  <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                  <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-accent-encre">
                     terrain{line.manuallyEdited ? " · retouchée" : ""}
                   </span>
                 )}

@@ -124,7 +124,7 @@ export default async function DashboardPage() {
                   href="/schedule"
                   className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <CardTitle className="transition-colors group-hover:text-primary">
+                  <CardTitle className="transition-colors group-hover:text-accent-encre">
                     Travaux en cours
                   </CardTitle>
                   <CardDescription>
@@ -181,7 +181,7 @@ export default async function DashboardPage() {
                     href="/schedule"
                     className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <CardTitle className="transition-colors group-hover:text-primary">
+                    <CardTitle className="transition-colors group-hover:text-accent-encre">
                       Calendrier à venir
                     </CardTitle>
                     <CardDescription>Travaux et rendez-vous cette semaine</CardDescription>
@@ -220,7 +220,7 @@ export default async function DashboardPage() {
                     href="/invoices"
                     className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <CardTitle className="transition-colors group-hover:text-primary">
+                    <CardTitle className="transition-colors group-hover:text-accent-encre">
                       Factures récentes
                     </CardTitle>
                     <CardDescription>Dernière activité de facturation</CardDescription>

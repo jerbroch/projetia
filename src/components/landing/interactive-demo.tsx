@@ -246,7 +246,7 @@ function AssignationMockup() {
             className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5"
           >
             <span className="flex items-center gap-2.5">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-accent-encre">
                 {g.nom
                   .split(" ")
                   .map((m) => m[0])
@@ -367,7 +367,7 @@ function TerrainMockup() {
             <div className="flex-1 rounded border px-1 py-0.5 text-[9px] text-foreground sm:text-[10px]">8,5</div>
             <div className="rounded border px-1 py-0.5 text-[9px] text-muted-foreground sm:text-[10px]">h</div>
           </div>
-          <div className="mt-0.5 rounded bg-primary/10 py-0.5 text-center text-[8px] font-medium text-primary sm:text-[9px]">
+          <div className="mt-0.5 rounded bg-primary/10 py-0.5 text-center text-[8px] font-medium text-accent-encre sm:text-[9px]">
             Ajouter les heures
           </div>
           <div className="mt-0.5 rounded border py-0.5 text-center text-[8px] text-foreground sm:text-[9px]">

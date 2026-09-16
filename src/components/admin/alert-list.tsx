@@ -65,7 +65,7 @@ export function AlertList({ alerts }: AlertListProps) {
                 {alert.companyId && (
                   <Link
                     href={`/admin/companies/${alert.companyId}`}
-                    className="mt-2 inline-block text-xs text-primary hover:underline"
+                    className="mt-2 inline-block text-xs text-accent-encre hover:underline"
                   >
                     Voir l&apos;entreprise
                   </Link>

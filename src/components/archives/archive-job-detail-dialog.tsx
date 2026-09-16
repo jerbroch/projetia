@@ -324,7 +324,7 @@ export function ArchiveJobDetailDialog({
                       {invoiceId && (onOpenInvoice || onOpenBilling) ? (
                         <button
                           type="button"
-                          className="mt-1 font-medium text-primary underline-offset-4 hover:underline"
+                          className="mt-1 font-medium text-accent-encre underline-offset-4 hover:underline"
                           onClick={handleOpenInvoice}
                         >
                           {invoiceNumber}

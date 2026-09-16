@@ -97,7 +97,7 @@ function OuEstLaSoumission({ vu }: { vu: boolean }) {
             "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors duration-500",
             i === 2
               ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-              : "bg-primary/10 text-primary",
+              : "bg-primary/10 text-accent-encre",
           )}
         >
           {etapes[i]}
@@ -221,7 +221,7 @@ function LesOutilsDuCamion({ vu }: { vu: boolean }) {
             <span
               className={cn(
                 "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                o.atelier ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary",
+                o.atelier ? "bg-muted text-muted-foreground" : "bg-primary/10 text-accent-encre",
               )}
             >
               {o.porteur}
