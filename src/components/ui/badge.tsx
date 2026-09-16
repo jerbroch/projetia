@@ -7,13 +7,19 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
-        outline: "text-foreground",
-        success: "border-transparent bg-emerald-100 text-emerald-800",
-        warning: "border-transparent bg-amber-100 text-amber-800",
-        info: "border-transparent bg-blue-100 text-blue-800",
+        /*
+         * STATUTS SOBRES : un fond très pâle, une encre foncée mesurée
+         * au-dessus de 4,5 sur carte blanche, et JAMAIS l'orange — il est
+         * réservé aux actions, et le voir sur un statut ferait croire
+         * qu'il y a quelque chose à cliquer.
+         */
+        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/90",
+        secondary: "border-transparent bg-secondary text-secondary-foreground",
+        destructive: "border-transparent bg-danger/10 text-danger",
+        outline: "border-border text-foreground",
+        success: "border-transparent bg-succes/10 text-succes",
+        warning: "border-transparent bg-attente/10 text-attente",
+        info: "border-transparent bg-info/10 text-info",
       },
     },
     defaultVariants: {

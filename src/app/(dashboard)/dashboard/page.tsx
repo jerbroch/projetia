@@ -71,7 +71,13 @@ export default async function DashboardPage() {
           />
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {/*
+              Six colonnes dès 1280 px serraient les six indicateurs au point
+              que chaque étiquette passait sur deux lignes. La grille suit
+              maintenant l'espace réel : deux au téléphone large, trois sur un
+              portable, six seulement quand l'écran les porte.
+            */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <StatCard
                 title="Revenus totaux"
                 value={formatCurrency(stats.totalRevenue)}

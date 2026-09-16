@@ -45,6 +45,24 @@ const config: Config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        /*
+         * LES COULEURS PROPRES À CONSTRUCTION iOS.
+         *
+         * Le bleu pétrole du menu, l'orange lisible en encre, et les
+         * cinq statuts. Ils vivent ici pour qu'un écran écrive
+         * `text-succes` plutôt que de choisir un vert à lui.
+         */
+        petrole: {
+          DEFAULT: "hsl(var(--petrole))",
+          foreground: "hsl(var(--petrole-foreground))",
+          doux: "hsl(var(--petrole-doux))",
+        },
+        "accent-encre": "hsl(var(--accent-encre))",
+        succes: "hsl(var(--succes))",
+        attente: "hsl(var(--attente))",
+        danger: "hsl(var(--danger))",
+        neutre: "hsl(var(--neutre))",
+        info: "hsl(var(--info))",
         chart: {
           "1": "hsl(var(--chart-1))",
           "2": "hsl(var(--chart-2))",
@@ -54,9 +72,26 @@ const config: Config = {
         },
       },
       borderRadius: {
+        /* 16 px pour les cartes, 14 px par défaut, 12 px pour le menu. */
+        xl: "calc(var(--radius) + 2px)",
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 5px)",
+      },
+      boxShadow: {
+        /* Discrètes : on suggère l'épaisseur, on ne la proclame pas. */
+        carte: "var(--ombre-carte)",
+        relief: "var(--ombre-relief)",
+        flottant: "var(--ombre-flottant)",
+      },
+      transitionDuration: {
+        /*
+         * 150 à 220 ms. Au-delà, la transition se met à retarder
+         * l'action au lieu de l'accompagner.
+         */
+        rapide: "150ms",
+        normal: "180ms",
+        ample: "220ms",
       },
     },
   },
