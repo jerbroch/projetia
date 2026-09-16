@@ -138,6 +138,7 @@ test.describe("1. Parcours inscription", () => {
 
     await applyPromoCode(page, "ios123");
     await attendreDestination(page, /\/dashboard/, 20000);
-    await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible();
+    // Le tableau de bord accueille par « Bonjour [prénom] » depuis la refonte.
+    await expect(page.getByRole("heading", { level: 1, name: /^Bonjour\b/ })).toBeVisible();
   });
 });

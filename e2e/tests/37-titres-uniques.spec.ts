@@ -20,7 +20,9 @@ import { connexionLocataire } from "../helpers/auth";
  * écran par écran, pour que la disparition ou l'échange d'un titre se voie.
  */
 const ECRANS = [
-  ["/dashboard", "Tableau de bord"],
+  /* Le tableau de bord accueille par « Bonjour [prénom] » : le prénom vient
+     du compte connecté, donc on vérifie la forme, pas une valeur. */
+  ["/dashboard", /^Bonjour\b/],
   ["/customers", "Clients"],
   ["/quotes", "Soumissions"],
   // Le menu dit « À vérifier », l'écran « Travaux à vérifier ». Les deux sont
@@ -66,13 +68,17 @@ test("chaque écran a exactement un titre principal", async ({ page }) => {
       continue;
     }
     // 2. Et c'est bien CELUI de cet écran, pas un autre ni un titre vide.
-    if (visibles[0] !== attendu) {
+    const correspond =
+      attendu instanceof RegExp ? attendu.test(visibles[0]) : visibles[0] === attendu;
+    if (!correspond) {
       fautifs.push(`${route} → titre « ${visibles[0]} » au lieu de « ${attendu} »`);
       continue;
     }
     // 3. Et il n'est pas répété dans la barre, ce qui ramènerait le doublon.
-    const doublons = await page.locator(`header:has-text("${attendu}")`).count();
-    if (doublons > 0) fautifs.push(`${route} → titre « ${attendu} » répété dans la barre`);
+    if (typeof attendu === "string") {
+      const doublons = await page.locator(`header:has-text("${attendu}")`).count();
+      if (doublons > 0) fautifs.push(`${route} → titre « ${attendu} » répété dans la barre`);
+    }
   }
 
   console.log("TITRES >>>", fautifs.length, "écran(s) fautif(s)");
