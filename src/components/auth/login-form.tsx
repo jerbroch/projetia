@@ -37,6 +37,13 @@ type EtatBouton = "repos" | "chargement" | "confirme" | "succes" | "erreur";
  */
 const DUREE_CROCHET_MS = 260;
 
+/**
+ * Le temps laissé à la navigation cliente avant de la doubler par une vraie
+ * navigation. Assez long pour qu'un `router.push` normal ait fini, assez
+ * court pour qu'on ne reste pas devant un écran figé.
+ */
+const DELAI_FILET_MS = 1200;
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -94,8 +101,33 @@ export function LoginForm() {
     });
   }
 
+  /**
+   * LA NAVIGATION APRÈS LA CONNEXION, AVEC UN FILET.
+   *
+   * `router.push` seul suffisait pour le tableau de bord mais laissait un
+   * employé bloqué sur l'animation, indéfiniment : sa destination est
+   * `/terrain`, que le middleware traite à part, et la navigation cliente
+   * était abandonnée en silence sans erreur ni changement d'URL. Mesuré —
+   * la session était valide, un `goto /terrain` aboutissait, seul le
+   * `router.push` restait sur place.
+   *
+   * On garde donc `router.push` pour la fluidité, et on vérifie qu'il a
+   * porté. S'il n'a rien fait, une vraie navigation prend le relais : mieux
+   * vaut un rechargement complet qu'un écran qui ne finit jamais.
+   */
   const naviguer = useCallback(() => {
-    if (destination.current) router.push(destination.current);
+    const cible = destination.current;
+    if (!cible) return;
+
+    router.push(cible);
+
+    window.setTimeout(() => {
+      // Toujours sur la page de connexion : la navigation cliente n'a pas
+      // abouti. `assign` conserve l'historique, contrairement à `replace`.
+      if (window.location.pathname === "/login") {
+        window.location.assign(cible);
+      }
+    }, DELAI_FILET_MS);
   }, [router]);
 
   async function handleDemoLogin() {

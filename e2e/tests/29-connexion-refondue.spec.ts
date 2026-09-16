@@ -1,6 +1,7 @@
 import { test, expect } from "../fixtures/base";
 import { readTestCredentials } from "../helpers/test-data";
 import { createClient } from "@supabase/supabase-js";
+import { createE2EAdmin, setupFieldEmployeeTestData } from "../helpers/field-employee";
 
 function admin() {
   return createClient(
@@ -240,5 +241,36 @@ test.describe("29. Connexion refondue", () => {
     expect(vus.findIndex((t) => t.includes("Connexion…"))).toBeLessThan(
       vus.findIndex((t) => t.includes("Connexion réussie")),
     );
+  });
+
+  test("un employé arrive bien sur /terrain, sans rester sur l'animation", async ({ page }) => {
+    /*
+     * LE DÉFAUT QUE CE TEST EMPÊCHE DE REVENIR.
+     *
+     * La connexion d'un employé réussissait, l'animation paraissait — et
+     * rien de plus : `router.push("/terrain")` était abandonné en silence
+     * par Next, sans erreur de console ni changement d'URL. La personne
+     * restait devant « Préparation de votre espace de travail… » pour
+     * toujours. La session, elle, était parfaitement valide : un `goto`
+     * direct aboutissait.
+     *
+     * Les épreuves du locataire ne pouvaient pas l'attraper : leur
+     * destination est `/dashboard`, que la navigation cliente atteint sans
+     * difficulté. C'est `/terrain`, traité à part par le middleware, qui
+     * échouait.
+     */
+    const creds = readTestCredentials();
+    const ctx = await setupFieldEmployeeTestData(createE2EAdmin(), creds.tenantCompanyId!);
+
+    await page.goto("/login");
+    await page.getByLabel("Courriel").fill(ctx.email);
+    await page.getByLabel("Mot de passe", { exact: true }).fill(ctx.password);
+    await page.getByRole("button", { name: /Se connecter/ }).click();
+
+    await page.waitForURL(/\/terrain/, { timeout: 30000 });
+    console.log("CONNEXION >>> employé arrivé sur", new URL(page.url()).pathname);
+
+    // Et l'animation a bien cédé la place à l'écran.
+    await expect(page.getByText("Préparation de votre espace de travail…")).toHaveCount(0);
   });
 });

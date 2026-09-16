@@ -12,39 +12,58 @@ import { connexionLocataire } from "../helpers/auth";
  * La barre ne porte plus que la navigation et les commandes ; le titre
  * appartient au contenu, et c'est lui le `h1`.
  */
+/**
+ * Chaque écran avec LE TITRE QU'IL DOIT PORTER.
+ *
+ * Vérifier « il y a exactement un h1 » ne suffit pas : un écran qui
+ * afficherait le titre d'un autre passerait. On nomme donc ce qu'on attend,
+ * écran par écran, pour que la disparition ou l'échange d'un titre se voie.
+ */
 const ECRANS = [
-  "/dashboard",
-  "/customers",
-  "/quotes",
-  "/reviews",
-  "/invoices",
-  "/schedule",
-  "/archives",
-  "/employees",
-  "/heures",
-  "/outillage",
-  "/payments",
-  "/settings",
-  "/aide",
+  ["/dashboard", "Tableau de bord"],
+  ["/customers", "Clients"],
+  ["/quotes", "Soumissions"],
+  // Le menu dit « À vérifier », l'écran « Travaux à vérifier ». Les deux sont
+  // volontaires : le menu est court, le titre nomme la chose.
+  ["/reviews", "Travaux à vérifier"],
+  ["/invoices", "Factures"],
+  ["/schedule", "Calendrier de dispatch"],
+  ["/archives", "Archives"],
+  ["/employees", "Employés"],
+  ["/heures", "Heures"],
+  ["/outillage", "Outillage"],
+  ["/payments", "Paiements"],
+  ["/settings", "Paramètres"],
+  ["/aide", "Nous joindre"],
 ] as const;
 
 test("chaque écran a exactement un titre principal", async ({ page }) => {
+  // Treize écrans à visiter : le délai par défaut de 90 s ne suffit pas quand
+  // le serveur de développement compile une route au passage.
+  test.setTimeout(180_000);
   await connexionLocataire(page);
   const fautifs: string[] = [];
 
-  for (const route of ECRANS) {
+  for (const [route, attendu] of ECRANS) {
     await page.goto(route);
     await page.waitForTimeout(700);
 
     const h1s = await page.locator("h1").allInnerTexts();
     const visibles = h1s.map((t) => t.trim()).filter(Boolean);
+
+    // 1. Un seul titre principal.
     if (visibles.length !== 1) {
       fautifs.push(`${route} → ${visibles.length} h1 : ${JSON.stringify(visibles)}`);
       continue;
     }
-    // Et ce titre ne doit pas être répété ailleurs à l'identique en en-tête.
-    const doublons = await page.locator(`header:has-text("${visibles[0]}")`).count();
-    if (doublons > 0) fautifs.push(`${route} → titre « ${visibles[0]} » répété dans la barre`);
+    // 2. Et c'est bien CELUI de cet écran, pas un autre ni un titre vide.
+    if (visibles[0] !== attendu) {
+      fautifs.push(`${route} → titre « ${visibles[0]} » au lieu de « ${attendu} »`);
+      continue;
+    }
+    // 3. Et il n'est pas répété dans la barre, ce qui ramènerait le doublon.
+    const doublons = await page.locator(`header:has-text("${attendu}")`).count();
+    if (doublons > 0) fautifs.push(`${route} → titre « ${attendu} » répété dans la barre`);
   }
 
   console.log("TITRES >>>", fautifs.length, "écran(s) fautif(s)");

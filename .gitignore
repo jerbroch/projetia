@@ -60,3 +60,4 @@ next-env.d.ts
 
 # Captures de revue visuelle — régénérables, hors du dépôt.
 /captures/
+/captures-refonte-*.zip
