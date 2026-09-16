@@ -127,7 +127,9 @@ test.describe("12. Outillage", () => {
     await page.goto("/outillage");
     await ensureDashboardAccess(page);
     if (!page.url().includes("/outillage")) await page.goto("/outillage");
-    await expect(page.getByRole("heading", { name: /Outillage/i, level: 2 })).toBeVisible({
+    // `level: 1` : le titre de l'écran est le titre principal de la page
+    // depuis que la barre supérieure ne porte plus de titre en double.
+    await expect(page.getByRole("heading", { name: /Outillage/i, level: 1 })).toBeVisible({
       timeout: 15000,
     });
   });
