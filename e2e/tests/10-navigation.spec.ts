@@ -2,8 +2,15 @@ import { test, expect, tenantAuth, assertPageLoadsWithout500 } from "../fixtures
 import { ensureDashboardAccess } from "../helpers/auth";
 import { landingLoginLink, landingRegisterLink } from "../helpers/locators";
 
+/**
+ * `titre` diffère de `name` quand l'écran ne s'annonce pas comme son entrée
+ * de menu. Le tableau de bord accueille par « Bonjour [prénom] » : le menu
+ * doit rester « Tableau de bord », c'est un repère de navigation, mais le
+ * titre de l'écran est une salutation. On vérifie donc les deux, chacun pour
+ * ce qu'il est.
+ */
 const SIDEBAR_LINKS = [
-  { href: "/dashboard", name: "Tableau de bord" },
+  { href: "/dashboard", name: "Tableau de bord", titre: /^Bonjour\b/ },
   { href: "/customers", name: "Clients" },
   { href: "/quotes", name: "Soumissions" },
   { href: "/invoices", name: "Factures" },
@@ -39,7 +46,7 @@ test.describe("10. Navigation", () => {
 
       const title = page.getByRole("heading", { level: 1 });
       await expect(title).toBeVisible({ timeout: 10000 });
-      await expect(title).toContainText(link.name);
+      await expect(title).toContainText(("titre" in link ? link.titre : link.name) as string | RegExp);
 
       const responses: number[] = [];
       page.on("response", (r) => {
