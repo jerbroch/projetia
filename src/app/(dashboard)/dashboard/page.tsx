@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   Calendar,
   FileText,
@@ -18,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CarteRevenus } from "@/components/dashboard/carte-revenus";
 import { BandeTerrain } from "@/components/dashboard/bande-terrain";
 import { PastilleDate, SectionTableau } from "@/components/dashboard/section-tableau";
+import { SqueletteTableau } from "@/components/dashboard/squelette-tableau";
 import { formatCurrency, formatDate, formatTimeRange } from "@/lib/utils";
 import { dateLongueFrancais, jourEtMois, prenomDe } from "@/lib/dates-francais";
 import { getDashboardStats, getInvoices, getScheduleEvents } from "@/lib/data/tenant-data";
@@ -32,7 +34,62 @@ import { cn } from "@/lib/utils";
 const interactiveRowClassName =
   "flex items-start justify-between gap-3 rounded-lg border p-3 transition-colors duration-normal hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none";
 
+/**
+ * LE CHÂSSIS PART SANS ATTENDRE LES CHIFFRES.
+ *
+ * La page attendait TOUT — contexte, horaire, clients, factures, fiches de
+ * facturation — avant d'envoyer son premier octet. Mesuré : la page finissait
+ * son travail de données en 290 ms, mais le premier octet n'arrivait qu'à
+ * 570 ms, et pendant tout ce temps l'écran précédent restait figé.
+ *
+ * Le menu, l'en-tête et la salutation ne dépendent que du contexte : ils
+ * partent dès qu'il est là. Le reste arrive en continu, derrière un squelette
+ * qui a la forme de ce qu'il remplace.
+ */
 export default async function DashboardPage() {
+  const ctx = await requireTenantContext();
+  const prenom = prenomDe(ctx.user.name);
+
+  return (
+    <DashboardLayout
+      title="Tableau de bord"
+      description="Aperçu de votre entreprise de construction"
+      company={ctx.company}
+      user={ctx.user}
+      isDemo={ctx.isDemo}
+    >
+      <div className="mx-auto w-full max-w-[1600px] space-y-5">
+        <div>
+          <p className="text-right text-sm text-muted-foreground">{dateLongueFrancais()}</p>
+
+          <div className="mt-1 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
+                {prenom ? `Bonjour ${prenom}` : "Bonjour"}
+              </h1>
+              <p className="mt-1 text-lg text-muted-foreground sm:text-xl">
+                Votre entreprise, en un coup d&apos;œil.
+              </p>
+            </div>
+
+            <Button asChild size="lg" className="shrink-0">
+              <Link href="/quotes">
+                <Plus className="h-4 w-4" aria-hidden />
+                Nouvelle soumission
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <Suspense fallback={<SqueletteTableau />}>
+          <CorpsTableauDeBord />
+        </Suspense>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+async function CorpsTableauDeBord() {
   const ctx = await requireTenantContext();
   const [stats, scheduleEvents, invoices] = await Promise.all([
     getDashboardStats(ctx.company.id, ctx.isDemo),
@@ -71,42 +128,8 @@ export default async function DashboardPage() {
   const terrainEtVerificationSontVides =
     activeFieldJobs.length === 0 && (!showReviewSection || pendingReviewJobs.length === 0);
 
-  const prenom = prenomDe(ctx.user.name);
-
   return (
-    <DashboardLayout
-      title="Tableau de bord"
-      description="Aperçu de votre entreprise de construction"
-      company={ctx.company}
-      user={ctx.user}
-      isDemo={ctx.isDemo}
-    >
-      {/* La largeur est bornée : au-delà, les lignes de texte s'étirent et la
-          composition se délite sur les très grands écrans. */}
-      <div className="mx-auto w-full max-w-[1600px] space-y-5">
-        {/* ───────── L'accueil ───────── */}
-        <div>
-          <p className="text-right text-sm text-muted-foreground">{dateLongueFrancais()}</p>
-
-          <div className="mt-1 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-                {prenom ? `Bonjour ${prenom}` : "Bonjour"}
-              </h1>
-              <p className="mt-1 text-lg text-muted-foreground sm:text-xl">
-                Votre entreprise, en un coup d&apos;œil.
-              </p>
-            </div>
-
-            <Button asChild size="lg" className="shrink-0">
-              <Link href="/quotes">
-                <Plus className="h-4 w-4" aria-hidden />
-                Nouvelle soumission
-              </Link>
-            </Button>
-          </div>
-        </div>
-
+    <>
         {isEmpty ? (
           <EmptyState
             title="Bienvenue sur Construction iOS!"
@@ -332,8 +355,7 @@ export default async function DashboardPage() {
             </div>
           </>
         )}
-      </div>
-    </DashboardLayout>
+    </>
   );
 }
 

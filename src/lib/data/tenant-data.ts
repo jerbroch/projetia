@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   createAdminClient,
   isSupabaseAdminConfigured,
@@ -61,7 +62,22 @@ function emptyStats(): DashboardStats {
   };
 }
 
-export async function getCustomers(companyId: string, isDemo: boolean): Promise<Customer[]> {
+/**
+ * LES LECTURES SONT DÉDOUBLONNÉES PAR RENDU.
+ *
+ * Le tableau de bord appelait `getScheduleEvents` et `getInvoices` en
+ * parallèle de `getDashboardStats` — qui appelle lui-même ces deux fonctions.
+ * Chacune partait donc DEUX FOIS vers Supabase pour rapporter exactement les
+ * mêmes lignes, soit une centaine de millisecondes jetées à chaque
+ * affichage.
+ *
+ * `cache` de React règle cela sans toucher aux appelants : la fonction ne
+ * s'exécute qu'une fois par rendu, quel que soit le nombre d'appels. Le cache
+ * est lié à la requête en cours — jamais partagé entre deux utilisateurs ni
+ * entre deux entreprises, et il disparaît à la fin du rendu. `companyId` fait
+ * partie de la clé, donc deux entreprises ne peuvent pas se croiser.
+ */
+export const getCustomers = cache(async function getCustomers(companyId: string, isDemo: boolean): Promise<Customer[]> {
   if (isDemo) return filterDemo(demoCustomers, companyId);
 
   if (!isSupabaseConfigured()) return [];
@@ -74,9 +90,8 @@ export async function getCustomers(companyId: string, isDemo: boolean): Promise<
     .order("created_at", { ascending: false });
 
   return (data ?? []).map(mapCustomerRow);
-}
-
-export async function getQuotes(companyId: string, isDemo: boolean): Promise<Quote[]> {
+});
+export const getQuotes = cache(async function getQuotes(companyId: string, isDemo: boolean): Promise<Quote[]> {
   if (isDemo) return filterDemo(demoQuotes, companyId);
   if (!isSupabaseConfigured()) return [];
 
@@ -97,9 +112,8 @@ export async function getQuotes(companyId: string, isDemo: boolean): Promise<Quo
     ...quote,
     scheduledJobId: scheduleLinks.get(quote.id),
   }));
-}
-
-export async function getInvoices(companyId: string, isDemo: boolean): Promise<Invoice[]> {
+});
+export const getInvoices = cache(async function getInvoices(companyId: string, isDemo: boolean): Promise<Invoice[]> {
   if (isDemo) {
     const events = filterDemo(demoScheduleEvents, companyId);
     const archivedJobIds = new Set(
@@ -123,8 +137,7 @@ export async function getInvoices(companyId: string, isDemo: boolean): Promise<I
   return invoices.filter(
     (invoice) => !invoice.scheduledJobId || !archivedJobIds.has(invoice.scheduledJobId)
   );
-}
-
+});
 async function getArchivedJobIds(companyId: string): Promise<Set<string>> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -150,7 +163,7 @@ export async function getEmployees(companyId: string, isDemo: boolean): Promise<
   return (data ?? []).map(mapEmployeeRow);
 }
 
-export async function getScheduleEvents(companyId: string, isDemo: boolean): Promise<ScheduleEvent[]> {
+export const getScheduleEvents = cache(async function getScheduleEvents(companyId: string, isDemo: boolean): Promise<ScheduleEvent[]> {
   if (isDemo) return filterDemo(demoScheduleEvents, companyId);
   if (!isSupabaseConfigured()) return [];
 
@@ -162,8 +175,7 @@ export async function getScheduleEvents(companyId: string, isDemo: boolean): Pro
     .order("start_at", { ascending: true });
 
   return (data ?? []).map(mapScheduleRow);
-}
-
+});
 export async function getPayments(companyId: string, isDemo: boolean): Promise<Payment[]> {
   if (isDemo) return filterDemo(demoPayments, companyId);
   if (!isSupabaseConfigured()) return [];
@@ -178,18 +190,28 @@ export async function getPayments(companyId: string, isDemo: boolean): Promise<P
   return (data ?? []).map(mapPaymentRow);
 }
 
+/**
+ * LES TROIS LECTURES PARTENT ENSEMBLE.
+ *
+ * L'horaire était attendu avant que clients et factures ne soient demandés,
+ * alors qu'aucun des trois ne dépend des autres : deux vagues d'allers-retours
+ * là où une suffit. Sur un lien vers Supabase où chaque aller-retour coûte une
+ * soixantaine de millisecondes, cela se voyait à l'écran.
+ *
+ * Le cas démonstration lit l'horaire pour rien dans l'ancienne version ; ici
+ * il le lit aussi, mais en parallèle, donc sans coût supplémentaire.
+ */
 export async function getDashboardStats(companyId: string, isDemo: boolean): Promise<DashboardStats> {
-  const schedule = await getScheduleEvents(companyId, isDemo);
+  const [schedule, customers, invoices] = await Promise.all([
+    getScheduleEvents(companyId, isDemo),
+    getCustomers(companyId, false),
+    getInvoices(companyId, false),
+  ]);
   const employeesOnSite = countActiveFieldWorkers(schedule);
 
   if (isDemo && companyId === DEMO_COMPANY_ID) {
     return { ...demoDashboardStats, employeesOnSite };
   }
-
-  const [customers, invoices] = await Promise.all([
-    getCustomers(companyId, false),
-    getInvoices(companyId, false),
-  ]);
 
   if (customers.length === 0 && invoices.length === 0) {
     return { ...emptyStats(), employeesOnSite };

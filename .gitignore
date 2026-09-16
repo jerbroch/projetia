@@ -63,3 +63,6 @@ next-env.d.ts
 /captures-refonte-*.zip
 /captures2/
 /captures-tableau-de-bord.zip
+/mesures/compte.json
+/mesures/cookie.txt
+/mesures/*.json

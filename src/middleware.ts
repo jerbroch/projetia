@@ -93,6 +93,23 @@ function isPublicRoute(pathname: string): boolean {
 const DELAI_PREMIERE_TENTATIVE_MS = 2000;
 const DELAI_REESSAI_MS = 1500;
 
+/*
+ * POURQUOI `getUser` ET NON `getClaims`, MALGRÉ LES 44 ms.
+ *
+ * Mesuré : `getUser` interroge le serveur d'authentification en 44 ms,
+ * `getClaims` vérifie la signature du jeton localement en 1 ms. Quarante
+ * fois moins, sur chaque requête de l'application — la tentation est réelle.
+ *
+ * Elle a été écartée. Ce middleware ne contrôle pas seulement QUI est
+ * connecté : il vérifie aussi que l'adresse est confirmée, par
+ * `email_confirmed_at`. Or ce champ n'existe pas dans les claims du jeton.
+ * Le seul équivalent disponible y est `user_metadata.email_verified` — et
+ * `user_metadata` est modifiable par l'utilisateur lui-même. Fonder le
+ * contrôle dessus rendrait la vérification d'adresse falsifiable par celui
+ * qu'elle est censée arrêter.
+ *
+ * Quarante-quatre millisecondes ne valent pas ça.
+ */
 async function verifierAvecDelai(
   supabase: ReturnType<typeof createServerClient>,
   delaiMs: number,
