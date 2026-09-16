@@ -5,6 +5,7 @@ import {
   STRONG_PASSWORD,
   applyPromoCode,
   skipOnboardingIfPresent,
+  attendreDestination,
 } from "../helpers/auth";
 import { landingRegisterLink } from "../helpers/locators";
 import { createClient } from "@supabase/supabase-js";
@@ -59,7 +60,7 @@ test.describe("1. Parcours inscription", () => {
     }
 
     await skipOnboardingIfPresent(page);
-    await page.waitForURL(/\/(choose-plan|dashboard)/, { timeout: 30000 });
+    await attendreDestination(page, /\/(choose-plan|dashboard)/);
 
     if (page.url().includes("/choose-plan")) {
       await expect(page.getByText(/Choisissez votre forfait/i)).toBeVisible();
@@ -68,7 +69,7 @@ test.describe("1. Parcours inscription", () => {
     }
 
     await page.goto("/dashboard");
-    await page.waitForURL(/\/(choose-plan|dashboard)/, { timeout: 15000 });
+    await attendreDestination(page, /\/(choose-plan|dashboard)/, 15000);
 
     if (page.url().includes("/choose-plan")) {
       audit.addFinding({
@@ -125,7 +126,7 @@ test.describe("1. Parcours inscription", () => {
     await page.getByLabel("Courriel").fill(email);
     await page.getByLabel("Mot de passe", { exact: true }).fill(STRONG_PASSWORD);
     await page.getByRole("button", { name: "Se connecter" }).click();
-    await page.waitForURL(/\/choose-plan/, { timeout: 30000 });
+    await attendreDestination(page, /\/choose-plan/);
 
     const promoToggle = page.getByRole("button", { name: /Entrer un code/i });
     if (await promoToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -136,7 +137,7 @@ test.describe("1. Parcours inscription", () => {
     await expect(page.getByText(/invalide|introuvable/i)).toBeVisible({ timeout: 10000 });
 
     await applyPromoCode(page, "ios123");
-    await page.waitForURL(/\/dashboard/, { timeout: 20000 });
+    await attendreDestination(page, /\/dashboard/, 20000);
     await expect(page.getByRole("heading", { name: "Tableau de bord" })).toBeVisible();
   });
 });

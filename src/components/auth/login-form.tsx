@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, Check, HardHat, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -37,15 +37,7 @@ type EtatBouton = "repos" | "chargement" | "confirme" | "succes" | "erreur";
  */
 const DUREE_CROCHET_MS = 260;
 
-/**
- * Le temps laissé à la navigation cliente avant de la doubler par une vraie
- * navigation. Assez long pour qu'un `router.push` normal ait fini, assez
- * court pour qu'on ne reste pas devant un écran figé.
- */
-const DELAI_FILET_MS = 1200;
-
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
   /** Vrai quand l'échec a une suite : aller confirmer son adresse. */
@@ -102,33 +94,29 @@ export function LoginForm() {
   }
 
   /**
-   * LA NAVIGATION APRÈS LA CONNEXION, AVEC UN FILET.
+   * LA NAVIGATION APRÈS LA CONNEXION : UNE SEULE, ET UNE VRAIE.
    *
-   * `router.push` seul suffisait pour le tableau de bord mais laissait un
-   * employé bloqué sur l'animation, indéfiniment : sa destination est
-   * `/terrain`, que le middleware traite à part, et la navigation cliente
-   * était abandonnée en silence sans erreur ni changement d'URL. Mesuré —
-   * la session était valide, un `goto /terrain` aboutissait, seul le
-   * `router.push` restait sur place.
+   * `router.push` laissait un employé bloqué sur l'animation indéfiniment :
+   * sa destination est `/terrain`, que le middleware traite à part, et la
+   * navigation cliente était abandonnée en silence — sans erreur, sans
+   * changement d'URL. Mesuré : la session était valide, un `goto` direct
+   * aboutissait, seul le `router.push` restait sur place.
    *
-   * On garde donc `router.push` pour la fluidité, et on vérifie qu'il a
-   * porté. S'il n'a rien fait, une vraie navigation prend le relais : mieux
-   * vaut un rechargement complet qu'un écran qui ne finit jamais.
+   * J'ai d'abord doublé `router.push` d'un filet qui forçait une vraie
+   * navigation au bout d'une seconde. C'était pire : quand `router.push`
+   * était simplement lent, le filet interrompait la navigation en cours
+   * (`net::ERR_ABORTED; maybe frame was detached`) et cassait l'inscription
+   * et deux parcours employé. Deux navigations concurrentes ne se
+   * départagent pas au chronomètre.
+   *
+   * Une seule navigation, donc, et celle qui marche partout. Le coût est un
+   * rechargement complet — sur une connexion, il est invisible : le
+   * navigateur garde l'écran actuel jusqu'à ce que le suivant soit prêt,
+   * c'est-à-dire pendant que l'animation joue.
    */
   const naviguer = useCallback(() => {
-    const cible = destination.current;
-    if (!cible) return;
-
-    router.push(cible);
-
-    window.setTimeout(() => {
-      // Toujours sur la page de connexion : la navigation cliente n'a pas
-      // abouti. `assign` conserve l'historique, contrairement à `replace`.
-      if (window.location.pathname === "/login") {
-        window.location.assign(cible);
-      }
-    }, DELAI_FILET_MS);
-  }, [router]);
+    if (destination.current) window.location.assign(destination.current);
+  }, []);
 
   async function handleDemoLogin() {
     if (enVol.current) return;

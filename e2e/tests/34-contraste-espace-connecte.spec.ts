@@ -122,6 +122,9 @@ test("les pages publiques : aucun texte sous le seuil", async ({ page }) => {
 });
 
 test("aucun texte sous le seuil WCAG AA", async ({ page }) => {
+  // Treize écrans à visiter et à mesurer : le délai par défaut de 90 s ne
+  // suffit pas quand le serveur compile une route au passage.
+  test.setTimeout(240_000);
   await connexionLocataire(page);
   const fautifs: string[] = [];
 
