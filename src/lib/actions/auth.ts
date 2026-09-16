@@ -26,7 +26,30 @@ import {
 
 export type ActionResult = { success: true } | { success: false; error: string };
 
-function safeError(message: string): ActionResult {
+/**
+ * Résultat d'une connexion réussie : la destination, DÉJÀ VALIDÉE.
+ *
+ * `loginAction` redirigeait côté serveur. Sur un succès elle ne retournait
+ * donc rien — elle naviguait — et le client n'avait aucun instant « réussi »
+ * où accrocher quoi que ce soit. Impossible, dans ces conditions, de montrer
+ * une confirmation qui n'apparaisse JAMAIS sur un échec.
+ *
+ * La destination est validée ici, comme avant : un `next` externe
+ * transformerait /login en redirection ouverte. Le client ne fait que
+ * naviguer vers ce que le serveur a approuvé, il ne choisit rien.
+ */
+export type LoginResult =
+  | { success: true; destination: string }
+  /**
+   * `motif` distingue l'échec qui a une suite de celui qui n'en a pas. Un mot
+   * de passe refusé se retente ; un compte non confirmé, non — il faut aller
+   * chercher le courriel. Sans ce motif, les deux portent le même message et
+   * la personne part réinitialiser un mot de passe qui n'a jamais été le
+   * problème.
+   */
+  | { success: false; error: string; motif?: "non-confirme" };
+
+function safeError(message: string): { success: false; error: string } {
   return { success: false, error: message };
 }
 
@@ -192,7 +215,7 @@ export async function registerAction(formData: FormData): Promise<ActionResult> 
   redirect(`/verify-email?email=${encodeURIComponent(email)}`);
 }
 
-export async function loginAction(formData: FormData): Promise<ActionResult> {
+export async function loginAction(formData: FormData): Promise<LoginResult> {
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -211,11 +234,32 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
   const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error || !data.user) {
+    // CE CAS ÉTAIT AVALÉ. Quand un projet Supabase exige la confirmation,
+    // `signInWithPassword` refuse AVANT de rendre un utilisateur : on
+    // n'atteignait donc jamais le test sur `email_confirmed_at` plus bas, et
+    // un compte parfaitement valide mais non confirmé s'entendait dire que son
+    // mot de passe était invalide. Mesuré sur le dev, pas supposé.
+    const message = (error?.message ?? "").toLowerCase();
+    if (message.includes("email not confirmed") || message.includes("email_not_confirmed")) {
+      return {
+        success: false,
+        error:
+          "Votre adresse n'est pas encore confirmée. Ouvrez le courriel de " +
+          "confirmation que nous vous avons envoyé.",
+        motif: "non-confirme",
+      };
+    }
     return safeError("Courriel ou mot de passe invalide.");
   }
 
+  // Filet pour les projets qui laissent entrer sans confirmation : la personne
+  // est authentifiée, mais son adresse n'est pas vérifiée.
   if (!data.user.email_confirmed_at) {
-    redirect("/verify-email");
+    return {
+      success: false,
+      error: "Votre adresse n'est pas encore confirmée.",
+      motif: "non-confirme",
+    };
   }
 
   // Destination demandée avant la connexion (posée par le middleware).
@@ -224,7 +268,9 @@ export async function loginAction(formData: FormData): Promise<ActionResult> {
     typeof formData.get("next") === "string" ? String(formData.get("next")) : null,
   );
 
-  redirect(requested ?? (await getPostLoginRedirectPath()));
+  // On RETOURNE la destination au lieu de rediriger : c'est le seul moyen que
+  // le client sache que la connexion a réussi. Voir `LoginResult`.
+  return { success: true, destination: requested ?? (await getPostLoginRedirectPath()) };
 }
 
 export async function demoLoginAction(): Promise<ActionResult> {

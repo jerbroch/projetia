@@ -3,14 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Calendar,
+  CheckCircle2,
   CreditCard,
   FileText,
+  Users,
   Pause,
   Play,
   Receipt,
   Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  argent,
+  cents,
+  COUDE,
+  DEPOT,
+  FACTURE,
+  GAIN,
+  MATERIAUX,
+  MO_PREVUE,
+  MO_REELLE,
+  SOLDE,
+  SOUMISSION,
+  type Ligne,
+} from "@/lib/demo-chantier";
 
 const STEP_DURATION_MS = 6500;
 const TICK_MS = 40;
@@ -31,65 +47,43 @@ const TICK_MS = 40;
  * J'ai faussé trois additions dans ce fichier en les écrivant en dur.
  */
 
-const TPS = 0.05;
-const TVQ = 0.09975;
-const cents = (n: number) => Math.round(n * 100) / 100;
+/**
+ * Les chiffres viennent de `@/lib/demo-chantier` : la page d'accueil annonce
+ * l'écart de 742,17 $ que cette démo démontre. Un seul endroit où ils vivent,
+ * sinon l'un des deux finit par mentir.
+ */
 
-/** Montant en dollars canadiens, écrit à la québécoise. */
-function argent(n: number): string {
-  return `${n.toLocaleString("fr-CA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+/**
+ * Vrai après `delai`, tout de suite si les animations sont réduites.
+ *
+ * Les maquettes se remontent à chaque changement d'étape (`key={activeStep}`),
+ * donc le geste se rejoue quand on revient sur l'étape — et jamais en boucle
+ * pendant qu'on la regarde.
+ */
+function useApres(delai: number): boolean {
+  const [passe, setPasse] = useState(false);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setPasse(true);
+      return;
+    }
+    const t = window.setTimeout(() => setPasse(true), delai);
+    return () => window.clearTimeout(t);
+  }, [delai]);
+  return passe;
 }
-
-interface Ligne {
-  d: string;
-  q: number;
-  unite?: string;
-  p: number;
-  /** Ajouté au chantier par l'employé — souligné dans la facture. */
-  terrain?: boolean;
-}
-
-const somme = (lignes: readonly Ligne[]) => cents(lignes.reduce((s, l) => s + l.q * l.p, 0));
-
-function totaux(sousTotal: number) {
-  const tps = cents(sousTotal * TPS);
-  const tvq = cents(sousTotal * TVQ);
-  return { sousTotal, tps, tvq, total: cents(sousTotal + tps + tvq) };
-}
-
-// ── Le chantier ────────────────────────────────────────────────────────────
-const MO_PREVUE: Ligne[] = [
-  { d: "Compagnon", q: 24, unite: "h", p: 125 },
-  { d: "Apprenti", q: 24, unite: "h", p: 85 },
-];
-const MATERIAUX: Ligne[] = [
-  { d: "Chauffe-eau 60 gal Giant", q: 1, p: 1245 },
-  { d: "Tuyau PEX ½ po — rouleau 100 pi", q: 2, p: 89.5 },
-  { d: "Raccords PEX sertis", q: 24, p: 3.75 },
-  { d: "Robinetterie Moen", q: 2, p: 389 },
-  { d: "Drain de douche ABS", q: 2, p: 62 },
-  { d: "Valve d'arrêt ¼ tour", q: 6, p: 18.5 },
-];
-const MO_REELLE: Ligne[] = [
-  { d: "Compagnon", q: 27.5, unite: "h", p: 125 },
-  { d: "Apprenti", q: 26, unite: "h", p: 85 },
-];
-const COUDE: Ligne = { d: "Coude ½ po", q: 4, p: 9.5, terrain: true };
-
-const SOUMISSION = totaux(cents(somme(MO_PREVUE) + somme(MATERIAUX)));
-const DEPOT = cents(SOUMISSION.total * 0.3);
-const FACTURE = totaux(cents(somme(MO_REELLE) + somme([...MATERIAUX, COUDE])));
-const GAIN = cents(FACTURE.total - SOUMISSION.total);
-const SOLDE = cents(FACTURE.total - DEPOT);
 
 function LigneTotal({
   libelle,
   montant,
   fort = false,
+  monte = false,
 }: {
   libelle: string;
   montant: string;
   fort?: boolean;
+  /** Le montant vient de changer : on le signale, sinon le geste passe inaperçu. */
+  monte?: boolean;
 }) {
   return (
     <div
@@ -99,7 +93,15 @@ function LigneTotal({
       )}
     >
       <span>{libelle}</span>
-      <span className={cn("tabular-nums", fort && "text-lg")}>{montant}</span>
+      <span
+        className={cn(
+          "tabular-nums transition-colors duration-700",
+          fort && "text-lg",
+          monte && "text-emerald-600 dark:text-emerald-400",
+        )}
+      >
+        {montant}
+      </span>
     </div>
   );
 }
@@ -170,6 +172,107 @@ function SoumissionMockup() {
   );
 }
 
+/**
+ * L'ACCEPTATION PAR LE CLIENT — ce qui se passe de SON côté.
+ *
+ * C'est l'étape que la démo sautait : on passait de la soumission au
+ * calendrier comme si le chantier se planifiait tout seul. Or c'est le geste
+ * du client qui déclenche tout le reste, et c'est le seul écran du parcours
+ * que l'entrepreneur ne voit jamais lui-même.
+ */
+function AcceptationMockup() {
+  return (
+    <div className="flex h-full flex-col justify-center gap-3">
+      <div className="mx-auto w-full max-w-sm rounded-xl border bg-card p-4 shadow-sm">
+        <p className="text-xs text-muted-foreground">
+          Lien reçu par courriel — aucun compte à créer
+        </p>
+        <p className="mt-1 font-semibold text-foreground">Soumission SO-2026-0141</p>
+        <p className="text-xs text-muted-foreground">
+          Réfection plomberie — 118, rue Saint-Joseph, Lévis
+        </p>
+        <div className="mt-3 flex items-baseline justify-between border-t pt-2">
+          <span className="text-sm text-muted-foreground">Total</span>
+          <span className="text-lg font-bold tabular-nums text-foreground">
+            {argent(SOUMISSION.total)}
+          </span>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <span className="flex-1 rounded-md bg-primary px-3 py-2 text-center text-xs font-semibold text-primary-foreground">
+            Accepter la soumission
+          </span>
+          <span className="rounded-md border px-3 py-2 text-center text-xs text-muted-foreground">
+            Refuser
+          </span>
+        </div>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Dépôt de 30 % à l&apos;acceptation : {argent(DEPOT)}
+        </p>
+      </div>
+      <div className="flex items-center justify-center gap-2 text-xs">
+        <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 font-semibold text-emerald-700 dark:text-emerald-300">
+          Acceptée
+        </span>
+        <span className="text-muted-foreground">
+          — vous recevez l&apos;avis, le statut change tout seul
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * L'ASSIGNATION DES EMPLOYÉS — qui va sur le chantier, et à quel taux.
+ *
+ * Distincte du calendrier : le calendrier dit QUAND, celle-ci dit QUI et à
+ * COMBIEN. C'est le taux choisi ici qui fera le prix de vente des heures dans
+ * la facture, et c'est pour ça qu'elle méritait son propre écran.
+ */
+function AssignationMockup() {
+  const gens = [
+    { nom: "Marc Tremblay", role: "Compagnon", taux: MO_PREVUE[0].p },
+    { nom: "Luc Gagnon", role: "Apprenti", taux: MO_PREVUE[1].p },
+  ];
+  return (
+    <div className="flex h-full flex-col gap-2">
+      <div className="flex items-baseline justify-between">
+        <span className="font-semibold text-foreground">Réfection plomberie — Gagnon</span>
+        <span className="text-xs text-muted-foreground">2 employés assignés</span>
+      </div>
+      <ul className="flex-1 space-y-2">
+        {gens.map((g) => (
+          <li
+            key={g.nom}
+            className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3 py-2.5"
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                {g.nom
+                  .split(" ")
+                  .map((m) => m[0])
+                  .join("")}
+              </span>
+              <span>
+                <span className="block text-sm font-medium text-foreground">{g.nom}</span>
+                <span className="block text-xs text-muted-foreground">{g.role}</span>
+              </span>
+            </span>
+            <span className="text-right">
+              <span className="block text-sm font-semibold tabular-nums text-foreground">
+                {argent(g.taux)}/h
+              </span>
+              <span className="block text-[11px] text-muted-foreground">prix de vente</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">
+        Chacun voit son horaire sur son téléphone, avec l&apos;adresse du chantier.
+      </p>
+    </div>
+  );
+}
+
 function CalendrierMockup() {
   const lignes = [
     { nom: "Marc Tremblay", metier: "Compagnon", debut: "7 h 00", fin: "15 h 30", gauche: 8, largeur: 46 },
@@ -213,6 +316,9 @@ function CalendrierMockup() {
 }
 
 function TerrainMockup() {
+  // L'EMPLOYÉ DÉMARRE SON QUART. C'est le geste de l'étape : sans lui, on
+  // montre un téléphone immobile et on raconte qu'il se passe quelque chose.
+  const demarre = useApres(1100);
   // Copié sur /terrain/calls/[id] : ce sont les vrais boutons, dans cet ordre.
   //
   // Le téléphone est BORNÉ à la hauteur de la zone, comme les tableaux des
@@ -236,8 +342,18 @@ function TerrainMockup() {
             <div className="rounded border py-0.5 text-center text-[8px] text-muted-foreground sm:text-[9px]">
               Je suis en route
             </div>
-            <div className="rounded bg-primary py-1 text-center text-[9px] font-semibold text-primary-foreground sm:text-[10px]">
-              Commencer les travaux
+            <div
+              className={cn(
+                "flex items-center justify-center gap-1 rounded py-1 text-center text-[9px] font-semibold transition-colors duration-500 sm:text-[10px]",
+                demarre
+                  ? "bg-emerald-600 text-white"
+                  : "bg-primary text-primary-foreground",
+              )}
+            >
+              {demarre && (
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" aria-hidden />
+              )}
+              {demarre ? "Travaux en cours" : "Commencer les travaux"}
             </div>
             <div className="rounded border py-0.5 text-center text-[8px] text-muted-foreground sm:text-[9px]">
               Travaux terminés
@@ -279,6 +395,10 @@ function TerrainMockup() {
 }
 
 function FactureMockup() {
+  // LA FACTURE SE MONTE TOUTE SEULE à partir des heures réelles. Le total
+  // compte plutôt que d'être posé : c'est ce qui se passe vraiment quand les
+  // lignes du terrain remontent, et c'est ce que l'étape promet.
+  const monte = useApres(250);
   return (
     <div className="flex h-full flex-col gap-2 overflow-hidden">
       <div className="flex items-baseline justify-between gap-2">
@@ -308,7 +428,12 @@ function FactureMockup() {
           <LigneTotal libelle="Sous-total" montant={argent(FACTURE.sousTotal)} />
           <LigneTotal libelle="TPS 5 %" montant={argent(FACTURE.tps)} />
           <LigneTotal libelle="TVQ 9,975 %" montant={argent(FACTURE.tvq)} />
-          <LigneTotal libelle="Total" montant={argent(FACTURE.total)} fort />
+          <LigneTotal
+            libelle="Total"
+            montant={argent(monte ? FACTURE.total : SOUMISSION.total)}
+            fort
+            monte={monte}
+          />
         </div>
       </div>
     </div>
@@ -347,12 +472,28 @@ const chapters = [
     Mockup: SoumissionMockup,
   },
   {
+    title: "L'acceptation",
+    description: "Le client accepte en ligne, sans créer de compte.",
+    caption:
+      "Marie ouvre le lien, accepte et verse son dépôt. Vous recevez l'avis : le chantier est confirmé avant même que vous ayez rappelé.",
+    icon: CheckCircle2,
+    Mockup: AcceptationMockup,
+  },
+  {
     title: "Le calendrier",
-    description: "Vos hommes assignés au chantier, chacun à ses heures.",
+    description: "Quand le chantier se fait, et pour combien de temps.",
     caption:
       "Marc entre à 7 h, Luc à 9 h. Chacun sa plage sur le même chantier, et la caméra d'inspection part au nom de Marc.",
     icon: Calendar,
     Mockup: CalendrierMockup,
+  },
+  {
+    title: "Les employés",
+    description: "Qui va sur le chantier, et à quel taux.",
+    caption:
+      "Marc et Luc sont assignés avec leur taux. C'est ce taux qui fera le prix de vente de leurs heures — vous ne le ressaisirez pas à la facture.",
+    icon: Users,
+    Mockup: AssignationMockup,
   },
   {
     title: "Le terrain",
@@ -466,8 +607,33 @@ export function InteractiveDemo() {
           </div>
         </div>
 
-        <div className="border-t bg-muted/20 lg:col-span-2 lg:border-l lg:border-t-0">
-          <ul className="divide-y" role="tablist" aria-orientation="vertical">
+        <div className="relative border-t bg-muted/20 lg:col-span-2 lg:border-l lg:border-t-0">
+          {/*
+            LA LIGNE QUI RELIE LES CINQ ÉTAPES.
+
+            Un travail n'est pas cinq écrans séparés : c'est une seule chose qui
+            avance, de la soumission au paiement. La liste seule ne dit pas ça —
+            elle dit « voici cinq fonctionnalités ». La ligne le dit.
+
+            Elle se remplit à mesure : sa hauteur suit l'étape en cours, donc on
+            voit où on en est sans compter les puces. `aria-hidden` — c'est le
+            `aria-selected` des onglets qui porte l'information pour un lecteur
+            d'écran ; répéter une barre de progression décorative n'ajouterait
+            que du bruit.
+          */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute bottom-4 left-[31px] top-4 w-px bg-border"
+          >
+            <div
+              className="w-px bg-primary transition-[height] duration-500 ease-out"
+              style={{
+                height: `${((activeStep + (progress / 100)) / (chapters.length - 1)) * 100}%`,
+                maxHeight: "100%",
+              }}
+            />
+          </div>
+          <ul className="relative divide-y" role="tablist" aria-orientation="vertical">
             {chapters.map((chapter, index) => {
               const isActive = index === activeStep;
               return (
