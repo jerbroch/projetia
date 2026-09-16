@@ -67,3 +67,110 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ===================================================================
+   « DU PLAN AU CHANTIER »
+
+   La signature visuelle : des lignes de plan qui se tracent, puis une
+   ligne orange qui relie l'étape suivante. Tout en CSS et en SVG —
+   aucune bibliothèque d'animation, aucun canvas, aucune vidéo.
+
+   Les couleurs vivent ici en variables pour que le plan s'adapte au
+   thème sans qu'un composant ait à choisir un ton en dur.
+   =================================================================== */
+
+:root {
+  /* Bleu nuit du plan, gris bleuté des traits, orange Construction iOS. */
+  --plan-fond: 222 47% 11%;
+  --plan-ligne: 210 25% 62%;
+  --plan-trait: 210 30% 72%;
+  --plan-accent: 24 95% 53%;
+}
+
+.dark {
+  --plan-fond: 222 47% 8%;
+  --plan-ligne: 210 20% 45%;
+  --plan-trait: 210 24% 58%;
+  --plan-accent: 24 95% 53%;
+}
+
+/* Le tracé : un trait SVG se dessine en déroulant son pointillé. */
+@keyframes plan-tracer {
+  from { stroke-dashoffset: var(--plan-longueur, 1200); }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes plan-apparaitre {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes plan-monter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* La lueur d'avancement : lente, discrète, jamais clignotante. */
+@keyframes plan-lueur {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.6; }
+}
+
+.plan-trace path {
+  stroke-dasharray: var(--plan-longueur, 1200);
+  stroke-dashoffset: 0;
+}
+
+.plan-trace--anime path {
+  animation: plan-tracer 1.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.plan-trace--anime path:nth-child(2) { animation-delay: 0.15s; }
+.plan-trace--anime path:nth-child(3) { animation-delay: 0.3s; }
+.plan-trace--anime path:nth-child(4) { animation-delay: 0.45s; }
+.plan-trace--anime path:nth-child(5) { animation-delay: 0.6s; }
+.plan-trace--anime path:nth-child(6) { animation-delay: 0.7s; }
+
+.plan-cote--anime {
+  animation: plan-apparaitre 1s ease-out 0.9s both;
+}
+
+.plan-monter {
+  animation: plan-monter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ===================================================================
+   RESPECT DE « prefers-reduced-motion »
+
+   On ne se contente pas de couper : les tracés s'affichent ENTIERS.
+   Un plan figé reste un plan ; une page vide serait une régression
+   pour la personne qui a demandé moins de mouvement.
+   =================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .plan-trace--anime path,
+  .plan-cote--anime,
+  .plan-monter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
+
+/* La ligne orange qui « construit » l'étape suivante — la signature
+   réutilisable, du volet de connexion à la page d'accueil. */
+@keyframes plan-construire {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.plan-ligne-construire {
+  transform-origin: left;
+  animation: plan-construire 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-ligne-construire {
+    animation: none !important;
+    transform: scaleX(1) !important;
+  }
+}
