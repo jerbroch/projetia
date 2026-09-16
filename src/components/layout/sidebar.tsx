@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Calendar,
+  ChevronRight,
   ClipboardCheck,
   CreditCard,
   FileText,
-  HardHat,
   LayoutDashboard,
   Receipt,
   Archive,
@@ -21,8 +21,22 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { Company } from "@/types";
+import { MarqueConstructionIos } from "@/components/brand/marque-construction-ios";
+import { MotifArchitectural } from "@/components/brand/motif-architectural";
+import type { Company, User } from "@/types";
 
+/**
+ * LE MENU — bleu pétrole, du logo en haut au compte en bas.
+ *
+ * TOUTES LES ENTRÉES RESTENT, y compris « Nous joindre », absente de la
+ * maquette. Une maquette montre une composition, pas un inventaire : en
+ * retirer une entrée parce qu'elle n'y figure pas reviendrait à supprimer une
+ * fonction pour des raisons de dessin.
+ *
+ * Le compte descend en bas du menu, là où la maquette le place. Il reste dans
+ * l'en-tête sur téléphone, où le menu est replié et où il serait autrement
+ * inatteignable sans l'ouvrir.
+ */
 const navigation = [
   { name: "Tableau de bord", href: "/dashboard", icon: LayoutDashboard },
   { name: "Clients", href: "/customers", icon: Users },
@@ -43,6 +57,7 @@ const navigation = [
 
 interface SidebarProps {
   company: Company;
+  user: User;
   isDemo?: boolean;
   /** L'état vit dans le châssis : l'en-tête porte le bouton d'ouverture. */
   ouvert: boolean;
@@ -50,80 +65,114 @@ interface SidebarProps {
   onFermer: () => void;
 }
 
-export function Sidebar({ company, isDemo, ouvert, onOuvrir, onFermer }: SidebarProps) {
-  const pathname = usePathname();
-  const mobileOpen = ouvert;
-  const setMobileOpen = (v: boolean) => (v ? onOuvrir() : onFermer());
+function initiales(nom: string | undefined | null): string {
+  return (
+    (nom ?? "")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((m) => m[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
 
-  const navContent = (
+export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProps) {
+  const pathname = usePathname();
+
+  const contenu = (
     <>
-      <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-white/10 px-5">
-        {company.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={company.logoUrl} alt={company.name} className="h-8 w-8 rounded-lg object-cover" />
-        ) : (
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-            style={{ backgroundColor: company.primaryColor ?? undefined }}
-          >
-            <HardHat className="h-[18px] w-[18px]" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-bold text-petrole-foreground">
-            {company.name}
-          </span>
-          {isDemo && (
-            <span className="block truncate text-[10px] text-primary">
-              Compte de démonstration
-            </span>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Fermer le menu"
-          className="ml-auto text-petrole-foreground hover:bg-white/10 hover:text-petrole-foreground lg:hidden"
-          onClick={() => setMobileOpen(false)}
+      {/* ───────── L'identité, et l'entreprise active ───────── */}
+      <div className="shrink-0 px-5 pt-5">
+        <Link
+          href="/dashboard"
+          onClick={onFermer}
+          className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-petrole"
         >
-          <X className="h-5 w-5" />
-        </Button>
+          {company.logoUrl ? (
+            /* Le logo personnalisé passe avant la marque : c'est l'entreprise
+               du client qui doit se reconnaître ici. */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={company.logoUrl}
+              alt={company.name}
+              className="h-8 w-8 rounded-lg object-cover"
+            />
+          ) : (
+            <MarqueConstructionIos className="text-primary" taille={30} />
+          )}
+          <span className="truncate text-[1.0625rem] font-bold tracking-tight text-petrole-foreground">
+            Construction iOS
+          </span>
+        </Link>
+
+        {/*
+          L'ENTREPRISE ACTIVE, sous la marque. Elle mène aux Paramètres, où on
+          la modifie — le chevron annonce qu'il y a quelque chose derrière, et
+          il y a vraiment quelque chose derrière.
+        */}
+        <Link
+          href="/settings"
+          onClick={onFermer}
+          className="mt-2.5 flex w-full items-center gap-1.5 rounded-md py-1 text-sm text-petrole-foreground/70 transition-colors duration-normal hover:text-petrole-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-petrole motion-reduce:transition-none"
+        >
+          <span className="truncate">{company.name}</span>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+        </Link>
+
+        {isDemo && (
+          <span className="mt-2 inline-block rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary">
+            Compte de démonstration
+          </span>
+        )}
       </div>
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
+
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Fermer le menu"
+        className="absolute right-3 top-3 text-petrole-foreground hover:bg-white/10 hover:text-petrole-foreground lg:hidden"
+        onClick={onFermer}
+      >
+        <X className="h-5 w-5" />
+      </Button>
+
+      {/* ───────── La navigation ───────── */}
+      <nav className="mt-5 flex-1 space-y-0.5 overflow-y-auto px-3 pb-2">
         {navigation.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          const actif = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.name}
               href={item.href}
-              onClick={() => setMobileOpen(false)}
-              aria-current={isActive ? "page" : undefined}
+              onClick={onFermer}
+              aria-current={actif ? "page" : undefined}
               className={cn(
                 /*
                  * LA SECTION ACTIVE SE VOIT SANS QU'ON LA CHERCHE : un trait
-                 * orange à gauche, un fond plus clair, une encre franche. Un
-                 * simple changement de teinte du texte, sur fond sombre, se
-                 * perd — et on ne sait plus où on est.
+                 * orange à gauche, un fond légèrement éclairci, une encre
+                 * franche. Sur fond sombre, un simple changement de teinte du
+                 * texte se perd et on ne sait plus où l'on est.
                  *
-                 * 44 px de haut : c'est le menu qu'on manipule au pouce.
+                 * 44 px de haut au doigt, resserré dès qu'il y a une souris.
                  */
-                "relative flex min-h-[44px] items-center gap-3 rounded-md px-3 text-sm font-medium",
+                "relative flex min-h-[44px] items-center gap-3 rounded-md px-3 text-[0.9375rem]",
                 "transition-colors duration-normal motion-reduce:transition-none",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-petrole",
-                "lg:min-h-0 lg:py-2",
-                isActive
-                  ? "bg-white/[0.09] text-petrole-foreground"
-                  : "text-petrole-foreground/65 hover:bg-white/[0.05] hover:text-petrole-foreground",
+                "lg:min-h-0 lg:py-2.5",
+                actif
+                  ? "bg-white/[0.08] font-semibold text-petrole-foreground"
+                  : "font-medium text-petrole-foreground/60 hover:bg-white/[0.04] hover:text-petrole-foreground",
               )}
             >
-              {isActive && (
+              {actif && (
                 <span
                   aria-hidden
-                  className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-primary"
+                  className="absolute inset-y-[7px] -left-3 w-[3px] rounded-r-full bg-primary"
                 />
               )}
               <item.icon
-                className={cn("h-[18px] w-[18px] shrink-0", isActive && "text-primary")}
+                className={cn("h-[18px] w-[18px] shrink-0", actif && "text-primary")}
+                aria-hidden
               />
               {item.name}
             </Link>
@@ -131,62 +180,61 @@ export function Sidebar({ company, isDemo, ouvert, onOuvrir, onFermer }: Sidebar
         })}
       </nav>
 
-      {/*
-        UN DESSIN DE PLAN, TOUT EN BAS ET TOUT EN RETRAIT.
-
-        Il occupe l'espace vide sous le menu plutôt que de border le texte :
-        un motif qui monte derrière les libellés les rend plus difficiles à
-        lire sans rien apporter. `aria-hidden`, et la hauteur est fixe pour
-        qu'il ne pousse jamais la navigation hors de l'écran.
-      */}
-      <div aria-hidden className="pointer-events-none relative h-28 shrink-0 overflow-hidden">
-        <svg
-          className="absolute inset-x-0 bottom-0 h-full w-full opacity-[0.13]"
-          viewBox="0 0 256 112"
-          fill="none"
-          preserveAspectRatio="xMidYMax slice"
-        >
-          <g stroke="hsl(var(--petrole-foreground))" strokeWidth="1">
-            <path d="M24 104 V54 H86 V30 H150 V104" />
-            <path d="M86 54 H150" />
-            <path d="M118 54 V104" />
-            <path d="M178 104 V66 H232 V104" />
-            <path d="M178 84 H232" />
-          </g>
-          <g stroke="hsl(var(--primary))" strokeWidth="2.5">
-            <path d="M96 104 H128" />
-            <path d="M196 66 V84" />
-          </g>
-          <g stroke="hsl(var(--petrole-foreground))" strokeWidth="0.5" opacity="0.7">
-            <path d="M24 110 H150" />
-            <path d="M24 107 V113 M150 107 V113" />
-          </g>
-        </svg>
+      {/* ───────── Le motif, et la devise ───────── */}
+      <div aria-hidden className="pointer-events-none relative h-40 shrink-0 overflow-hidden">
+        {/* Le motif part de la DROITE : à gauche, ses traits passaient sous la
+            devise et la rendaient illisible. */}
+        <MotifArchitectural className="absolute bottom-0 right-0 h-full w-[78%] text-petrole-foreground opacity-[0.18]" />
+        <p className="absolute bottom-5 left-5 text-[9px] font-medium uppercase leading-[1.8] tracking-[0.16em] text-petrole-foreground/40">
+          Bâtir aujourd&apos;hui
+          <br />
+          un meilleur
+          <br />
+          demain
+        </p>
       </div>
+
+      {/* ───────── Le compte ───────── */}
+      <Link
+        href="/settings"
+        onClick={onFermer}
+        className="flex shrink-0 items-center gap-3 border-t border-white/10 px-5 py-3.5 transition-colors duration-normal hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none"
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-petrole-foreground">
+          {initiales(user.name)}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-petrole-foreground">
+            {user.name}
+          </span>
+          <span className="block truncate text-xs text-petrole-foreground/55">Mon compte</span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-petrole-foreground/45" aria-hidden />
+      </Link>
     </>
   );
 
   return (
     <>
-      {mobileOpen && (
+      {ouvert && (
         <div
           className="fixed inset-0 z-40 bg-petrole/60 backdrop-blur-[2px] lg:hidden"
-          onClick={() => setMobileOpen(false)}
+          onClick={onFermer}
         />
       )}
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-[17rem] flex-col bg-petrole",
+          "fixed inset-y-0 left-0 z-50 flex w-[17.5rem] flex-col bg-petrole",
           "pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pt-[env(safe-area-inset-top)]",
           "transition-transform duration-ample motion-reduce:transition-none lg:hidden",
-          mobileOpen ? "translate-x-0 shadow-flottant" : "-translate-x-full",
+          ouvert ? "translate-x-0 shadow-flottant" : "-translate-x-full",
         )}
       >
-        {navContent}
+        {contenu}
       </aside>
 
-      <aside className="hidden w-64 shrink-0 flex-col bg-petrole lg:flex">{navContent}</aside>
+      <aside className="hidden w-[17.5rem] shrink-0 flex-col bg-petrole lg:flex">{contenu}</aside>
     </>
   );
 }

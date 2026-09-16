@@ -30,6 +30,15 @@ interface StatCardProps {
   className?: string;
   href?: string;
   ariaLabel?: string;
+  /**
+   * Met le chiffre en orange et pose une pastille dans le coin.
+   *
+   * L'ORANGE NE DIT QU'UNE CHOSE : « ceci attend quelqu'un ». Huit factures
+   * en attente, ce sont huit sommes qu'on n'a pas reçues ; zéro n'appelle
+   * aucune action, donc aucune couleur. L'accent perd tout son sens le jour
+   * où il colore aussi ce qui va bien.
+   */
+  aAttirerLAttention?: boolean;
 }
 
 export function StatCard({
@@ -41,25 +50,39 @@ export function StatCard({
   className,
   href,
   ariaLabel,
+  aAttirerLAttention = false,
 }: StatCardProps) {
   const card = (
     <Card
       className={cn(
-        "flex h-full flex-col p-4 sm:p-5",
+        "relative flex h-full flex-col p-4 sm:p-5",
         href &&
           "transition-[background-color,box-shadow] duration-normal hover:bg-secondary/50 hover:shadow-relief motion-reduce:transition-none",
         className,
       )}
     >
+      {aAttirerLAttention && (
+        <span
+          aria-hidden
+          className="absolute right-3 top-3 h-2 w-2 rounded-full bg-primary"
+        />
+      )}
       <div className="flex items-start justify-between gap-3">
-        <span className="text-sm font-medium leading-snug text-muted-foreground">
-          {title}
-        </span>
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+        <Icon className="h-[18px] w-[18px] shrink-0 text-muted-foreground" aria-hidden />
       </div>
+      <span className="mt-2.5 text-sm font-medium leading-snug text-muted-foreground">
+        {title}
+      </span>
 
-      <div className="mt-auto pt-2">
-        <div className="text-2xl font-bold tabular-nums tracking-tight sm:text-3xl">{value}</div>
+      <div className="mt-auto pt-1.5">
+        <div
+          className={cn(
+            "text-2xl font-bold tabular-nums tracking-tight sm:text-3xl",
+            aAttirerLAttention && "text-accent-encre",
+          )}
+        >
+          {value}
+        </div>
         {description && (
           <p className="mt-1 text-xs leading-snug text-muted-foreground">{description}</p>
         )}

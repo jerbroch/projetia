@@ -20,8 +20,8 @@ import type { Company, User as AppUser } from "@/types";
 interface HeaderProps {
   title: string;
   /**
-   * Conservée dans l'API pour ne rien casser chez les appelants, mais la
-   * barre ne l'affiche plus : la description utile est celle de l'écran.
+   * Acceptée pour ne rien casser chez les appelants, mais la barre ne
+   * l'affiche pas : la description utile est celle de l'écran.
    */
   description?: string;
   user: AppUser;
@@ -34,7 +34,6 @@ interface HeaderProps {
 
 export function Header({
   title,
-  description: _description,
   user,
   company,
   isDemo,
@@ -89,13 +88,16 @@ export function Header({
         personne au lecteur d'écran sait ainsi de quelle page relèvent ces
         commandes, sans qu'un second titre soit lu à voix haute.
       */}
-      <div className="flex min-w-0 flex-1 items-center gap-2">
+      <div className="flex min-w-0 shrink-0 items-center gap-2">
         {/*
-          Le nom de l'entreprise n'apparaît que lorsque le menu est replié.
-          Sous 1024 px, l'aside bleu pétrole disparaît et avec lui la seule
-          marque de l'écran : la barre n'affichait plus qu'un hamburger dans
-          le vide, sans rien dire de l'endroit où l'on se trouve.
+          « Vue d'ensemble » nomme la ZONE, pas l'écran : le titre de l'écran
+          est dans le contenu, et le répéter ici ramènerait le doublon qu'on a
+          retiré. Sur téléphone, le nom de l'entreprise prend cette place —
+          le menu bleu pétrole y est replié et emporte la seule marque.
         */}
+        <span className="hidden text-sm font-medium text-muted-foreground lg:inline">
+          Vue d&apos;ensemble
+        </span>
         <span className="truncate text-sm font-semibold tracking-tight lg:hidden">
           {company.name}
         </span>
@@ -106,17 +108,34 @@ export function Header({
         )}
       </div>
 
-      {!hideSearch && (
-        <div className="hidden items-center gap-2 md:flex">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input type="search" placeholder="Rechercher..." className="w-64 pl-8" />
+      {/* La recherche prend le centre et respire : c'est la commande la plus
+          utilisée de la barre. */}
+      {!hideSearch ? (
+        <div className="hidden flex-1 justify-center px-4 md:flex">
+          <div className="relative w-full max-w-xl">
+            <Search
+              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              aria-label="Rechercher"
+              placeholder="Rechercher un client, une soumission, une facture..."
+              className="h-10 rounded-full border-border/80 pl-10 sm:h-10"
+            />
           </div>
         </div>
+      ) : (
+        <div className="flex-1" />
       )}
 
-      <Button variant="ghost" size="icon" className="relative shrink-0">
-        <Bell className="h-4 w-4" />
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Notifications"
+        className="relative shrink-0"
+      >
+        <Bell className="h-[18px] w-[18px]" />
       </Button>
 
       <DropdownMenu>
@@ -127,21 +146,14 @@ export function Header({
             className="h-auto min-w-0 max-w-[18rem] shrink gap-2 px-1.5 py-1.5 sm:px-2"
           >
             {/*
-              LE DÉTAIL DU COMPTE N'APPARAÎT QU'À PARTIR DE 1280 px.
+              L'EN-TÊTE NE PORTE PLUS QUE L'AVATAR.
 
-              Il s'affichait dès 640 px : à 768 px, ce bloc faisait 388 px à
-              lui seul et poussait la page à 848 px de large. Douze écrans sur
-              treize débordaient horizontalement à cette largeur — sans que
-              rien ne se voie sur un téléphone ni sur un grand écran, où la
-              place existe. Le nom et le courriel restent lisibles dans le
-              menu déroulant, qui les répète.
+              Le nom, le courriel et l'entreprise s'affichaient ici en toutes
+              lettres — 388 px qui poussaient la page hors de l'écran à 768 px.
+              Depuis que le compte a sa place en bas du menu, les répéter dans
+              la barre était doublement inutile. Ils restent dans le menu
+              déroulant, à un clic, et dans le nom accessible du bouton.
             */}
-            <div className="hidden min-w-0 text-right xl:block">
-              <p className="truncate text-sm font-medium leading-tight">{user.name}</p>
-              <p className="truncate text-xs text-muted-foreground" title={accountSummary}>
-                {user.email} · {company.name} · {roleLabel}
-              </p>
-            </div>
             <Avatar className="h-9 w-9 shrink-0">
               <AvatarFallback className="bg-primary/10 text-accent-encre">{initials}</AvatarFallback>
             </Avatar>

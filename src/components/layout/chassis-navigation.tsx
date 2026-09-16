@@ -41,6 +41,7 @@ export function ChassisNavigation({
     <div className="flex min-h-screen bg-background">
       <Sidebar
         company={company}
+        user={user}
         isDemo={isDemo}
         ouvert={menuOuvert}
         onOuvrir={() => setMenuOuvert(true)}
