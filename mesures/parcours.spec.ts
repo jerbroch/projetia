@@ -29,8 +29,9 @@ const PARCOURS = [
 
 const mediane = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
 
-test("mesure des parcours", async ({ page }) => {
-  test.setTimeout(600_000);
+test("mesure des parcours", async ({ page, context }) => {
+  test.setTimeout(900_000);
+  const ralenti = process.env.RALENTI === "1";
 
   await page.goto("http://localhost:3000/login");
   await page.getByLabel("Courriel").fill(CREDS.courriel);
@@ -41,6 +42,24 @@ test("mesure des parcours", async ({ page }) => {
   } catch {
     await page.waitForURL(/\/(dashboard|choose-plan|onboarding)/, { timeout: 60000 });
   }
+
+  if (ralenti) {
+    /*
+     * 4G LENT : 1,6 Mb/s en descente, 150 ms de latence. C'est le réseau d'un
+     * chantier, pas d'un bureau. Il s'applique à un CHARGEMENT COMPLET — une
+     * navigation cliente ne transfère qu'une réponse légère où cette latence
+     * se noie, et la mesurer là ne dirait rien du réseau.
+     */
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Network.enable");
+    await cdp.send("Network.emulateNetworkConditions", {
+      offline: false,
+      downloadThroughput: (1.6 * 1024 * 1024) / 8,
+      uploadThroughput: (750 * 1024) / 8,
+      latency: 150,
+    });
+  }
+  console.log(`MESURE >>> réseau : ${ralenti ? "4G lent (simulé)" : "normal"}`);
 
   const resultats: Record<string, unknown>[] = [];
 

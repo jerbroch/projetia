@@ -190,6 +190,25 @@ function mapProfileRow(data: LigneBrute): Profile {
 }
 
 /**
+ * LE RÔLE DANS CETTE ENTREPRISE-CI, et dans aucune autre.
+ *
+ * La lecture rapporte toutes les appartenances de la personne ; c'est ici
+ * qu'on choisit la bonne. Une personne membre de deux entreprises doit
+ * recevoir le rôle de celle où elle se trouve — lui donner l'autre serait lui
+ * accorder des droits qu'elle n'a pas là où elle est.
+ *
+ * Exporté pour être éprouvé : c'est un contrôle de permission, pas un détail
+ * d'implémentation.
+ */
+export function roleDansLEntreprise(
+  appartenances: { role: ProfileRole; companyId: string }[],
+  companyId: string,
+): ProfileRole | null {
+  if (!companyId) return null;
+  return appartenances.find((a) => a.companyId === companyId)?.role ?? null;
+}
+
+/**
  * LES APPARTENANCES D'UN UTILISATEUR, sans connaître l'entreprise d'avance.
  *
  * L'ancienne version filtrait sur `(user_id, company_id)` — elle devait donc
@@ -310,7 +329,7 @@ export const getTenantContext = cache(async function getTenantContext(): Promise
     entrepriseJointe && entrepriseJointe.id === companyId
       ? entrepriseJointe
       : await fetchCompanyFromDb(companyId);
-  const roleLu = memberships.find((m) => m.companyId === companyId)?.role ?? null;
+  const roleLu = roleDansLEntreprise(memberships, companyId);
 
   const company = companyLue ?? {
     id: companyId,
