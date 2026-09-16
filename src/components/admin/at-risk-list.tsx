@@ -24,7 +24,7 @@ export function AtRiskList({ companies }: AtRiskListProps) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Link
               href={`/admin/companies/${company.companyId}`}
-              className="font-medium hover:text-primary hover:underline"
+              className="font-medium hover:text-accent-encre hover:underline"
             >
               {company.companyName}
             </Link>

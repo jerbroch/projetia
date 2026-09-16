@@ -102,7 +102,7 @@ export function EmployeeProfilePanel({
                 {employee.profilePhoto ? (
                   <AvatarImage src={employee.profilePhoto} alt={getEmployeeFullName(employee)} />
                 ) : null}
-                <AvatarFallback className="bg-primary/10 text-primary">
+                <AvatarFallback className="bg-primary/10 text-accent-encre">
                   {getEmployeeInitials(employee)}
                 </AvatarFallback>
               </Avatar>

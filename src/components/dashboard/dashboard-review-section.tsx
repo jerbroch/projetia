@@ -31,7 +31,7 @@ export function DashboardReviewSection({
           href="/reviews"
           className="group block flex-1 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <CardTitle className="flex items-center gap-2 transition-colors group-hover:text-primary">
+          <CardTitle className="flex items-center gap-2 transition-colors group-hover:text-accent-encre">
             <ClipboardCheck className="h-5 w-5" />
             Travaux à vérifier
           </CardTitle>

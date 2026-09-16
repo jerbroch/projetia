@@ -47,7 +47,7 @@ export function ContactBlock({
         {coordonnees.telephone &&
           (tel ? (
             <a href={tel} className={ligne}>
-              <Phone className="h-5 w-5 shrink-0 text-primary" />
+              <Phone className="h-5 w-5 shrink-0 text-accent-encre" />
               <span className="min-w-0">
                 <span className="block text-xs text-muted-foreground">Téléphone</span>
                 <span className="block truncate font-medium">{coordonnees.telephone}</span>
@@ -63,7 +63,7 @@ export function ContactBlock({
         {coordonnees.email &&
           (mail ? (
             <a href={mail} className={ligne}>
-              <Mail className="h-5 w-5 shrink-0 text-primary" />
+              <Mail className="h-5 w-5 shrink-0 text-accent-encre" />
               <span className="min-w-0">
                 <span className="block text-xs text-muted-foreground">Courriel</span>
                 <span className="block truncate font-medium">{coordonnees.email}</span>

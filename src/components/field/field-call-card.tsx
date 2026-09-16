@@ -59,7 +59,7 @@ export function FieldCallCard({ job, employeeId, shifts = [] }: FieldCallCardPro
           {job.description && (
             <p className="mt-3 line-clamp-2 text-sm">{job.description}</p>
           )}
-          <div className="mt-4 flex items-center justify-between text-sm font-medium text-primary">
+          <div className="mt-4 flex items-center justify-between text-sm font-medium text-accent-encre">
             <span>Ouvrir le call</span>
             <ChevronRight className="h-4 w-4" />
           </div>

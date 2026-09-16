@@ -1,4 +1,5 @@
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
+import { PageHeader } from "@/components/shared/page-header";
 import { CompanySettingsForm } from "@/components/settings/company-settings-form";
 import { BillingSettingsForm } from "@/components/settings/billing-settings-form";
 import { FeedbackForm } from "@/components/settings/feedback-form";
@@ -23,6 +24,7 @@ export default async function SettingsPage() {
       isDemo={ctx.isDemo}
     >
       <div className="space-y-6">
+        <PageHeader title="Paramètres" description="Configuration de votre entreprise" />
         <CompanySettingsForm company={ctx.company} />
         {isCompanyAdmin && subscription && (
           <SubscriptionSettingsForm subscription={subscription} isDemo={ctx.isDemo} />

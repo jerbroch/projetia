@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, Check, HardHat, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,6 @@ type EtatBouton = "repos" | "chargement" | "confirme" | "succes" | "erreur";
 const DUREE_CROCHET_MS = 260;
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
   /** Vrai quand l'échec a une suite : aller confirmer son adresse. */
@@ -94,9 +93,30 @@ export function LoginForm() {
     });
   }
 
+  /**
+   * LA NAVIGATION APRÈS LA CONNEXION : UNE SEULE, ET UNE VRAIE.
+   *
+   * `router.push` laissait un employé bloqué sur l'animation indéfiniment :
+   * sa destination est `/terrain`, que le middleware traite à part, et la
+   * navigation cliente était abandonnée en silence — sans erreur, sans
+   * changement d'URL. Mesuré : la session était valide, un `goto` direct
+   * aboutissait, seul le `router.push` restait sur place.
+   *
+   * J'ai d'abord doublé `router.push` d'un filet qui forçait une vraie
+   * navigation au bout d'une seconde. C'était pire : quand `router.push`
+   * était simplement lent, le filet interrompait la navigation en cours
+   * (`net::ERR_ABORTED; maybe frame was detached`) et cassait l'inscription
+   * et deux parcours employé. Deux navigations concurrentes ne se
+   * départagent pas au chronomètre.
+   *
+   * Une seule navigation, donc, et celle qui marche partout. Le coût est un
+   * rechargement complet — sur une connexion, il est invisible : le
+   * navigateur garde l'écran actuel jusqu'à ce que le suivant soit prêt,
+   * c'est-à-dire pendant que l'animation joue.
+   */
   const naviguer = useCallback(() => {
-    if (destination.current) router.push(destination.current);
-  }, [router]);
+    if (destination.current) window.location.assign(destination.current);
+  }, []);
 
   async function handleDemoLogin() {
     if (enVol.current) return;
@@ -200,7 +220,7 @@ export function LoginForm() {
                 <Label htmlFor="password">Mot de passe</Label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs font-medium text-primary hover:underline"
+                  className="text-xs font-medium text-accent-encre hover:underline"
                 >
                   Mot de passe oublié?
                 </Link>
@@ -295,7 +315,7 @@ export function LoginForm() {
 
             <p className="text-center text-sm text-muted-foreground">
               Pas encore de compte?{" "}
-              <Link href="/register" className="font-medium text-primary hover:underline">
+              <Link href="/register" className="font-medium text-accent-encre hover:underline">
                 S&apos;inscrire
               </Link>
             </p>

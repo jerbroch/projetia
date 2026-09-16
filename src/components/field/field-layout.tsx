@@ -97,7 +97,7 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
                 href={href}
                 className={cn(
                   "flex flex-col items-center justify-center rounded-xl px-2 py-2 text-xs font-medium",
-                  active ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                  active ? "bg-primary/10 text-accent-encre" : "text-muted-foreground"
                 )}
               >
                 <Icon className="mb-1 h-5 w-5" />

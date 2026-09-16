@@ -36,7 +36,7 @@ export function CompanyDetailView({
             className="h-16 w-16 rounded-lg object-cover"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary/10 text-xl font-bold text-primary">
+          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-primary/10 text-xl font-bold text-accent-encre">
             {company.name.charAt(0)}
           </div>
         )}

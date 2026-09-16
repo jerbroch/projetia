@@ -146,7 +146,7 @@ export function TestUsersManager({ testUsers }: TestUsersManagerProps) {
                       {user.companyId ? (
                         <Link
                           href={`/admin/companies/${user.companyId}`}
-                          className="hover:text-primary hover:underline"
+                          className="hover:text-accent-encre hover:underline"
                         >
                           {user.companyName ?? user.companyId}
                         </Link>
@@ -212,7 +212,7 @@ export function TestUsersManager({ testUsers }: TestUsersManagerProps) {
               </div>
               <p className="text-muted-foreground">
                 Connexion :{" "}
-                <Link href={created.loginUrl} className="text-primary hover:underline">
+                <Link href={created.loginUrl} className="text-accent-encre hover:underline">
                   {created.loginUrl}
                 </Link>
               </p>

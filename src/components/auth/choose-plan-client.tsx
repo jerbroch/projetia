@@ -244,7 +244,7 @@ export function ChoosePlanClient({
                   {cycle === "annual" ? "par année" : "par mois"}
                 </p>
                 {cycle === "annual" && (
-                  <p className="mt-1 text-sm text-primary">
+                  <p className="mt-1 text-sm text-accent-encre">
                     soit {formatPrice(monthlyEquivalentCents(tier))} par mois
                   </p>
                 )}
@@ -252,7 +252,7 @@ export function ChoosePlanClient({
                 <ul className="my-5 space-y-2 text-sm">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent-encre" />
                       <span>{feature}</span>
                     </li>
                   ))}

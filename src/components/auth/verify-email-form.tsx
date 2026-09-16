@@ -67,7 +67,7 @@ export function VerifyEmailForm({ email }: VerifyEmailFormProps) {
               Se déconnecter
             </Button>
           </form>
-          <Link href="/login" className="text-sm text-primary hover:underline">
+          <Link href="/login" className="text-sm text-accent-encre hover:underline">
             Retour à la connexion
           </Link>
         </CardFooter>

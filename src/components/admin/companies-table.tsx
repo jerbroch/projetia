@@ -40,7 +40,7 @@ export function CompaniesTable({ companies }: CompaniesTableProps) {
             <TableCell>
               <Link
                 href={`/admin/companies/${company.id}`}
-                className="font-medium hover:text-primary hover:underline"
+                className="font-medium hover:text-accent-encre hover:underline"
               >
                 {company.name}
               </Link>

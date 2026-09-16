@@ -28,7 +28,7 @@ export async function loginWithCredentials(
 export async function connexionLocataire(page: Page): Promise<void> {
   const creds = readTestCredentials();
   await loginWithCredentials(page, creds.tenantEmail, creds.tenantPassword);
-  await page.waitForURL(/\/(dashboard|choose-plan|onboarding)/, { timeout: 60000 });
+  await attendreDestination(page, /\/(dashboard|choose-plan|onboarding)/, 60000);
   await ensureDashboardAccess(page);
 }
 
@@ -55,6 +55,34 @@ export async function applyPromoCode(page: Page, code: string): Promise<void> {
   await page.getByLabel("Code promo").fill(code);
   await page.getByRole("button", { name: "Valider" }).click();
   await page.waitForURL(/\/dashboard/, { timeout: 20000 }).catch(() => {});
+}
+
+/**
+ * ATTENDRE UNE DESTINATION, MÊME APRÈS UN RECHARGEMENT COMPLET.
+ *
+ * La connexion navigue par `window.location.assign` : c'est la seule
+ * navigation qui atteigne `/terrain`, que le middleware traite à part et que
+ * le routeur client abandonnait en silence. Mais un rechargement complet
+ * détache la frame, et un `waitForURL` démarré pile à ce moment lève
+ * `net::ERR_ABORTED; maybe frame was detached?` — l'attente est emportée par
+ * la navigation qu'elle attendait.
+ *
+ * On réessaie donc une fois : au second tour, la navigation est déjà partie
+ * et l'attente s'accroche à la bonne page. Ce n'est pas une tolérance à
+ * l'échec — si la destination n'arrive pas, le second essai échoue aussi.
+ */
+export async function attendreDestination(
+  page: Page,
+  motif: RegExp,
+  timeout = 30000,
+): Promise<void> {
+  try {
+    await page.waitForURL(motif, { timeout });
+  } catch (erreur) {
+    const message = erreur instanceof Error ? erreur.message : String(erreur);
+    if (!message.includes("ERR_ABORTED") && !message.includes("frame was detached")) throw erreur;
+    await page.waitForURL(motif, { timeout });
+  }
 }
 
 export async function skipOnboardingIfPresent(page: Page): Promise<void> {

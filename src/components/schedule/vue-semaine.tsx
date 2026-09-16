@@ -185,7 +185,7 @@ export function VueSemaine({
                 <div
                   className={cn(
                     "text-sm font-semibold tabular-nums",
-                    isToday(jour) ? "text-primary" : "text-foreground",
+                    isToday(jour) ? "text-accent-encre" : "text-foreground",
                   )}
                 >
                   {format(jour, "d", { locale: fr })}
@@ -207,7 +207,7 @@ export function VueSemaine({
                     className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-semibold",
                       ligne.employe
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-primary/10 text-accent-encre"
                         : "border border-dashed text-muted-foreground",
                     )}
                   >
@@ -279,7 +279,7 @@ export function VueSemaine({
                     // « Lundi 14 Septembre ». En français le mois n'en prend
                     // pas : seule la première lettre.
                     "text-sm font-semibold first-letter:uppercase",
-                    isToday(jour) ? "text-primary" : "text-foreground",
+                    isToday(jour) ? "text-accent-encre" : "text-foreground",
                   )}
                 >
                   {format(jour, "EEEE d MMMM", { locale: fr })}

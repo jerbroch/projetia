@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, LogOut, Search, Shield, User } from "lucide-react";
+import { Bell, Building2, LogOut, Menu, Search, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -19,14 +19,28 @@ import type { Company, User as AppUser } from "@/types";
 
 interface HeaderProps {
   title: string;
+  /**
+   * Conservée dans l'API pour ne rien casser chez les appelants, mais la
+   * barre ne l'affiche plus : la description utile est celle de l'écran.
+   */
   description?: string;
   user: AppUser;
   company: Company;
   isDemo?: boolean;
   hideSearch?: boolean;
+  /** Ouvre le menu sur téléphone. Le bouton vit ici, pas par-dessus la page. */
+  onOuvrirMenu?: () => void;
 }
 
-export function Header({ title, description, user, company, isDemo, hideSearch }: HeaderProps) {
+export function Header({
+  title,
+  description: _description,
+  user,
+  company,
+  isDemo,
+  hideSearch,
+  onOuvrirMenu,
+}: HeaderProps) {
   const roleLabel = getRoleLabel(user.role);
   const initials =
     user.name
@@ -39,17 +53,57 @@ export function Header({ title, description, user, company, isDemo, hideSearch }
   const accountSummary = [user.name, user.email, company.name, roleLabel].filter(Boolean).join(" / ");
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 lg:px-6">
-      <div className="flex-1 pl-10 lg:pl-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold lg:text-xl">{title}</h1>
-          {isDemo && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-              Démo
-            </span>
-          )}
-        </div>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+    <header
+      aria-label={`Barre de navigation — ${title}`}
+      className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/70 bg-background/90 px-3 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:gap-4 lg:px-6"
+    >
+      {/*
+        Le bouton du menu occupe SA place dans l'en-tête. Il était posé en
+        `fixed` par-dessus la page et recouvrait le coin supérieur gauche de
+        chaque écran — le `pl-10` qui suivait était le pansement.
+      */}
+      {onOuvrirMenu && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Ouvrir le menu"
+          className="-ml-1 shrink-0 lg:hidden"
+          onClick={onOuvrirMenu}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
+      {/*
+        LA BARRE NE PORTE PLUS LE TITRE.
+
+        Elle affichait « Clients / Gérez vos relations clients » pendant que
+        l'écran affichait « Clients / Consultez et gérez tous vos clients »
+        quatre-vingts pixels plus bas. Deux titres pour une seule page, deux
+        descriptions qui disaient la même chose autrement : le lecteur
+        hésitait sur ce qu'il devait lire.
+
+        Le titre appartient au contenu — c'est lui qui est le `h1`. La barre
+        garde ce qui lui revient : le menu, la recherche, les avis, le compte.
+
+        `title` reste dans l'API et sert de nom accessible à la barre : une
+        personne au lecteur d'écran sait ainsi de quelle page relèvent ces
+        commandes, sans qu'un second titre soit lu à voix haute.
+      */}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {/*
+          Le nom de l'entreprise n'apparaît que lorsque le menu est replié.
+          Sous 1024 px, l'aside bleu pétrole disparaît et avec lui la seule
+          marque de l'écran : la barre n'affichait plus qu'un hamburger dans
+          le vide, sans rien dire de l'endroit où l'on se trouve.
+        */}
+        <span className="truncate text-sm font-semibold tracking-tight lg:hidden">
+          {company.name}
+        </span>
+        {isDemo && (
+          <span className="shrink-0 rounded-full bg-attente/10 px-2 py-0.5 text-xs font-medium text-attente">
+            Démo
+          </span>
+        )}
       </div>
 
       {!hideSearch && (
@@ -69,16 +123,27 @@ export function Header({ title, description, user, company, isDemo, hideSearch }
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="h-auto max-w-[min(100vw-8rem,28rem)] shrink gap-2 px-2 py-1.5"
+            aria-label={`Compte — ${accountSummary}`}
+            className="h-auto min-w-0 max-w-[18rem] shrink gap-2 px-1.5 py-1.5 sm:px-2"
           >
-            <div className="hidden min-w-0 text-right sm:block">
+            {/*
+              LE DÉTAIL DU COMPTE N'APPARAÎT QU'À PARTIR DE 1280 px.
+
+              Il s'affichait dès 640 px : à 768 px, ce bloc faisait 388 px à
+              lui seul et poussait la page à 848 px de large. Douze écrans sur
+              treize débordaient horizontalement à cette largeur — sans que
+              rien ne se voie sur un téléphone ni sur un grand écran, où la
+              place existe. Le nom et le courriel restent lisibles dans le
+              menu déroulant, qui les répète.
+            */}
+            <div className="hidden min-w-0 text-right xl:block">
               <p className="truncate text-sm font-medium leading-tight">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground" title={accountSummary}>
                 {user.email} · {company.name} · {roleLabel}
               </p>
             </div>
             <Avatar className="h-9 w-9 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-primary">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-accent-encre">{initials}</AvatarFallback>
             </Avatar>
           </Button>
         </DropdownMenuTrigger>

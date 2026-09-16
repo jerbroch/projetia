@@ -13,7 +13,12 @@ test.describe("4. Planification", () => {
   });
 
   test("calendrier visible et création d'appel", async ({ page, audit }) => {
-    await expect(page.getByRole("heading", { name: "Calendrier", exact: true })).toBeVisible({
+    // Le titre visé était celui de la barre supérieure — « Calendrier » —
+    // qui doublait celui de l'écran. La barre ne porte plus de titre ; le
+    // titre de la page est « Calendrier de dispatch ».
+    await expect(
+      page.getByRole("heading", { name: "Calendrier de dispatch", level: 1 }),
+    ).toBeVisible({
       timeout: 15000,
     });
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Calendar,
   DollarSign,
@@ -64,6 +65,10 @@ export default async function DashboardPage() {
       isDemo={ctx.isDemo}
     >
       <div className="space-y-6">
+        <PageHeader
+          title="Tableau de bord"
+          description="Aperçu de votre entreprise de construction"
+        />
         {isEmpty ? (
           <EmptyState
             title="Bienvenue sur ConstructionIOS!"
@@ -71,7 +76,13 @@ export default async function DashboardPage() {
           />
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {/*
+              Six colonnes dès 1280 px serraient les six indicateurs au point
+              que chaque étiquette passait sur deux lignes. La grille suit
+              maintenant l'espace réel : deux au téléphone large, trois sur un
+              portable, six seulement quand l'écran les porte.
+            */}
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <StatCard
                 title="Revenus totaux"
                 value={formatCurrency(stats.totalRevenue)}
@@ -118,7 +129,7 @@ export default async function DashboardPage() {
                   href="/schedule"
                   className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <CardTitle className="transition-colors group-hover:text-primary">
+                  <CardTitle className="transition-colors group-hover:text-accent-encre">
                     Travaux en cours
                   </CardTitle>
                   <CardDescription>
@@ -175,7 +186,7 @@ export default async function DashboardPage() {
                     href="/schedule"
                     className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <CardTitle className="transition-colors group-hover:text-primary">
+                    <CardTitle className="transition-colors group-hover:text-accent-encre">
                       Calendrier à venir
                     </CardTitle>
                     <CardDescription>Travaux et rendez-vous cette semaine</CardDescription>
@@ -214,7 +225,7 @@ export default async function DashboardPage() {
                     href="/invoices"
                     className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    <CardTitle className="transition-colors group-hover:text-primary">
+                    <CardTitle className="transition-colors group-hover:text-accent-encre">
                       Factures récentes
                     </CardTitle>
                     <CardDescription>Dernière activité de facturation</CardDescription>

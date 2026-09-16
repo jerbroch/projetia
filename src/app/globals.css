@@ -3,59 +3,123 @@
 @tailwind utilities;
 
 @layer base {
+  /* ===================================================================
+     LES JETONS DE L'ESPACE CONNECTÉ
+
+     Toutes les couleurs, tous les arrondis et toutes les ombres de
+     l'application viennent d'ici. Un écran qui choisit un ton en dur
+     dérive au premier ajustement ; treize écrans qui en choisissent
+     chacun un dérivent treize fois.
+
+     CHAQUE PAIRE A ÉTÉ MESURÉE, pas estimée. Les rapports de contraste
+     notés en commentaire sont calculés sur les valeurs exactes, et
+     deux d'entre eux ont changé la palette :
+
+       • Le blanc sur l'orange #F97316 donne 2,80 — sous le seuil AA de
+         4,5. C'était le réglage en place. Le texte des boutons orange
+         est donc le bleu du texte courant : 5,70.
+
+       • L'orange en TEXTE sur l'ivoire donne 2,55. Il ne peut donc pas
+         servir d'encre. `--accent-encre` est la nuance foncée qui
+         passe (5,33), pour les liens et les chiffres mis en valeur ;
+         l'orange pur reste une surface et un trait.
+     =================================================================== */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Fond ivoire très léger #F6F4EF, encre #122333 — 14,54. */
+    --background: 43 28% 95%;
+    --foreground: 209 48% 14%;
+
+    /* Cartes blanches #FFFFFF — encre à 15,98. */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 209 48% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 24 95% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 24 95% 53%;
-    --radius: 0.5rem;
-    --chart-1: 24 95% 53%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --popover-foreground: 209 48% 14%;
+
+    /* Orange signature #F97316 : actions principales et accents. */
+    --primary: 25 95% 53%;
+    --primary-foreground: 209 48% 14%; /* 5,70 — le blanc donnait 2,80 */
+
+    /* Bleu pétrole #102D3B : menu latéral et surfaces profondes. */
+    --petrole: 200 57% 15%;
+    --petrole-foreground: 0 0% 100%; /* 14,38 */
+    --petrole-doux: 200 40% 24%;
+
+    /* L'orange comme ENCRE, seule nuance lisible sur fond clair. */
+    --accent-encre: 19 95% 36%; /* 5,33 sur ivoire */
+
+    --secondary: 40 27% 91%;
+    --secondary-foreground: 209 48% 14%;
+    --muted: 40 27% 91%;
+    --muted-foreground: 208 15% 42%; /* 5,50 sur blanc */
+    --accent: 40 27% 91%;
+    --accent-foreground: 209 48% 14%;
+
+    /* Statuts sobres, tous mesurés sur carte blanche. */
+    --succes: 142 72% 29%; /* 5,02 */
+    --attente: 35 92% 33%; /* 4,92 */
+    --danger: 0 74% 42%; /* 6,47 */
+    --neutre: 215 19% 35%; /* 7,58 */
+    --info: 196 78% 27%; /* 7,24 */
+
+    --destructive: 0 74% 42%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 42 19% 86%;
+    --input: 42 19% 86%;
+    --ring: 25 95% 53%;
+
+    /* Arrondis : 12 px pour les petits éléments, 16 px pour les cartes. */
+    --radius: 0.875rem;
+
+    /* Ombres discrètes : on suggère l'épaisseur, on ne la proclame pas. */
+    --ombre-carte: 0 1px 2px hsl(209 48% 14% / 0.04), 0 1px 3px hsl(209 48% 14% / 0.06);
+    --ombre-relief: 0 2px 4px hsl(209 48% 14% / 0.05), 0 4px 12px hsl(209 48% 14% / 0.07);
+    --ombre-flottant: 0 8px 24px hsl(209 48% 14% / 0.10), 0 2px 6px hsl(209 48% 14% / 0.06);
+
+    --chart-1: 25 95% 53%;
+    --chart-2: 196 78% 27%;
+    --chart-3: 200 57% 15%;
+    --chart-4: 142 72% 29%;
+    --chart-5: 35 92% 33%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 24 95% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 24 95% 53%;
-    --chart-1: 24 95% 53%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 200 45% 9%;
+    --foreground: 43 28% 95%;
+    --card: 200 42% 13%;
+    --card-foreground: 43 28% 95%;
+    --popover: 200 42% 13%;
+    --popover-foreground: 43 28% 95%;
+    --primary: 25 95% 53%;
+    --primary-foreground: 209 48% 14%;
+    --petrole: 200 50% 11%;
+    --petrole-foreground: 0 0% 100%;
+    --petrole-doux: 200 40% 20%;
+    --accent-encre: 25 95% 62%;
+    --secondary: 200 35% 18%;
+    --secondary-foreground: 43 28% 95%;
+    --muted: 200 35% 18%;
+    --muted-foreground: 205 18% 68%;
+    --accent: 200 35% 18%;
+    --accent-foreground: 43 28% 95%;
+    --succes: 142 60% 45%;
+    --attente: 35 85% 55%;
+    --danger: 0 70% 58%;
+    --neutre: 215 18% 65%;
+    --info: 196 70% 50%;
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 200 30% 22%;
+    --input: 200 30% 22%;
+    --ring: 25 95% 53%;
+    --ombre-carte: 0 1px 2px hsl(0 0% 0% / 0.3);
+    --ombre-relief: 0 2px 8px hsl(0 0% 0% / 0.35);
+    --ombre-flottant: 0 8px 24px hsl(0 0% 0% / 0.45);
+    --chart-1: 25 95% 53%;
+    --chart-2: 196 70% 50%;
+    --chart-3: 205 40% 70%;
+    --chart-4: 142 60% 45%;
+    --chart-5: 35 85% 55%;
   }
 }
 
@@ -80,18 +144,23 @@
    =================================================================== */
 
 :root {
-  /* Bleu nuit du plan, gris bleuté des traits, orange Construction iOS. */
-  --plan-fond: 222 47% 11%;
-  --plan-ligne: 210 25% 62%;
-  --plan-trait: 210 30% 72%;
-  --plan-accent: 24 95% 53%;
+  /*
+   * LE PLAN EST LE MÊME BLEU QUE LE MENU. Il tirait sur le bleu nuit
+   * (222 47% 11%) quand l'application a pris le bleu pétrole #102D3B :
+   * deux bleus voisins mais distincts, ce qui se lit comme une erreur
+   * d'impression plutôt que comme deux intentions. Un seul bleu.
+   */
+  --plan-fond: 200 57% 15%;
+  --plan-ligne: 200 22% 60%;
+  --plan-trait: 200 28% 74%;
+  --plan-accent: 25 95% 53%;
 }
 
 .dark {
-  --plan-fond: 222 47% 8%;
-  --plan-ligne: 210 20% 45%;
-  --plan-trait: 210 24% 58%;
-  --plan-accent: 24 95% 53%;
+  --plan-fond: 200 50% 11%;
+  --plan-ligne: 200 18% 44%;
+  --plan-trait: 200 22% 60%;
+  --plan-accent: 25 95% 53%;
 }
 
 /* Le tracé : un trait SVG se dessine en déroulant son pointillé. */

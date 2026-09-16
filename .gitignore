@@ -57,3 +57,7 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /blob-report/
+
+# Captures de revue visuelle — régénérables, hors du dépôt.
+/captures/
+/captures-refonte-*.zip

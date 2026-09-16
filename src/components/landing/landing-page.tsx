@@ -123,7 +123,7 @@ export function LandingPage() {
           <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8">
             <div className="grid items-center gap-8 lg:grid-cols-[auto_1fr] lg:gap-12">
               <div className="text-center lg:text-left">
-                <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+                <p className="text-sm font-semibold uppercase tracking-wide text-accent-encre">
                   Sur un seul chantier
                 </p>
                 {/* CALCULÉ, pas recopié. Voir `@/lib/demo-chantier`. */}

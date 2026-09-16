@@ -72,7 +72,13 @@ test.describe("11. Parcours métier complet", () => {
     const billingDialog = page.getByRole("dialog", { name: /Facturation/i });
     await expect(billingDialog.getByText(/Dépôt déjà payé/i)).toBeVisible({ timeout: 10000 });
     await expect(billingDialog.getByText(/200[\s,.]?00|\$200/)).toBeVisible();
-    await billingDialog.getByRole("button", { name: "Fermer" }).click();
+    /*
+     * `exact` : la croix des fenêtres s'annonce « Fermer la fenêtre » aux
+     * lecteurs d'écran, et Playwright associe un nom par sous-chaîne — sans
+     * `exact`, ce sélecteur désigne aussi bien le bouton d'action que la
+     * croix, et refuse de choisir.
+     */
+    await billingDialog.getByRole("button", { name: "Fermer", exact: true }).click();
 
     await page.getByRole("button", { name: "Approuver pour facturation" }).click();
     await expect(page.getByRole("button", { name: "Générer la facture" })).toBeVisible({
@@ -95,7 +101,7 @@ test.describe("11. Parcours métier complet", () => {
     await jobBlock.click();
     await clickQuickStatusIfEnabled(page, "Marquer payé");
 
-    const closeScheduleDialog = page.getByRole("button", { name: "Fermer" });
+    const closeScheduleDialog = page.getByRole("button", { name: "Fermer", exact: true });
     if (await closeScheduleDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
       await closeScheduleDialog.click();
     }

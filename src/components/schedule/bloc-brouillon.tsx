@@ -118,10 +118,10 @@ export function BlocBrouillon({
       onPointerUp={relacher}
       onPointerCancel={relacher}
     >
-      <p className="pointer-events-none truncate text-[11px] font-bold leading-tight text-primary">
+      <p className="pointer-events-none truncate text-[11px] font-bold leading-tight text-accent-encre">
         {libelleBrouillon(plage)}
       </p>
-      <p className="pointer-events-none truncate text-[10px] leading-tight text-primary/80">
+      <p className="pointer-events-none truncate text-[10px] leading-tight text-accent-encre/80">
         {dureeLisible(plage)}
       </p>
 

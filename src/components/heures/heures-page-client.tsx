@@ -53,9 +53,12 @@ function formatEcart(h: number): string {
 }
 
 function ecartClasse(h: number): string {
-  const base = "text-right font-medium";
+  // `emerald-600` donnait 3,77 sur blanc — sous le seuil AA. `succes` est le
+  // vert de la charte, mesuré à 5,02. `tabular-nums` aligne les écarts sur
+  // la virgule d'une ligne à l'autre.
+  const base = "text-right font-medium tabular-nums";
   if (h > 0) return `${base} text-destructive`;
-  if (h < 0) return `${base} text-emerald-600`;
+  if (h < 0) return `${base} text-succes`;
   return `${base} text-muted-foreground`;
 }
 

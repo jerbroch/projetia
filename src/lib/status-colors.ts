@@ -9,34 +9,44 @@ export interface ScheduleStatusAppearance {
   badgeClassName: string;
 }
 
-/** Fixed colors per call/workflow status — single source of truth for the app. */
+/**
+ * Fixed colors per call/workflow status — single source of truth for the app.
+ *
+ * LES BLOCS SONT OPAQUES ET FONCÉS D'UN CRAN. Ils étaient posés à 90 %
+ * d'opacité sur des teintes de niveau 500 : composé sur le blanc du
+ * calendrier, le texte blanc par-dessus tombait entre 2,00 et 3,91 selon la
+ * couleur — tous sous le seuil AA de 4,5, et l'ambre à 2,00 était presque
+ * illisible au soleil. Le code couleur ne change pas : c'est la même
+ * famille, un ton plus bas, et sans transparence. Chaque valeur ci-dessous
+ * est mesurée contre le blanc.
+ */
 export const SCHEDULE_STATUS_APPEARANCE: Record<ScheduleStatus, ScheduleStatusAppearance> = {
   scheduled: {
-    blockClassName: "bg-slate-500/90 border-slate-600 text-white",
+    blockClassName: "bg-slate-600 border-slate-700 text-white",
     badgeClassName: "border-transparent bg-slate-100 text-slate-800",
   },
   "en-route": {
-    blockClassName: "bg-blue-500/90 border-blue-600 text-white",
+    blockClassName: "bg-blue-600 border-blue-700 text-white",
     badgeClassName: "border-transparent bg-blue-100 text-blue-800",
   },
   "in-progress": {
-    blockClassName: "bg-orange-500/90 border-orange-600 text-white",
+    blockClassName: "bg-orange-700 border-orange-800 text-white",
     badgeClassName: "border-transparent bg-orange-100 text-orange-800",
   },
   completed: {
-    blockClassName: "bg-green-600/90 border-green-700 text-white",
+    blockClassName: "bg-green-700 border-green-800 text-white",
     badgeClassName: "border-transparent bg-green-100 text-green-800",
   },
   "pending-review": {
-    blockClassName: "bg-amber-500/90 border-amber-600 text-white",
+    blockClassName: "bg-amber-700 border-amber-800 text-white",
     badgeClassName: "border-transparent bg-amber-100 text-amber-800",
   },
   "ready-to-invoice": {
-    blockClassName: "bg-indigo-500/90 border-indigo-600 text-white",
+    blockClassName: "bg-indigo-600 border-indigo-700 text-white",
     badgeClassName: "border-transparent bg-indigo-100 text-indigo-800",
   },
   "invoice-sent": {
-    blockClassName: "bg-teal-600/90 border-teal-700 text-white",
+    blockClassName: "bg-teal-700 border-teal-800 text-white",
     badgeClassName: "border-transparent bg-teal-100 text-teal-800",
   },
   /**

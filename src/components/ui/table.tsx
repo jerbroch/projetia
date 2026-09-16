@@ -3,7 +3,13 @@ import { cn } from "@/lib/utils";
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
-    <div className="relative w-full overflow-auto">
+    /*
+     * LE DÉFILEMENT RESTE DANS LE TABLEAU, jamais dans la page. Un tableau
+     * plus large que l'écran qui fait défiler tout le document décale le
+     * menu et l'en-tête avec lui — sur téléphone, on perd la page entière
+     * en cherchant une colonne.
+     */
+    <div className="relative w-full overflow-x-auto overscroll-x-contain">
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
     </div>
   )
@@ -35,7 +41,10 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted", className)}
+      className={cn(
+        "border-b border-border/60 transition-colors duration-rapide hover:bg-secondary/45 data-[state=selected]:bg-secondary motion-reduce:transition-none",
+        className,
+      )}
       {...props}
     />
   )
@@ -47,7 +56,9 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        /* Majuscules espacées : l'en-tête se distingue des données sans
+           peser plus lourd qu'elles. */
+        "h-11 whitespace-nowrap px-3 text-left align-middle text-xs font-semibold uppercase tracking-wide text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}
@@ -60,7 +71,12 @@ const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<
   ({ className, ...props }, ref) => (
     <td
       ref={ref}
-      className={cn("p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]", className)}
+      /* `[&_.montant]` : les colonnes de chiffres s'alignent sur la virgule
+         dès qu'une cellule porte la classe, sans avoir à le répéter. */
+      className={cn(
+        "px-3 py-2.5 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px] [&_.montant]:tabular-nums",
+        className,
+      )}
       {...props}
     />
   )
