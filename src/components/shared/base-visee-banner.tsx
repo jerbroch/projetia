@@ -18,6 +18,11 @@ export function BaseViseeBanner() {
   return (
     <div
       role="alert"
+      // Marqué pour que les tests puissent l'écarter. Il porte `role="alert"`
+      // sur TOUTES les pages : sans ce repère, tout détecteur d'erreur un peu
+      // large le lit comme un refus de l'application et fait échouer des
+      // tests parfaitement bons. C'est arrivé trois fois.
+      data-testid="banniere-environnement"
       className="sticky top-0 z-[100] border-b-2 border-red-700 bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white"
     >
       {b.message}

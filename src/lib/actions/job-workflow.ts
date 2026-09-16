@@ -26,6 +26,7 @@ import type { ScheduleEvent } from "@/types";
 import { adresseDeReponse } from "@/lib/email/expediteur";
 import { photosDuCallPourFacture } from "@/lib/email/photos-pour-facture";
 import { messageDeRefus, REFUS_SILENCIEUX } from "@/lib/cause-du-refus";
+import { messageClientARemplir } from "@/lib/client-a-remplir";
 
 export type WorkflowActionResult<T = void> =
   | { success: true; data?: T }
@@ -63,6 +64,13 @@ export async function submitJobForReviewAction(input: {
   if (!canSubmitJobStatus(job.status)) {
     return fail("Ce travail ne peut pas être soumis pour vérification.");
   }
+
+  // SANS CLIENT, ON NE FERME PAS. Un travail sans client se facturait et
+  // s'envoyait sans que rien ne proteste : la facture partait avec le mot
+  // « Client » à la place du nom. Le contrôle est ICI et pas seulement dans
+  // le dialogue, parce qu'on ferme aussi depuis le terrain.
+  const refusClient = messageClientARemplir(job);
+  if (refusClient) return fail(refusClient);
 
   const sheet = await getJobBillingSheet(ctx.company.id, input.jobId);
   if (!sheet || sheet.lines.length === 0) {
