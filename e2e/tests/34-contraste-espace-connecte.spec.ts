@@ -130,7 +130,9 @@ test("aucun texte sous le seuil WCAG AA", async ({ page }) => {
 
   for (const route of ECRANS) {
     await page.goto(route);
-    await page.waitForTimeout(900);
+    // Même raison qu'à l'épreuve des titres : on attend que l'écran soit
+    // rendu, pas qu'une durée arbitraire se soit écoulée.
+    await page.locator("h1").first().waitFor({ state: "visible", timeout: 30000 });
 
     const trouves = await textesSousLeSeuil(page);
     for (const t of trouves) fautifs.push(`${route} ${t}`);

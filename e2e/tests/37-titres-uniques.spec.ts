@@ -46,7 +46,16 @@ test("chaque écran a exactement un titre principal", async ({ page }) => {
 
   for (const [route, attendu] of ECRANS) {
     await page.goto(route);
-    await page.waitForTimeout(700);
+    /*
+     * ATTENDRE LE TITRE, PAS UNE DURÉE.
+     *
+     * Un `waitForTimeout(700)` suffit sur une machine au repos et pas sur un
+     * coureur d'intégration continue qui compile la route au passage : cette
+     * épreuve y a été marquée instable, échouant au premier essai et
+     * réussissant au second. Un délai fixe ne mesure rien — on attend que le
+     * titre soit là, ce qui est précisément la condition qu'on vérifie.
+     */
+    await page.locator("h1").first().waitFor({ state: "visible", timeout: 30000 });
 
     const h1s = await page.locator("h1").allInnerTexts();
     const visibles = h1s.map((t) => t.trim()).filter(Boolean);
