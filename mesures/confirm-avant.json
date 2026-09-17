@@ -1,0 +1,44 @@
+[
+  {
+    "ecran": "clients",
+    "etat": "première visite",
+    "contenu_ms": 829,
+    "utilisable_ms": 2920,
+    "passages": 7
+  },
+  {
+    "ecran": "clients",
+    "etat": "visite suivante",
+    "contenu_ms": 820,
+    "utilisable_ms": 2909,
+    "passages": 7
+  },
+  {
+    "ecran": "soumissions",
+    "etat": "première visite",
+    "contenu_ms": 825,
+    "utilisable_ms": 3127,
+    "passages": 7
+  },
+  {
+    "ecran": "soumissions",
+    "etat": "visite suivante",
+    "contenu_ms": 821,
+    "utilisable_ms": 2822,
+    "passages": 7
+  },
+  {
+    "ecran": "factures",
+    "etat": "première visite",
+    "contenu_ms": 822,
+    "utilisable_ms": 2916,
+    "passages": 7
+  },
+  {
+    "ecran": "factures",
+    "etat": "visite suivante",
+    "contenu_ms": 824,
+    "utilisable_ms": 2859,
+    "passages": 7
+  }
+]

@@ -1,0 +1,51 @@
+[
+  {
+    "parcours": "tableau de bord",
+    "route": "/dashboard",
+    "ttfb_ms": 644,
+    "utilisable_ms": 670,
+    "requetes": 26
+  },
+  {
+    "parcours": "clients",
+    "route": "/customers",
+    "ttfb_ms": 486,
+    "utilisable_ms": 511,
+    "requetes": 23
+  },
+  {
+    "parcours": "soumissions",
+    "route": "/quotes",
+    "ttfb_ms": 581,
+    "utilisable_ms": 610,
+    "requetes": 28
+  },
+  {
+    "parcours": "factures",
+    "route": "/invoices",
+    "ttfb_ms": 514,
+    "utilisable_ms": 551,
+    "requetes": 30
+  },
+  {
+    "parcours": "horaire",
+    "route": "/schedule",
+    "ttfb_ms": 624,
+    "utilisable_ms": 645,
+    "requetes": 40
+  },
+  {
+    "parcours": "outillage",
+    "route": "/outillage",
+    "ttfb_ms": 494,
+    "utilisable_ms": 514,
+    "requetes": 30
+  },
+  {
+    "parcours": "heures",
+    "route": "/heures",
+    "ttfb_ms": 471,
+    "utilisable_ms": 493,
+    "requetes": 29
+  }
+]

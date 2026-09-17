@@ -1,0 +1,37 @@
+[
+  {
+    "parcours": "tableau de bord",
+    "reseau": "normal",
+    "retour_ms": 33,
+    "contenu_ms": 1847,
+    "utilisable_ms": 2987
+  },
+  {
+    "parcours": "clients",
+    "reseau": "normal",
+    "retour_ms": 38,
+    "contenu_ms": 837,
+    "utilisable_ms": 2635
+  },
+  {
+    "parcours": "soumissions",
+    "reseau": "normal",
+    "retour_ms": 35,
+    "contenu_ms": 836,
+    "utilisable_ms": 2636
+  },
+  {
+    "parcours": "factures",
+    "reseau": "normal",
+    "retour_ms": 33,
+    "contenu_ms": 837,
+    "utilisable_ms": 2513
+  },
+  {
+    "parcours": "horaire",
+    "reseau": "normal",
+    "retour_ms": 33,
+    "contenu_ms": 1370,
+    "utilisable_ms": 2678
+  }
+]
