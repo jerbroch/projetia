@@ -321,9 +321,41 @@ export async function resetSeedJobForJourney(
       .eq("company_id", companyId);
   }
 
+  /*
+   * L'HEURE REVIENT À 9 h – 11 h, LE JOUR NE BOUGE PAS.
+   *
+   * Le test tactile déplace volontairement le call de deux heures, toujours
+   * dans le même sens, et rien ne le remettait en place : à chaque passage de
+   * la suite le call dérivait un peu plus vers le bas de la grille. Au bout de
+   * quelques passages il sort de la journée affichée et le glissement n'a plus
+   * où aller — un échec qui n'apparaît qu'après coup et qu'on mettrait sur le
+   * compte de l'instabilité.
+   *
+   * On garde la JOURNÉE portée par le call : c'est elle que les tests visent
+   * avec `?date=`. Seule l'heure est ramenée à la fenêtre d'origine.
+   */
+  const { data: jobActuel } = await admin
+    .from("scheduled_jobs")
+    .select("start_at")
+    .eq("id", jobId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  let fenetreRemise: { start_at: string; end_at: string } | null = null;
+  if (jobActuel?.start_at) {
+    const debut = new Date(jobActuel.start_at as string);
+    if (!Number.isNaN(debut.getTime())) {
+      debut.setHours(9, 0, 0, 0);
+      const fin = new Date(debut);
+      fin.setHours(11, 0, 0, 0);
+      fenetreRemise = { start_at: debut.toISOString(), end_at: fin.toISOString() };
+    }
+  }
+
   await admin
     .from("scheduled_jobs")
     .update({
+      ...(fenetreRemise ?? {}),
       status: "scheduled",
       work_description: null,
       closure_notes: null,
