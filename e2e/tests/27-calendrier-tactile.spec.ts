@@ -1,6 +1,7 @@
 import { test, expect } from "../fixtures/base";
 import { connexionLocataire } from "../helpers/auth";
 import { readTestCredentials } from "../helpers/test-data";
+import { resetSeedJobIfNeeded } from "../helpers/schedule";
 
 /**
  * GLISSER UN CALL AVEC LE DOIGT.
@@ -17,14 +18,21 @@ test.describe("27. Le calendrier au doigt", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, pageName: "Calendrier tactile" });
 
   test("les blocs déclarent touch-action: none", async ({ page }) => {
-    const creds = readTestCredentials();
-    void creds;
+    /*
+     * UN TRAVAIL GARANTI, À SA DATE — plus d'espoir.
+     *
+     * Ces épreuves sautaient quand il n'y avait fortuitement aucun call au
+     * calendrier du jour : elles apparaissaient alors dans la ligne
+     * « ignorés » sans que rien ne dise pourquoi, et leur nombre variait d'un
+     * passage à l'autre. Le seed en pose un et nous dit à quelle date il se
+     * trouve : on y va.
+     */
+    const seed = await resetSeedJobIfNeeded();
     await connexionLocataire(page);
-    await page.goto("/schedule");
+    await page.goto(`/schedule?date=${seed?.scheduledDate ?? ""}`);
 
-    const bloc = page.locator('[data-event-id]').first();
-    const present = await bloc.count();
-    test.skip(present === 0, "Aucun call au calendrier aujourd'hui : rien à glisser.");
+    const bloc = page.locator("[data-event-id]").first();
+    await bloc.waitFor({ state: "visible", timeout: 30000 });
 
     const touchAction = await bloc.evaluate((e) => getComputedStyle(e).touchAction);
     // C'est LA propriété qui décide si le doigt déplace ou fait défiler.
@@ -32,11 +40,12 @@ test.describe("27. Le calendrier au doigt", () => {
   });
 
   test("les poignées sont assez larges pour un doigt", async ({ page }) => {
+    const seed = await resetSeedJobIfNeeded();
     await connexionLocataire(page);
-    await page.goto("/schedule");
+    await page.goto(`/schedule?date=${seed?.scheduledDate ?? ""}`);
 
-    const bloc = page.locator('[data-event-id]').first();
-    test.skip((await bloc.count()) === 0, "Aucun call au calendrier aujourd'hui.");
+    const bloc = page.locator("[data-event-id]").first();
+    await bloc.waitFor({ state: "visible", timeout: 30000 });
 
     const poignee = bloc.locator('[data-handle="resize"]').first();
     const boite = await poignee.boundingBox();
