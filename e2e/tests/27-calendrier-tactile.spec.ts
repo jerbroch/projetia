@@ -63,12 +63,29 @@ test.describe("27. Le calendrier au doigt", () => {
     await connexionLocataire(page);
     await page.goto(`/schedule?date=${creds.seed?.scheduledDate ?? ""}`);
 
-    const bloc = page.locator('[data-event-id]').first();
-    test.skip((await bloc.count()) === 0, "Aucun call au calendrier ce jour-là.");
+    /*
+     * ON VISE UN BLOC PRECIS, ET ON MESURE SA POSITION.
+     *
+     * L'epreuve lisait l'etiquette d'heures du bloc. Or celle-ci n'existe que
+     * si la voie fait au moins 30 px : des que DEUX calls se chevauchent sur
+     * la meme ligne, la voie tombe a 24 px, l'etiquette disparait et la
+     * lecture renvoyait une chaine vide — comparee a une chaine vide,
+     * l'assertion echouait sans que rien ne soit casse. Le defaut dependait
+     * donc de ce que les epreuves precedentes avaient cree.
+     *
+     * La POSITION du bloc, elle, existe toujours : c'est l'heure, en pixels,
+     * et c'est exactement ce qu'un glissement est cense changer. L'assertion
+     * y gagne — elle mesure le deplacement au lieu d'un libelle.
+     */
+    const premier = page.locator("[data-event-id]").first();
+    test.skip((await premier.count()) === 0, "Aucun call au calendrier ce jour-la.");
+    const id = await premier.getAttribute("data-event-id");
+    const bloc = page.locator(`[data-event-id="${id}"]`);
 
     const heuresAvant = await bloc.locator('[data-testid="bloc-heures"]').innerText().catch(() => "");
     const boite = await bloc.boundingBox();
-    expect(boite, "le bloc doit être à l'écran").toBeTruthy();
+    expect(boite, "le bloc doit etre a l'ecran").toBeTruthy();
+    const gaucheAvant = boite!.x;
 
     // 128 px = deux heures à 64 px/heure.
     await bloc.evaluate((el, dx) => {
@@ -87,13 +104,26 @@ test.describe("27. Le calendrier au doigt", () => {
     }, 128);
 
     await page.waitForTimeout(1500);
-    const heuresApres = await page
-      .locator('[data-event-id]')
-      .first()
+    const heuresApres = await bloc
       .locator('[data-testid="bloc-heures"]')
       .innerText()
       .catch(() => "");
-    console.log(`TACTILE >>> avant « ${heuresAvant} » · après « ${heuresApres} »`);
-    expect(heuresApres, "le doigt doit avoir déplacé le call").not.toBe(heuresAvant);
+    const gaucheApres = (await bloc.boundingBox())!.x;
+    console.log(
+      `TACTILE >>> heures « ${heuresAvant} » -> « ${heuresApres} » · ` +
+        `gauche ${Math.round(gaucheAvant)} -> ${Math.round(gaucheApres)} px`,
+    );
+
+    // 128 px de doigt = deux heures : le bloc doit avoir bouge d'autant, a la
+    // tolerance de l'arrondi au quart d'heure pres (16 px).
+    expect(
+      Math.abs(gaucheApres - gaucheAvant),
+      "le doigt doit avoir deplace le call",
+    ).toBeGreaterThan(16);
+
+    // Quand l'etiquette est affichee, elle doit suivre le deplacement.
+    if (heuresAvant) {
+      expect(heuresApres, "l'heure affichee doit suivre le bloc").not.toBe(heuresAvant);
+    }
   });
 });
