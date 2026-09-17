@@ -23,7 +23,7 @@ test.describe("38. Actualisation et isolation", () => {
   test("une création se voit immédiatement dans la liste", async ({ page }) => {
     await connexionLocataire(page);
     await page.goto("/customers");
-    await page.locator("h1").first().waitFor({ state: "visible" });
+    await page.locator("h1").first().waitFor({ state: "visible", timeout: 45000 });
 
     /*
      * UN NOM COURT, ET C'EST DÉLIBÉRÉ. « Client Actualisation <horodatage> »
@@ -64,6 +64,13 @@ test.describe("38. Actualisation et isolation", () => {
   });
 
   test("les données d'une autre entreprise n'apparaissent jamais", async ({ page }) => {
+    /*
+     * Quatre écrans à visiter, chacun compilé à la volée au premier passage
+     * sur un coureur d'intégration continue. Cette épreuve y a été marquée
+     * instable pour cette seule raison : elle manquait de temps, pas de
+     * justesse. Le délai suit ce que le parcours demande.
+     */
+    test.setTimeout(180_000);
     const admin = createE2EAdmin();
     const creds = readTestCredentials();
     const marqueur = `VOISIN-${Date.now()}`;
@@ -87,7 +94,7 @@ test.describe("38. Actualisation et isolation", () => {
       await connexionLocataire(page);
       for (const route of ["/customers", "/dashboard", "/quotes", "/invoices"]) {
         await page.goto(route);
-        await page.locator("h1").first().waitFor({ state: "visible" });
+        await page.locator("h1").first().waitFor({ state: "visible", timeout: 45000 });
         const corps = await page.locator("main").innerText();
         expect(corps, `${route} ne doit rien montrer de l'entreprise voisine`).not.toContain(
           marqueur,
