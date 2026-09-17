@@ -130,9 +130,16 @@ test("aucun texte sous le seuil WCAG AA", async ({ page }) => {
 
   for (const route of ECRANS) {
     await page.goto(route);
-    // Même raison qu'à l'épreuve des titres : on attend que l'écran soit
-    // rendu, pas qu'une durée arbitraire se soit écoulée.
+    /*
+     * ATTENDRE QUE L'ÉCRAN SOIT STABLE, pas seulement présent.
+     *
+     * Le titre paraît avant la fin de l'hydratation : mesurer là, c'est
+     * parfois mesurer une couleur transitoire. Cette épreuve a été marquée
+     * instable en intégration continue pour cette raison — échouée au premier
+     * essai, réussie au second, sur un écran qui n'avait pas changé.
+     */
     await page.locator("h1").first().waitFor({ state: "visible", timeout: 30000 });
+    await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
 
     const trouves = await textesSousLeSeuil(page);
     for (const t of trouves) fautifs.push(`${route} ${t}`);
