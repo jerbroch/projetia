@@ -6,7 +6,9 @@ import {
 } from "@/lib/calendar-utils";
 import {
   DUREE_BROUILLON_PAR_DEFAUT,
+  brouillonDepuisGlissement,
   creerBrouillon,
+  glissementSignificatif,
   dureeLisible,
   libelleBrouillon,
 } from "@/lib/calendar-brouillon";
@@ -91,5 +93,61 @@ describe("ce que le rectangle annonce", () => {
     expect(dureeLisible({ startMinutes: 540, endMinutes: 660 })).toBe("2 h");
     expect(dureeLisible({ startMinutes: 540, endMinutes: 630 })).toBe("1 h 30");
     expect(dureeLisible({ startMinutes: 540, endMinutes: 585 })).toBe("45 min");
+  });
+});
+
+describe("la plage définie par un glissement", () => {
+  it("suit le geste vers la droite", () => {
+    const p = brouillonDepuisGlissement(9 * 60, 12 * 60);
+    expect(p.startMinutes).toBe(9 * 60);
+    expect(p.endMinutes).toBe(12 * 60);
+  });
+
+  it("accepte un geste vers la GAUCHE sans retourner la plage", () => {
+    // L'ancre est le point d'appui, pas le début : tirer vers la gauche doit
+    // donner 9 h – 12 h, pas une plage qui repart vers la droite.
+    const p = brouillonDepuisGlissement(12 * 60, 9 * 60);
+    expect(p.startMinutes).toBe(9 * 60);
+    expect(p.endMinutes).toBe(12 * 60);
+  });
+
+  it("arrondit au quart d'heure, comme l'enregistrement", () => {
+    const p = brouillonDepuisGlissement(9 * 60 + 7, 10 * 60 + 8);
+    expect(p.startMinutes % 15).toBe(0);
+    expect(p.endMinutes % 15).toBe(0);
+  });
+
+  it("garantit la durée minimale DANS LE SENS du geste", () => {
+    // Vers la gauche : c'est le début qui recule, la fin reste sous le doigt.
+    const gauche = brouillonDepuisGlissement(12 * 60, 12 * 60 - 20);
+    expect(gauche.endMinutes).toBe(12 * 60);
+    expect(gauche.endMinutes - gauche.startMinutes).toBeGreaterThanOrEqual(MIN_JOB_MINUTES);
+
+    // Vers la droite : c'est la fin qui avance.
+    const droite = brouillonDepuisGlissement(12 * 60, 12 * 60 + 20);
+    expect(droite.startMinutes).toBe(12 * 60);
+    expect(droite.endMinutes - droite.startMinutes).toBeGreaterThanOrEqual(MIN_JOB_MINUTES);
+  });
+
+  it("traite comme un clic un geste plus court qu'un quart d'heure", () => {
+    // Sous le pas d'arrondi, les deux bornes retombent au même quart d'heure :
+    // la direction n'existe plus. On étend alors vers la droite, comme un clic.
+    const p = brouillonDepuisGlissement(12 * 60, 12 * 60 - 5);
+    expect(p.startMinutes).toBe(12 * 60);
+    expect(p.endMinutes - p.startMinutes).toBe(MIN_JOB_MINUTES);
+  });
+
+  it("ne sort jamais de la journée affichée", () => {
+    const avant = brouillonDepuisGlissement(6 * 60, 0);
+    expect(avant.startMinutes).toBeGreaterThanOrEqual(CALENDAR_START_HOUR * 60);
+    const apres = brouillonDepuisGlissement(21 * 60, 30 * 60);
+    expect(apres.endMinutes).toBeLessThanOrEqual(CALENDAR_END_HOUR * 60);
+    expect(apres.endMinutes - apres.startMinutes).toBeGreaterThanOrEqual(MIN_JOB_MINUTES);
+  });
+
+  it("distingue un vrai glissement d'un clic imprécis", () => {
+    expect(glissementSignificatif(9 * 60, 9 * 60 + 3)).toBe(false);
+    expect(glissementSignificatif(9 * 60, 9 * 60 + 15)).toBe(true);
+    expect(glissementSignificatif(9 * 60, 9 * 60 - 60)).toBe(true);
   });
 });

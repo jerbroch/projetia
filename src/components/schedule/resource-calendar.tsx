@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addDays,
   addWeeks,
@@ -53,7 +53,11 @@ import { calendarDayKey } from "@/lib/schedule-timezone";
 import { cn } from "@/lib/utils";
 import { gaucheEnPixels } from "@/lib/calendar-drag-preview";
 import { BlocBrouillon } from "@/components/schedule/bloc-brouillon";
-import { creerBrouillon } from "@/lib/calendar-brouillon";
+import {
+  brouillonDepuisGlissement,
+  creerBrouillon,
+  glissementSignificatif,
+} from "@/lib/calendar-brouillon";
 import type { ApercuPlage } from "@/lib/calendar-drag-preview";
 
 export interface ScheduleFilters {
@@ -147,6 +151,54 @@ export function ResourceCalendar({
     plage: ApercuPlage;
   } | null>(null);
 
+  /*
+   * LE TRACÉ EN COURS : on appuie sur une case vide, on tire, on relâche.
+   *
+   * L'ancre reste dans une référence et non dans l'état : elle est lue à
+   * chaque mouvement du pointeur, et la faire passer par un rendu ferait
+   * traîner le rectangle derrière le curseur.
+   */
+  const trace = useRef<{ employeeId: string | null; ancre: number; pointerId: number } | null>(null);
+  const [enTrace, setEnTrace] = useState(false);
+  /*
+   * LE CLIC QUI SUIT UN GLISSEMENT NE COMPTE PAS.
+   *
+   * Relâcher la souris après avoir tracé déclenche aussi un `click` sur la
+   * ligne. Ce clic arrivait alors que le tracé était déjà terminé, et la
+   * ligne le lisait comme « on clique à côté » : la plage qu'on venait de
+   * tirer disparaissait à l'instant où on la lâchait. On marque donc le
+   * glissement, et le premier clic qui suit est consommé sans rien faire.
+   */
+  const vientDeTracer = useRef(false);
+
+  /*
+   * ÉCHAP ET CLIC AU-DEHORS ANNULENT.
+   *
+   * Le clic au-dehors est écouté en phase de CAPTURE : autrement, un clic sur
+   * un bouton de la page déclencherait son action avant qu'on ait pu effacer
+   * la sélection, et le rectangle survivrait à l'écran qu'on vient de quitter.
+   * Les clics venus du rectangle lui-même sont exclus — il a ses propres
+   * boutons.
+   */
+  useEffect(() => {
+    if (!brouillon) return;
+    function surClicAilleurs(e: MouseEvent) {
+      const cible = e.target as HTMLElement | null;
+      if (cible?.closest('[data-testid="bloc-brouillon"]')) return;
+      if (cible?.closest("[data-timeline-body]")) return; // la grille gère elle-même
+      setBrouillon(null);
+    }
+    function surEchap(e: KeyboardEvent) {
+      if (e.key === "Escape") setBrouillon(null);
+    }
+    document.addEventListener("mousedown", surClicAilleurs, true);
+    document.addEventListener("keydown", surEchap);
+    return () => {
+      document.removeEventListener("mousedown", surClicAilleurs, true);
+      document.removeEventListener("keydown", surEchap);
+    };
+  }, [brouillon]);
+
   const visibleDays = view === "day" ? [currentDate] : weekDays;
   const timelineWidth = getTimelineWidth(view);
 
@@ -198,6 +250,17 @@ export function ResourceCalendar({
   }
 
   function handleTimelineClick(e: React.MouseEvent<HTMLDivElement>, employeeId: string | null) {
+    /*
+     * UNE SÉLECTION OUVERTE SE FERME AVANT QU'ON EN OUVRE UNE AUTRE.
+     *
+     * Sans cela, « annuler en cliquant à côté » serait invisible : la
+     * sélection disparaîtrait et une autre apparaîtrait dans le même geste.
+     * Un clic referme, le suivant trace.
+     */
+    if (brouillon) {
+      setBrouillon(null);
+      return;
+    }
     const x = getTimelineX(e.clientX);
     if (view === "week") {
       const dayIndex = getWeekDayIndexFromPx(x);
@@ -215,6 +278,52 @@ export function ResourceCalendar({
       dayIndex: 0,
       plage: creerBrouillon(pxToMinutes(x)),
     });
+  }
+
+  /**
+   * Le tracé d'une plage à la souris ou au stylet.
+   *
+   * PAS AU DOIGT, ET C'EST VOLONTAIRE : capter le pointeur tactile sur la
+   * ligne confisquerait le défilement horizontal du calendrier, qui est le
+   * geste principal sur téléphone. Au doigt, on touche pour poser une plage
+   * de deux heures, puis on l'étire par ses poignées — larges de 24 px.
+   */
+  function debutTrace(e: React.PointerEvent<HTMLDivElement>, employeeId: string | null) {
+    if (e.pointerType === "touch") return;
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest("[data-event-id]")) return;
+    if ((e.target as HTMLElement).closest('[data-testid="bloc-brouillon"]')) return;
+
+    const ancre = getMinutesFromClientX(e.clientX);
+    trace.current = { employeeId, ancre, pointerId: e.pointerId };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function pendantTrace(e: React.PointerEvent<HTMLDivElement>) {
+    const t = trace.current;
+    if (!t || t.pointerId !== e.pointerId) return;
+
+    const curseur = getMinutesFromClientX(e.clientX);
+    // Tant que le geste tient dans un quart d'heure, c'est encore un clic :
+    // afficher un rectangle à chaque frémissement de souris serait du bruit.
+    if (!enTrace && !glissementSignificatif(t.ancre, curseur)) return;
+
+    if (!enTrace) setEnTrace(true);
+    const jourIndex = view === "week" ? getWeekDayIndexFromPx(getTimelineX(e.clientX)) : 0;
+    setBrouillon({
+      employeeId: t.employeeId,
+      day: view === "week" ? weekDays[jourIndex] : currentDate,
+      dayIndex: jourIndex,
+      plage: brouillonDepuisGlissement(t.ancre, curseur),
+    });
+  }
+
+  function finTrace(e: React.PointerEvent<HTMLDivElement>) {
+    const t = trace.current;
+    if (!t || t.pointerId !== e.pointerId) return;
+    trace.current = null;
+    if (enTrace) vientDeTracer.current = true;
+    setEnTrace(false);
   }
 
   function getMinutesFromClientX(clientX: number): number {
@@ -429,8 +538,30 @@ export function ResourceCalendar({
                     data-timeline-body="true"
                     className="relative bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px)] [background-size:64px_100%]"
                     style={{ width: timelineWidth, minWidth: timelineWidth, minHeight: rowHeight }}
+                    onPointerDown={(e) => debutTrace(e, row.id)}
+                    onPointerMove={pendantTrace}
+                    onPointerUp={finTrace}
+                    onPointerCancel={finTrace}
                     onClick={(e) => {
                       if ((e.target as HTMLElement).closest("[data-event-id]")) return;
+                      /*
+                       * DÉFENSE EN PROFONDEUR.
+                       *
+                       * Le rectangle arrête déjà les clics à sa racine. Ce
+                       * garde-ci existe parce que le défaut d'origine était
+                       * exactement celui-là : un bouton du rectangle fermait
+                       * la sélection, et le même clic, en remontant jusqu'ici,
+                       * en recréait une. Deux verrous valent mieux qu'un
+                       * quand l'un d'eux dépend d'un composant enfant.
+                       */
+                      if ((e.target as HTMLElement).closest('[data-testid="bloc-brouillon"]')) return;
+                      // Un glissement vient de tracer la plage : son relâchement
+                      // ne doit pas être relu comme un clic qui la referme.
+                      if (enTrace) return;
+                      if (vientDeTracer.current) {
+                        vientDeTracer.current = false;
+                        return;
+                      }
                       handleTimelineClick(e, row.id);
                     }}
                   >
@@ -450,6 +581,7 @@ export function ResourceCalendar({
                         hauteur={Math.max(28, rowHeight - LIGNE_PADDING * 2)}
                         decalageGauche={0}
                         minutesSousLeCurseur={getMinutesFromClientX}
+                        enTrace={enTrace}
                         onPlageChange={(plage) => setBrouillon({ ...brouillon, plage })}
                         onConfirmer={() => {
                           onBrouillonConfirm(
@@ -458,10 +590,6 @@ export function ResourceCalendar({
                             brouillon.plage.startMinutes,
                             brouillon.plage.endMinutes,
                           );
-                          setBrouillon(null);
-                        }}
-                        onDetails={() => {
-                          onSlotClick(brouillon.employeeId, brouillon.day, brouillon.plage.startMinutes);
                           setBrouillon(null);
                         }}
                         onAnnuler={() => setBrouillon(null)}

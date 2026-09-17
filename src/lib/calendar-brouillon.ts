@@ -4,6 +4,7 @@ import {
   clampMinutes,
   minutesToTimeValue,
   snapMinutes,
+  SNAP_MINUTES,
 } from "@/lib/calendar-utils";
 import type { ApercuPlage } from "@/lib/calendar-drag-preview";
 
@@ -63,4 +64,46 @@ export function dureeLisible(plage: ApercuPlage): string {
   if (h && m) return `${h} h ${m}`;
   if (h) return `${h} h`;
   return `${m} min`;
+}
+
+/**
+ * La plage définie par un GLISSEMENT : on appuie à un endroit, on tire, on
+ * relâche.
+ *
+ * L'ancre est le point d'appui, jamais le début : tirer vers la gauche est un
+ * geste aussi naturel que tirer vers la droite, et obliger à commencer par le
+ * début du call ferait rater la moitié des tentatives.
+ *
+ * La durée minimale est garantie DANS LE SENS DU GESTE. Sans cela, un
+ * glissement de dix minutes vers la gauche produirait une plage étendue vers
+ * la droite : le rectangle partirait à l'opposé du doigt.
+ */
+export function brouillonDepuisGlissement(
+  ancreMinutes: number,
+  curseurMinutes: number,
+): ApercuPlage {
+  const ancre = clampMinutes(snapMinutes(ancreMinutes));
+  const curseur = clampMinutes(snapMinutes(curseurMinutes));
+  const versLaGauche = curseur < ancre;
+
+  let debut = Math.min(ancre, curseur);
+  let fin = Math.max(ancre, curseur);
+
+  if (fin - debut < MIN_JOB_MINUTES) {
+    if (versLaGauche) {
+      debut = clampMinutes(fin - MIN_JOB_MINUTES);
+      // La journée butait à gauche : on repart vers la droite, faute de place.
+      if (fin - debut < MIN_JOB_MINUTES) fin = clampMinutes(debut + MIN_JOB_MINUTES);
+    } else {
+      fin = clampMinutes(debut + MIN_JOB_MINUTES);
+      if (fin - debut < MIN_JOB_MINUTES) debut = clampMinutes(fin - MIN_JOB_MINUTES);
+    }
+  }
+
+  return { startMinutes: debut, endMinutes: fin };
+}
+
+/** Le glissement a-t-il dépassé la simple imprécision du clic ? */
+export function glissementSignificatif(ancreMinutes: number, curseurMinutes: number): boolean {
+  return Math.abs(curseurMinutes - ancreMinutes) >= SNAP_MINUTES;
 }
