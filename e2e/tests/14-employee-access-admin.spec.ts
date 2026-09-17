@@ -157,3 +157,113 @@ test.describe("14b. Un employé n'atteint pas l'administration", () => {
     expect(refuses, refuses.join(" | ")).toHaveLength(0);
   });
 });
+
+/**
+ * UN EMPLOYÉ NE LIT PAS CE QUI NE LE REGARDE PAS — MÊME SANS L'ÉCRAN.
+ *
+ * L'épreuve précédente vérifie que les écrans de gestion lui sont refusés.
+ * Celle-ci va plus loin : cacher un bouton ne protège rien. On prend SON
+ * jeton de session et l'on interroge l'API directement, comme le ferait
+ * quelqu'un qui récupère son jeton dans les outils du navigateur.
+ *
+ * La barrière n'est pas l'interface, ce sont les politiques RLS. C'est elles
+ * qu'on éprouve ici — avec la clé publique, jamais la clé de service, qui
+ * les contourne par construction et ne prouverait rien.
+ */
+test.describe("14c. Un employé n'atteint pas les données d'administration", () => {
+  test("son jeton ne lui ouvre pas les données des autres", async ({ page, context }) => {
+    const creds = readTestCredentials();
+    const urlSupabase = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const cleAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    test.skip(
+      !creds.tenantCompanyId || !urlSupabase || !cleAnon,
+      "Configuration Supabase absente",
+    );
+
+    const { createE2EAdmin: admin, setupFieldEmployeeTestData } = await import(
+      "../helpers/field-employee"
+    );
+    const ctx = await setupFieldEmployeeTestData(admin(), creds.tenantCompanyId!);
+
+    const voisineNom = `E2E Voisine ${Date.now()}`;
+    const { data: voisine } = await admin()
+      .from("companies")
+      .insert({ name: voisineNom, email: `e2e+v${Date.now()}@e2e.constructionios.test` })
+      .select("id")
+      .single();
+
+    try {
+      await page.goto("/login");
+      await page.getByLabel("Courriel").fill(ctx.email);
+      await page.getByLabel("Mot de passe", { exact: true }).fill(ctx.password);
+      await page.getByRole("button", { name: /Se connecter/ }).click();
+      await page.waitForURL(/\/terrain/, { timeout: 30000 });
+
+      // Son jeton, tel qu'il se trouve dans son propre navigateur.
+      const cookies = await context.cookies();
+      const brut = cookies.find((c) => c.name.includes("auth-token"))?.value ?? "";
+      const decode = (v: string) => {
+        const t = v.startsWith("base64-") ? Buffer.from(v.slice(7), "base64").toString() : v;
+        try {
+          const j = JSON.parse(t);
+          return Array.isArray(j) ? j[0] : j.access_token;
+        } catch {
+          return null;
+        }
+      };
+      const jeton = decode(brut);
+      expect(jeton, "l'employé a bien une session").toBeTruthy();
+
+      const interroger = async (chemin: string) => {
+        const r = await fetch(`${urlSupabase}/rest/v1/${chemin}`, {
+          headers: { apikey: cleAnon!, Authorization: `Bearer ${jeton}` },
+        });
+        const corps = await r.text();
+        let lignes = 0;
+        try {
+          const j = JSON.parse(corps);
+          lignes = Array.isArray(j) ? j.length : 0;
+        } catch {
+          lignes = 0;
+        }
+        return { statut: r.status, lignes };
+      };
+
+      // 1. L'entreprise voisine : invisible.
+      const rVoisine = await interroger(`companies?id=eq.${voisine!.id}&select=id,name`);
+      // 2. Ses clients : invisibles.
+      const rClients = await interroger(`customers?company_id=eq.${voisine!.id}&select=id`);
+      // 3. Les profils, toutes entreprises confondues : il ne doit pas
+      //    récolter l'annuaire de la plateforme.
+      const rProfils = await interroger("profiles?select=id,role&limit=100");
+
+      console.log(
+        `SÉCURITÉ >>> jeton employé — voisine ${rVoisine.statut}/${rVoisine.lignes} lignes · ` +
+          `clients voisins ${rClients.statut}/${rClients.lignes} · profils ${rProfils.statut}/${rProfils.lignes}`,
+      );
+
+      expect(rVoisine.lignes, "aucune entreprise voisine lisible").toBe(0);
+      expect(rClients.lignes, "aucun client d'une autre entreprise lisible").toBe(0);
+
+      // 4. Et il ne peut rien y écrire non plus.
+      const ecriture = await fetch(`${urlSupabase}/rest/v1/customers`, {
+        method: "POST",
+        headers: {
+          apikey: cleAnon!,
+          Authorization: `Bearer ${jeton}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ company_id: voisine!.id, name: "Intrus", status: "active" }),
+      });
+      console.log(`SÉCURITÉ >>> écriture chez la voisine refusée : ${ecriture.status}`);
+      expect(ecriture.ok, "écrire chez une autre entreprise est refusé").toBe(false);
+
+      await page.goto("/admin");
+      await page.waitForTimeout(800);
+      expect(new URL(page.url()).pathname, "/admin ne s'ouvre pas").not.toBe("/admin");
+    } finally {
+      await admin().from("customers").delete().eq("company_id", voisine!.id);
+      await admin().from("companies").delete().eq("id", voisine!.id);
+    }
+  });
+});
