@@ -46,6 +46,45 @@ const PUBLIQUES = ["/login", "/register", "/forgot-password"] as const;
  * décrit rien. Composé correctement, ce même bloc donnait 3,91, ce qui était
  * un vrai défaut.
  */
+/**
+ * Rend la main quand les couleurs ne changent plus d'une trame à l'autre.
+ *
+ * On relève l'empreinte des couleurs des éléments que l'épreuve va mesurer,
+ * on laisse passer deux trames, et on recommence jusqu'à deux relevés
+ * identiques — sans animation en cours. C'est une condition portant sur ce
+ * qu'on mesure, pas sur le réseau.
+ */
+async function attendreCouleursStables(
+  page: import("@playwright/test").Page,
+  essais = 25,
+): Promise<void> {
+  const empreinte = () =>
+    page.evaluate(() => {
+      const trame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+      return trame().then(() => {
+        const el = document.querySelectorAll(
+          "a, button, p, h1, h2, h3, span, td, th, label, li",
+        );
+        let signature = "";
+        let animations = 0;
+        el.forEach((e) => {
+          const st = getComputedStyle(e);
+          signature += st.color + "|" + st.backgroundColor + ";";
+        });
+        animations = document.getAnimations().filter((a) => a.playState === "running").length;
+        return `${animations}#${signature.length}#${signature.slice(0, 4000)}`;
+      });
+    });
+
+  let precedente = await empreinte();
+  for (let i = 0; i < essais; i++) {
+    await page.waitForTimeout(120);
+    const courante = await empreinte();
+    if (courante === precedente && courante.startsWith("0#")) return;
+    precedente = courante;
+  }
+}
+
 async function textesSousLeSeuil(page: import("@playwright/test").Page): Promise<string[]> {
   return page.evaluate(() => {
     const lire = (c: string) => {
@@ -131,15 +170,22 @@ test("aucun texte sous le seuil WCAG AA", async ({ page }) => {
   for (const route of ECRANS) {
     await page.goto(route);
     /*
-     * ATTENDRE QUE L'ÉCRAN SOIT STABLE, pas seulement présent.
+     * ATTENDRE QUE LES COULEURS AIENT CESSÉ DE CHANGER.
      *
-     * Le titre paraît avant la fin de l'hydratation : mesurer là, c'est
-     * parfois mesurer une couleur transitoire. Cette épreuve a été marquée
-     * instable en intégration continue pour cette raison — échouée au premier
-     * essai, réussie au second, sur un écran qui n'avait pas changé.
+     * Le titre paraît avant la fin de l'hydratation, et les transitions CSS
+     * courent encore après : mesurer là, c'est mesurer une couleur de
+     * passage. Cette épreuve a été marquée instable en intégration continue
+     * pour cette raison — échouée au premier essai, réussie au second, sur un
+     * écran qui n'avait pas changé.
+     *
+     * Le silence du réseau ne suffit pas à le prouver : il dit que plus rien
+     * n'arrive, pas que l'écran a fini de bouger. On interroge donc
+     * l'INTERFACE ELLE-MÊME — les couleurs qu'on s'apprête à mesurer doivent
+     * être identiques sur deux trames successives, et aucune animation ne
+     * doit courir.
      */
     await page.locator("h1").first().waitFor({ state: "visible", timeout: 30000 });
-    await page.waitForLoadState("networkidle", { timeout: 30000 }).catch(() => {});
+    await attendreCouleursStables(page);
 
     const trouves = await textesSousLeSeuil(page);
     for (const t of trouves) fautifs.push(`${route} ${t}`);
