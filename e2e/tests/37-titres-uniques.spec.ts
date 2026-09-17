@@ -42,7 +42,19 @@ const ECRANS = [
 test("chaque écran a exactement un titre principal", async ({ page }) => {
   // Treize écrans à visiter : le délai par défaut de 90 s ne suffit pas quand
   // le serveur de développement compile une route au passage.
-  test.setTimeout(180_000);
+  /*
+   * TREIZE ÉCRANS, CHACUN COMPILÉ À LA VOLÉE au premier passage sur un
+   * coureur d'intégration continue. Cette épreuve y a été marquée instable :
+   * le délai global suffisait, mais la navigation vers un écran non encore
+   * compilé dépassait les 30 s accordées à `goto`.
+   *
+   * On donne donc à la NAVIGATION le temps qu'une compilation demande, et au
+   * test l'enveloppe correspondante. Aucune assertion n'est touchée : on
+   * vérifie toujours un seul `h1`, portant le titre attendu, non répété dans
+   * la barre.
+   */
+  test.setTimeout(240_000);
+  page.setDefaultNavigationTimeout(90_000);
   await connexionLocataire(page);
   const fautifs: string[] = [];
 
@@ -57,7 +69,7 @@ test("chaque écran a exactement un titre principal", async ({ page }) => {
      * réussissant au second. Un délai fixe ne mesure rien — on attend que le
      * titre soit là, ce qui est précisément la condition qu'on vérifie.
      */
-    await page.locator("h1").first().waitFor({ state: "visible", timeout: 30000 });
+    await page.locator("h1").first().waitFor({ state: "visible", timeout: 60000 });
 
     const h1s = await page.locator("h1").allInnerTexts();
     const visibles = h1s.map((t) => t.trim()).filter(Boolean);
