@@ -3,16 +3,24 @@ import { test, expect } from "../fixtures/base";
 import { connexionLocataire } from "../helpers/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readTestCredentials } from "../helpers/test-data";
-import { messageClientARemplir } from "@/lib/client-a-remplir";
 
 /**
- * LE GESTE DE TROIS SECONDES.
+ * LE RECTANGLE : ON TOUCHE, ON ÉTIRE, ON CONFIRME.
  *
  * Cliquer sur l'horaire ouvrait le formulaire complet, avec deux heures déjà
- * décidées à l'aveugle : choisir sa plage demandait d'ouvrir le call, de
- * corriger deux champs et d'enregistrer.
+ * décidées à l'aveugle. Le rectangle règle cela : on choisit sa plage d'abord.
  *
- * Ici : on touche, le rectangle apparaît, on l'étire, on confirme.
+ * CE QUE « CRÉER » FAIT A CHANGÉ, ET C'EST VOULU.
+ *
+ * Il enregistrait le call sur-le-champ — « le geste de trois secondes » — avec
+ * un titre fabriqué et sans client. Le prix en était un garde-fou à la
+ * fermeture, qui refusait un call anonyme pour que la facture ne parte pas
+ * avec le mot « Client » à la place du nom. Mais un rectangle tracé par erreur
+ * devenait un vrai call dans l'horaire de quelqu'un, qu'il fallait retrouver
+ * et supprimer.
+ *
+ * « Créer » ouvre désormais le formulaire, prérempli avec la date, l'employé
+ * et les heures tracées. Rien n'est écrit tant qu'on ne valide pas.
  */
 test.describe("28. Le rectangle de création", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, pageName: "Rectangle" });
@@ -99,7 +107,7 @@ test.describe("28. Le rectangle de création", () => {
     expect(apres).toContain("3 h");
   });
 
-  test("« Créer » enregistre le travail avec la plage choisie", async ({ page }) => {
+  test("« Créer » ouvre le formulaire prérempli et n'écrit rien avant validation", async ({ page }) => {
     await ouvrirCalendrier(page);
     await cliquerSurLaGrille(page, 120);
 
@@ -110,41 +118,34 @@ test.describe("28. Le rectangle de création", () => {
 
     await page.getByRole("button", { name: "Créer", exact: true }).click();
 
-    // Si l'enregistrement refuse, on veut LIRE pourquoi plutôt que de regarder
-    // un compteur rester à zéro.
-    await page.waitForTimeout(2500);
+    // Le formulaire s'ouvre, porteur de la plage tracée.
+    const dialogue = page.getByRole("dialog");
+    await expect(dialogue).toBeVisible({ timeout: 15000 });
+    await expect(dialogue.locator("#startTime")).toHaveValue(plage![1]);
+    await expect(dialogue.locator("#endTime")).toHaveValue(plage![2]);
+
+    // On renonce.
+    await page.keyboard.press("Escape");
+    await expect(dialogue).toBeHidden({ timeout: 10000 });
+
     const refus = await erreursAffichees(page);
-    if (refus.length) {
-      throw new Error(`l'application a refusé la création : ${refus.join(" | ")}`);
-    }
+    expect(refus, `rien ne doit avoir echoue : ${refus.join(" | ")}`).toHaveLength(0);
 
+    /*
+     * RIEN EN BASE. C'est la garantie qui remplace l'ancien garde-fou de
+     * fermeture : puisque plus aucun call anonyme n'est cree, il n'y a plus
+     * de call anonyme a refuser plus tard.
+     */
     const db = createAdminClient();
-    await expect
-      .poll(async () => {
-        const { data } = await db
-          .from("scheduled_jobs")
-          .select("title")
-          .eq("company_id", companyId)
-          .like("title", "Travail %");
-        return (data ?? []).map((r) => (r as { title: string }).title);
-      }, { timeout: 20000 })
-      .toContain(`Travail ${plage![1]} – ${plage![2]}`);
-
-    // UN CALL DU RECTANGLE N'A PAS DE CLIENT, et c'est assumé : le geste doit
-    // rester à trois secondes. Mais la fermeture doit alors le refuser, sinon
-    // la facture partirait avec le mot « Client » à la place du nom.
-    const { data: cree } = await db
+    await page.waitForTimeout(2000);
+    const { data } = await db
       .from("scheduled_jobs")
-      .select("customer_id, customer_name")
+      .select("title")
       .eq("company_id", companyId)
-      .eq("title", `Travail ${plage![1]} – ${plage![2]}`)
-      .single();
-    const c = cree as { customer_id: string | null; customer_name: string | null };
-    const refusFermeture = messageClientARemplir({ customerId: c.customer_id, customerName: c.customer_name });
-    console.log(`RECTANGLE >>> refus à la fermeture : ${refusFermeture ?? "AUCUN"}`);
-    expect(refusFermeture, "la fermeture doit refuser un call sans client").toBeTruthy();
-    expect(refusFermeture).toContain("Modifier le call");
-
-    console.log(`RECTANGLE >>> créé : « Travail ${plage![1]} – ${plage![2]} »`);
+      .like("title", "Travail %");
+    expect(
+      (data ?? []).map((r) => (r as { title: string }).title),
+      "ouvrir le formulaire puis renoncer ne doit rien enregistrer",
+    ).toHaveLength(0);
   });
 });

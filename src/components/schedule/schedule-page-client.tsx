@@ -51,7 +51,6 @@ import type {
   User,
 } from "@/types";
 import type { JobShift } from "@/lib/job-shifts";
-import { format } from "date-fns";
 
 interface SchedulePageClientProps {
   quotes?: Quote[];
@@ -313,33 +312,29 @@ export function SchedulePageClient({
    * titre vide serait refusé, et « Sans titre » ne dirait rien à l'employé qui
    * le voit sur son calendrier. Il se renomme d'une tape sur le bloc.
    */
+  /**
+   * « Créer » OUVRE LE FORMULAIRE, IL N'ENREGISTRE RIEN.
+   *
+   * Il enregistrait auparavant le call sur-le-champ, avec un titre fabriqué
+   * — « Travail 09:00 – 11:00 » — et sans client ni adresse. Un rectangle
+   * tracé par erreur devenait un call réel dans l'horaire de quelqu'un, qu'il
+   * fallait ensuite retrouver et supprimer.
+   *
+   * La plage tracée n'est donc plus qu'un point de départ : elle remplit la
+   * date, l'employé et les deux heures, et c'est la validation du formulaire
+   * — la même que partout ailleurs — qui décide d'écrire en base.
+   */
   function handleBrouillonConfirm(
     employeeId: string | null,
     date: Date,
     startMinutes: number,
     endMinutes: number,
   ) {
-    const debut = minutesToTimeValue(startMinutes);
-    const fin = minutesToTimeValue(endMinutes);
-
-    const fd = new FormData();
-    fd.set("title", `Travail ${debut} – ${fin}`);
-    fd.set("date", format(date, "yyyy-MM-dd"));
-    fd.set("startTime", debut);
-    fd.set("endTime", fin);
-    fd.set("status", "scheduled");
-    fd.set("type", "job");
-    if (employeeId) fd.append("employeeIds", employeeId);
-
-    startTransition(async () => {
-      const r = await saveScheduleJobAction(fd);
-      if (!r.success) {
-        // Un échec ne doit pas disparaître : sans ça, le rectangle s'efface et
-        // rien n'apparaît au calendrier, sans un mot.
-        setActionError(r.error ?? "Impossible de créer le travail.");
-        return;
-      }
-      router.refresh();
+    openCreateForm({
+      date,
+      employeeId: employeeId ?? undefined,
+      startTime: minutesToTimeValue(startMinutes),
+      endTime: minutesToTimeValue(endMinutes),
     });
   }
 
