@@ -63,3 +63,10 @@ next-env.d.ts
 /captures-refonte-*.zip
 /captures2/
 /captures-tableau-de-bord.zip
+
+# Les mesures de performance restent locales : `compte.json` porte des
+# identifiants en clair et `cookie.txt` un jeton de session vivant. Les
+# relevés `.json` sont des résultats de machine, pas du code à partager.
+/mesures/compte.json
+/mesures/cookie.txt
+/mesures/*.json
