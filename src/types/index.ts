@@ -567,6 +567,14 @@ export interface ToolListItem extends Tool {
   /** Call pour lequel l'outil est actuellement sorti, s'il y en a un. */
   currentScheduledJobId?: string | null;
   checkoutDate?: string;
+  /**
+   * Le moment où l'outil est SORTI, heure comprise quand on la connaît.
+   *
+   * `checkoutDate` ne porte qu'un jour. Les deux interfaces doivent pouvoir
+   * écrire « depuis le 18 septembre à 7 h 30 » — et se taire sur l'heure
+   * quand la sortie a été préparée à l'avance, plutôt que d'inventer minuit.
+   */
+  depuis?: { iso: string; heureConnue: boolean };
   expectedReturnDate?: string;
   daysOverdue?: number;
   hasFutureReservation?: boolean;

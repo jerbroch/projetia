@@ -13,7 +13,10 @@ import {
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ToolStatusBadge } from "@/components/outillage/tool-status-badge";
+import { DetenteurEnLigne, EtatDetenteur } from "@/components/outillage/etat-detenteur";
+import { useInventaireVivant } from "@/lib/hooks/use-inventaire-vivant";
+import { refreshToolsAction } from "@/lib/actions/tools";
+import { libelleDepuis } from "@/lib/detenteur-outil";
 import { ToolFormDialog } from "@/components/outillage/tool-form-dialog";
 import { ToolDetailDialog } from "@/components/outillage/tool-detail-dialog";
 import type {
@@ -79,6 +82,18 @@ export function OutillagePageClient({
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [toolList, setToolList] = useState<ToolListItem[]>(initialTools);
+
+  /*
+   * L'ÉCRAN DU BUREAU SUIT CE QUI SE PASSE AU DÉPÔT.
+   *
+   * Depuis que le terrain saisit ses prises et ses retours, l'inventaire
+   * change sans que personne n'ait touché à cet écran. Le laisser figé
+   * ferait relancer un homme pour une perceuse rendue une heure plus tôt.
+   */
+  useInventaireVivant(async () => {
+    const r = await refreshToolsAction();
+    if (r.success) setToolList(r.tools);
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -295,13 +310,19 @@ export function OutillagePageClient({
                         {tool.internalNumber || tool.category}
                       </p>
                     </div>
-                    <ToolStatusBadge status={tool.effectiveStatus} />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1 text-sm">
-                  {tool.currentEmployeeName && (
-                    <p>{tool.currentEmployeeName}</p>
-                  )}
+                  {/*
+                    UN SEUL BLOC D'ÉTAT PAR CARTE.
+
+                    Il y en avait deux — la pastille dans l'en-tête, le détail
+                    dans le corps — et le second masquait le premier en CSS.
+                    Le même mot apparaissait donc deux fois dans le DOM, dont
+                    une invisible : de quoi faire échouer une recherche de
+                    texte sans que rien ne soit cassé à l'écran.
+                  */}
+                  <EtatDetenteur outil={tool} />
                     {tool.currentScheduledJobId && jobTitles[tool.currentScheduledJobId] && (
                       <p className="truncate text-xs text-muted-foreground">
                         Sorti pour&nbsp;: {jobTitles[tool.currentScheduledJobId]}
@@ -346,10 +367,12 @@ export function OutillagePageClient({
                       <TableCell>{tool.brand || "—"}</TableCell>
                       <TableCell>{tool.internalNumber || "—"}</TableCell>
                       <TableCell>
-                        <ToolStatusBadge status={tool.effectiveStatus} />
+                        <EtatDetenteur outil={tool} compact />
                       </TableCell>
                       <TableCell>
-                        <div className="truncate">{tool.currentEmployeeName || "—"}</div>
+                        <div className="truncate">
+                          <DetenteurEnLigne outil={tool} />
+                        </div>
                         {tool.currentScheduledJobId && jobTitles[tool.currentScheduledJobId] && (
                           <div className="truncate text-xs text-muted-foreground">
                             {jobTitles[tool.currentScheduledJobId]}
@@ -357,7 +380,15 @@ export function OutillagePageClient({
                         )}
                       </TableCell>
                       <TableCell>
-                        {tool.checkoutDate ? formatDate(tool.checkoutDate) : "—"}
+                        {tool.depuis ? (
+                          <span className="whitespace-nowrap">
+                            {libelleDepuis(tool.depuis).replace("Depuis le ", "")}
+                          </span>
+                        ) : tool.checkoutDate ? (
+                          formatDate(tool.checkoutDate)
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell>
                         {tool.expectedReturnDate ? (

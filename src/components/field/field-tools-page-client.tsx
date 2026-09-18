@@ -19,12 +19,13 @@ import {
 } from "@/lib/actions/field-tools";
 import {
   DUREE_EMPRUNT_PAR_DEFAUT_JOURS,
-  peutPrendreLOutil,
   retourProposeParDefaut,
   type EtatDuRetour,
 } from "@/lib/outils-terrain";
+import { etatDeLOutil } from "@/lib/detenteur-outil";
+import { EtatDetenteur } from "@/components/outillage/etat-detenteur";
+import { useInventaireVivant } from "@/lib/hooks/use-inventaire-vivant";
 import { dateCourte, libelleRetour } from "@/lib/terrain-aujourdhui";
-import { ToolStatusBadge } from "@/components/outillage/tool-status-badge";
 import { cn } from "@/lib/utils";
 import type { ToolAssignment, ToolListItem } from "@/types";
 
@@ -41,7 +42,7 @@ import type { ToolAssignment, ToolListItem } from "@/types";
  * partagé, c'est afficher une vérité qui n'est déjà plus vraie chez le voisin.
  */
 
-type Onglet = "possession" | "disponibles";
+type Onglet = "possession" | "inventaire";
 
 interface Chantier {
   id: string;
@@ -77,41 +78,45 @@ export function FieldToolsPageClient({
   useEffect(() => setOutils(outilsInitiaux), [outilsInitiaux]);
 
   /*
-   * ON REVIENT DE L'ÉCRAN DE VERROUILLAGE AVEC DES DONNÉES FRAÎCHES.
+   * MÊME RELECTURE QUE CHEZ L'EMPLOYEUR, MÊME CROCHET.
    *
-   * Un téléphone reste des heures dans une poche. Sans cela, l'homme rouvre
-   * l'application et voit l'inventaire d'il y a trois heures — pendant
-   * lesquelles un collègue a très bien pu prendre la scie qu'il vient
-   * réserver mentalement.
+   * Un téléphone reste des heures dans une poche, et un collègue peut prendre
+   * entre-temps la scie qu'on vient de repérer. L'écran redemande donc
+   * périodiquement, et immédiatement au retour à l'écran ou du réseau.
    */
-  useEffect(() => {
-    function auRetour() {
-      if (document.visibilityState !== "visible") return;
-      rafraichirOutilsTerrainAction()
-        .then((r) => {
-          if (r.success) setOutils(r.outils);
-        })
-        .catch(() => {
-          /* Hors réseau : on garde ce qu'on a, sans mentir sur sa fraîcheur. */
-        });
-    }
-    document.addEventListener("visibilitychange", auRetour);
-    window.addEventListener("online", auRetour);
-    return () => {
-      document.removeEventListener("visibilitychange", auRetour);
-      window.removeEventListener("online", auRetour);
-    };
-  }, []);
+  useInventaireVivant(async () => {
+    const r = await rafraichirOutilsTerrainAction();
+    if (r.success) setOutils(r.outils);
+  });
 
   const mesOutils = useMemo(
     () => outils.filter((o) => o.currentEmployeeId === employeId),
     [outils, employeId],
   );
 
-  const disponibles = useMemo(
-    () => outils.filter((o) => peutPrendreLOutil(o, employeId).possible),
-    [outils, employeId],
-  );
+  /*
+   * TOUT L'INVENTAIRE, PAS SEULEMENT CE QU'ON PEUT PRENDRE.
+   *
+   * L'onglet ne montrait que les outils libres : une perceuse sortie par un
+   * collègue disparaissait purement et simplement de l'écran. On ne savait
+   * donc pas si elle n'existait pas, si elle était cassée, ou si quelqu'un
+   * l'avait — et il fallait appeler le bureau pour la question la plus
+   * fréquente du dépôt.
+   *
+   * L'ordre suit l'utilité : ce qu'on peut emporter d'abord, ce qui est chez
+   * un collègue ensuite, ce qui est immobilisé à la fin.
+   */
+  const autresOutils = useMemo(() => {
+    const rang = (o: ToolListItem) => {
+      const e = etatDeLOutil(o, employeId);
+      if (e.genre === "disponible") return 0;
+      if (e.genre === "detenu") return 1;
+      return 2;
+    };
+    return outils
+      .filter((o) => o.currentEmployeeId !== employeId)
+      .sort((a, b) => rang(a) - rang(b) || a.name.localeCompare(b.name, "fr"));
+  }, [outils, employeId]);
 
   const filtrer = (liste: ToolListItem[]) => {
     const q = recherche.trim().toLowerCase();
@@ -153,7 +158,7 @@ export function FieldToolsPageClient({
     });
   }
 
-  const listeAffichee = filtrer(onglet === "possession" ? mesOutils : disponibles);
+  const listeAffichee = filtrer(onglet === "possession" ? mesOutils : autresOutils);
 
   return (
     <div className="space-y-4">
@@ -221,7 +226,7 @@ export function FieldToolsPageClient({
         {(
           [
             ["possession", `En ma possession (${mesOutils.length})`],
-            ["disponibles", `Disponibles (${disponibles.length})`],
+            ["inventaire", `Inventaire (${autresOutils.length})`],
           ] as const
         ).map(([cle, libelle]) => (
           <button
@@ -276,14 +281,14 @@ export function FieldToolsPageClient({
               ? "Aucun outil ne correspond"
               : onglet === "possession"
                 ? "Aucun outil en votre possession"
-                : "Aucun outil disponible"}
+                : "Aucun autre outil à l'inventaire"}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {recherche
               ? "Essayez un autre nom ou numéro."
               : onglet === "possession"
                 ? "Prenez un outil au dépôt pour le voir apparaître ici."
-                : "Tout est sorti ou en réparation pour le moment."}
+                : "Votre entreprise n'a pas encore d'autre outil enregistré."}
           </p>
         </section>
       ) : (
@@ -293,6 +298,7 @@ export function FieldToolsPageClient({
               <CarteOutil
                 outil={outil}
                 mien={outil.currentEmployeeId === employeId}
+                employeId={employeId}
                 enCours={enCours}
                 onRendre={() => setARendre(outil)}
                 onPrendre={() => setAPrendre(outil)}
@@ -307,7 +313,7 @@ export function FieldToolsPageClient({
         type="button"
         data-testid="ouvrir-prise"
         onClick={() => {
-          setOnglet("disponibles");
+          setOnglet("inventaire");
           setAPrendre(null);
           setErreur(null);
           document.getElementById("liste-disponibles")?.scrollIntoView({ behavior: "smooth" });
@@ -388,16 +394,28 @@ export function FieldToolsPageClient({
 function CarteOutil({
   outil,
   mien,
+  employeId,
   enCours,
   onRendre,
   onPrendre,
 }: {
   outil: ToolListItem;
   mien: boolean;
+  employeId: string;
   enCours: boolean;
   onRendre: () => void;
   onPrendre: () => void;
 }) {
+  const etat = etatDeLOutil(outil, employeId);
+  /*
+   * LE BOUTON N'EXISTE QUE S'IL FAIT QUELQUE CHOSE.
+   *
+   * Un outil chez un collègue s'affiche avec son nom, sans « Prendre » ni
+   * « Rapporter » : on ne rend pas un outil à la place de quelqu'un, et
+   * proposer un bouton qui refuserait ensuite serait une promesse en l'air.
+   */
+  const prenable = etat.genre === "disponible";
+
   return (
     <article className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-start gap-3">
@@ -418,7 +436,7 @@ function CarteOutil({
             </p>
           )}
           <div className="mt-1.5">
-            <ToolStatusBadge status={outil.effectiveStatus} />
+            <EtatDetenteur outil={outil} employeId={employeId} />
           </div>
           {mien && (
             <p
@@ -435,22 +453,24 @@ function CarteOutil({
         </div>
       </div>
 
-      <button
-        type="button"
-        data-testid={mien ? `rendre-${outil.id}` : `prendre-${outil.id}`}
-        disabled={enCours}
-        onClick={mien ? onRendre : onPrendre}
-        className={cn(
-          "mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-lg px-4 text-[15px] font-semibold",
-          "transition-colors duration-normal disabled:opacity-60 motion-reduce:transition-none",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole focus-visible:ring-offset-2",
-          mien
-            ? "border border-petrole/25 text-petrole hover:bg-petrole/[0.06]"
-            : "bg-petrole text-petrole-foreground hover:bg-petrole-doux",
-        )}
-      >
-        {mien ? "Retourner l'outil" : "Prendre cet outil"}
-      </button>
+      {(mien || prenable) && (
+        <button
+          type="button"
+          data-testid={mien ? `rendre-${outil.id}` : `prendre-${outil.id}`}
+          disabled={enCours}
+          onClick={mien ? onRendre : onPrendre}
+          className={cn(
+            "mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-lg px-4 text-[15px] font-semibold",
+            "transition-colors duration-normal disabled:opacity-60 motion-reduce:transition-none",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole focus-visible:ring-offset-2",
+            mien
+              ? "border border-petrole/25 text-petrole hover:bg-petrole/[0.06]"
+              : "bg-petrole text-petrole-foreground hover:bg-petrole-doux",
+          )}
+        >
+          {mien ? "Rapporter l'outil" : "Prendre cet outil"}
+        </button>
+      )}
     </article>
   );
 }

@@ -89,7 +89,7 @@ test.describe("40. Les outils du terrain", () => {
     await libererLOutil(toolId);
     await ouvrirMesOutils(page);
 
-    await page.getByRole("tab", { name: /Disponibles/ }).click();
+    await page.getByRole("tab", { name: /Inventaire/ }).click();
     await page.getByTestId(`prendre-${toolId}`).click();
     await page.getByTestId("confirmer-feuille").click();
 
@@ -227,7 +227,7 @@ test.describe("40. Les outils du terrain", () => {
 
     // Il n'apparaît ni dans ses outils, ni parmi les disponibles.
     await expect(page.getByTestId(`rendre-${autreToolId}`)).toHaveCount(0);
-    await page.getByRole("tab", { name: /Disponibles/ }).click();
+    await page.getByRole("tab", { name: /Inventaire/ }).click();
     await expect(page.getByTestId(`prendre-${autreToolId}`)).toHaveCount(0);
 
     // Et la prise du collègue est intacte.

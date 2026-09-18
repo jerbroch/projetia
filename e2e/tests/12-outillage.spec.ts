@@ -171,7 +171,7 @@ test.describe("12. Outillage", () => {
     await page.getByTestId("outillage-count-all").click();
     const row = toolRow(page, internalNumber);
     await expect(row).toBeVisible({ timeout: 15000 });
-    await expect(row.getByText("En utilisation")).toBeVisible();
+    await expect(row.getByText("Indisponible")).toBeVisible();
     await expect(row.getByRole("cell", { name: new RegExp(employeeName, "i") })).toBeVisible();
 
     const availableAfter = Number(
@@ -254,7 +254,7 @@ test.describe("12. Outillage", () => {
     await submitAssign(page, employeeName, { durationDays: "3" });
 
     await page.getByTestId("outillage-count-all").click();
-    await expect(toolRow(page, internalNumber).getByText("En utilisation")).toBeVisible();
+    await expect(toolRow(page, internalNumber).getByText("Indisponible")).toBeVisible();
 
     detail = await openToolDetail(page, internalNumber);
     await detail.getByRole("button", { name: "Retour" }).click();
@@ -370,7 +370,7 @@ test.describe("12. Outillage", () => {
     await submitAssign(page, employeeName, { durationDays: "2" });
 
     await page.getByTestId("outillage-count-all").click();
-    await expect(card.getByText("En utilisation")).toBeVisible();
+    await expect(card.getByText("Indisponible")).toBeVisible();
 
     detail = await openToolDetailOnCard(page, internalNumber);
     await detail.getByRole("button", { name: "Retour" }).click();
