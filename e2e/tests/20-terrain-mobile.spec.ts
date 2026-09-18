@@ -69,7 +69,9 @@ test.describe("20. Terrain sur téléphone", () => {
 
     const onglets = page.locator("nav a");
     await expect(onglets).toHaveCount(4);
-    for (const nom of ["Aujourd'hui", "Mon horaire", "Mes outils", "Joindre"]) {
+    // Les onglets disent « Horaire » et « Outils » ; les PAGES disent « Mon
+    // horaire » et « Mes outils ». Sur 360 px, un libellé long se coupe.
+    for (const nom of ["Aujourd'hui", "Horaire", "Outils", "Joindre"]) {
       const onglet = page.locator("nav a", { hasText: nom });
       await expect(onglet, `l'onglet ${nom} est visible`).toBeVisible();
     }

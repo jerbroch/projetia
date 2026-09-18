@@ -31,7 +31,10 @@ test.describe("13. Employé terrain", () => {
   test("connexion employé redirige vers /terrain", async ({ page }) => {
     await loginWithCredentials(page, fieldCtx.email, fieldCtx.password);
     await page.waitForURL(/\/terrain/, { timeout: 30000 });
-    await expect(page.getByRole("heading", { name: "Aujourd'hui" })).toBeVisible();
+    // L'accueil salue par le prénom, comme la maquette : le titre n'est plus
+    // « Aujourd'hui » — ce mot est devenu celui de l'onglet.
+    await expect(page.getByRole("heading", { name: /^Bonjour/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Aujourd'hui", exact: true })).toBeVisible();
   });
 
   test("voit seulement ses calls assignés", async ({ page }) => {
@@ -88,7 +91,9 @@ test.describe("13. Employé terrain", () => {
   test("page Mes outils accessible", async ({ page }) => {
     await loginWithCredentials(page, fieldCtx.email, fieldCtx.password);
     await page.waitForURL(/\/terrain/, { timeout: 30000 });
-    await page.getByRole("link", { name: "Mes outils" }).click();
+    // L'onglet dit « Outils », la page dit « Mes outils » — comme la maquette.
+    // « Mes outils » de l'état vide contient aussi « Outils » : on vise l'onglet.
+    await page.getByRole("link", { name: "Outils", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Mes outils" })).toBeVisible();
   });
 

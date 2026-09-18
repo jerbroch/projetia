@@ -3,15 +3,29 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { LogOut, CalendarDays, Hammer, Wrench, Phone} from "lucide-react";
+import { CalendarDays, Home, LogOut, Phone, Wrench } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
+import { MarqueConstructionIos } from "@/components/brand/marque-construction-ios";
 import { cn } from "@/lib/utils";
 import type { Company, User } from "@/types";
 
+/**
+ * LE CHÂSSIS DE L'ESPACE TRAVAILLEUR.
+ *
+ * Un homme sur un chantier tient son téléphone d'une main, souvent avec des
+ * gants, parfois au soleil. Tout ici en découle : une bande pétrole qui dit
+ * chez qui il travaille, des cartes blanches à fort contraste, et quatre
+ * onglets au pouce.
+ *
+ * LA LARGEUR RESTE ÉTROITE, MÊME SUR ORDINATEUR. Ce n'est pas un oubli :
+ * étaler ces écrans sur 1400 px en ferait un tableau de bord administratif,
+ * alors que c'est un outil de poche qu'on consulte aussi depuis un bureau.
+ */
+
 const NAV_ITEMS = [
-  { href: "/terrain", label: "Aujourd'hui", icon: Hammer, exact: true },
-  { href: "/terrain/horaire", label: "Mon horaire", icon: CalendarDays },
-  { href: "/terrain/outils", label: "Mes outils", icon: Wrench },
+  { href: "/terrain", label: "Aujourd'hui", icon: Home, exact: true },
+  { href: "/terrain/horaire", label: "Horaire", icon: CalendarDays },
+  { href: "/terrain/outils", label: "Outils", icon: Wrench },
   // Joindre SON employeur, pas nous. Dans la barre du bas, comme le reste :
   // sur un chantier, on ne fouille pas dans des menus.
   { href: "/terrain/aide", label: "Joindre", icon: Phone },
@@ -41,20 +55,36 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
   }, []);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-background">
-      <header className="sticky top-0 z-20 border-b bg-background/95 px-4 py-3 backdrop-blur">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{company.name}</p>
-            <p className="truncate text-xs text-muted-foreground">{user.name}</p>
-          </div>
+    <div className="mx-auto flex min-h-screen max-w-lg flex-col bg-secondary/40">
+      {/* ───────── La bande pétrole : chez qui je travaille ───────── */}
+      <header className="sticky top-0 z-20 bg-petrole pt-[env(safe-area-inset-top)] text-petrole-foreground">
+        <div className="flex items-center gap-3 px-4 py-3">
+          {company.logoUrl ? (
+            /* Le logo de SON employeur passe avant notre marque. */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={company.logoUrl}
+              alt={company.name}
+              className="h-7 w-7 shrink-0 rounded-md object-cover"
+            />
+          ) : (
+            <MarqueConstructionIos className="shrink-0 text-primary" taille={26} />
+          )}
+          <p className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold">{company.name}</p>
+
+          {/*
+            La déconnexion, et rien d'autre. La maquette montre une cloche ;
+            il n'existe aucune notification pour le terrain, et une cloche qui
+            n'ouvre rien apprend à ignorer les cloches.
+          */}
           <form action={logoutAction}>
             <button
               type="submit"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-muted-foreground"
-              aria-label="Déconnexion"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-petrole-foreground/80 transition-colors duration-normal hover:bg-white/10 hover:text-petrole-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+              aria-label={`Se déconnecter — ${user.name}`}
+              title="Se déconnecter"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-[18px] w-[18px]" aria-hidden />
             </button>
           </form>
         </div>
@@ -78,7 +108,8 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
 
       <nav
         ref={barre}
-        className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        aria-label="Navigation principale"
+        className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
         {/*
           Le nombre de colonnes SUIT le nombre d'onglets. Écrire `grid-cols-3`
@@ -86,7 +117,7 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
           voit qu'à l'écran, sur un téléphone étroit.
         */}
         <div
-          className="mx-auto grid max-w-lg gap-1 px-2 py-2"
+          className="mx-auto grid max-w-lg gap-1 px-2 py-1.5"
           style={{ gridTemplateColumns: `repeat(${NAV_ITEMS.length}, minmax(0, 1fr))` }}
         >
           {NAV_ITEMS.map(({ href, label, icon: Icon, exact }) => {
@@ -95,13 +126,23 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-xl px-2 py-2 text-xs font-medium",
-                  active ? "bg-primary/10 text-accent-encre" : "text-muted-foreground"
+                  // 44 px de haut au minimum : la cible qu'un pouce atteint
+                  // sans viser, gants compris.
+                  "flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5",
+                  "text-[11px] font-medium leading-tight",
+                  "transition-colors duration-normal motion-reduce:transition-none",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole focus-visible:ring-offset-1",
+                  active ? "bg-petrole/[0.08] text-petrole" : "text-muted-foreground",
                 )}
               >
-                <Icon className="mb-1 h-5 w-5" />
-                {label}
+                <Icon
+                  className={cn("h-[22px] w-[22px] shrink-0", active && "text-petrole")}
+                  aria-hidden
+                  strokeWidth={active ? 2.4 : 2}
+                />
+                <span className="truncate">{label}</span>
               </Link>
             );
           })}
