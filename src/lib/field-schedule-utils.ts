@@ -9,6 +9,7 @@ import {
   startOfWeek,
 } from "date-fns";
 import { frCA } from "date-fns/locale";
+import { SCHEDULE_TIMEZONE, isoToZonedDateKey } from "@/lib/schedule-timezone";
 import type { ScheduleEvent } from "@/types";
 
 export type FieldScheduleView = "today" | "tomorrow" | "week" | "upcoming";
@@ -67,3 +68,52 @@ export const FIELD_SCHEDULE_VIEW_LABELS: Record<FieldScheduleView, string> = {
   week: "Cette semaine",
   upcoming: "Prochains calls",
 };
+
+/**
+ * LES INTERVENTIONS, RANGÉES PAR JOURNÉE.
+ *
+ * Une liste plate de douze calls sur trois jours se lit mal sur un téléphone :
+ * rien ne dit où finit jeudi et où commence vendredi, et l'heure seule ne
+ * suffit pas — « 08 h 00 » apparaît trois fois.
+ *
+ * LA JOURNÉE EST CELLE DE L'ENTREPRISE, pas celle du téléphone. Un call de
+ * 20 h à Montréal appartient au même jour pour l'homme sur le chantier et
+ * pour la personne au bureau ; s'en remettre au fuseau de l'appareil ferait
+ * basculer un call du soir au lendemain dès qu'on traverse une frontière.
+ */
+export interface JourneeDeCalls {
+  /** Clé de journée dans le fuseau de l'entreprise, « 2026-09-18 ». */
+  cle: string;
+  /** « Vendredi 18 septembre », prêt à afficher. */
+  libelle: string;
+  jobs: ScheduleEvent[];
+}
+
+export function grouperParJournee(events: ScheduleEvent[]): JourneeDeCalls[] {
+  const parJour = new Map<string, ScheduleEvent[]>();
+
+  for (const event of sortJobsChronologically(events)) {
+    const cle = isoToZonedDateKey(event.start);
+    const liste = parJour.get(cle);
+    if (liste) liste.push(event);
+    else parJour.set(cle, [event]);
+  }
+
+  return [...parJour.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([cle, jobs]) => ({ cle, libelle: libelleDeJournee(cle), jobs }));
+}
+
+/** « Vendredi 18 septembre » — avec la majuscule qu'on met en début de ligne. */
+export function libelleDeJournee(cle: string): string {
+  const [a, m, j] = cle.split("-").map(Number);
+  if (!a || !m || !j) return cle;
+  // Midi : à minuit, un décalage d'une heure ferait basculer la date.
+  const brut = new Intl.DateTimeFormat("fr-CA", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: SCHEDULE_TIMEZONE,
+  }).format(new Date(Date.UTC(a, m - 1, j, 12)));
+  return brut.charAt(0).toUpperCase() + brut.slice(1);
+}
