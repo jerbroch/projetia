@@ -291,6 +291,66 @@ test.describe("40. Les outils du terrain", () => {
     await libererLOutil(toolId);
   });
 
+  test("une prise ne traverse pas les entreprises", async () => {
+    /*
+     * LA FAILLE QUI A MOTIVÉ LA MIGRATION 049.
+     *
+     * L'employé ne voit pas l'outil d'un autre client et ne peut pas le lire.
+     * Mais rien ne vérifiait que `tool_id` appartenait à l'entreprise
+     * déclarée : une prise chez SOI pouvait pointer sur l'outil d'AILLEURS.
+     * L'index unique portant sur l'outil, cette ligne fantôme verrouillait
+     * l'outil du voisin — ses propres employés se voyaient refuser un outil
+     * qui leur paraissait libre, sans explication possible.
+     */
+    const admin = createE2EAdmin();
+    const marque = `E2E-VOISIN-${Date.now()}`;
+
+    const { data: voisine } = await admin
+      .from("companies")
+      .insert({ name: marque, email: `${marque}@test.invalid` })
+      .select("id")
+      .single();
+
+    const { data: outilVoisin } = await admin
+      .from("tools")
+      .insert({
+        company_id: voisine!.id,
+        name: `${marque} Outil`,
+        category: "Divers",
+        base_status: "available",
+        condition: "good",
+      })
+      .select("id")
+      .single();
+
+    try {
+      // Déclarée chez NOUS, pointant sur l'outil du VOISIN.
+      const { error } = await admin.from("tool_assignments").insert({
+        company_id: companyId,
+        tool_id: outilVoisin!.id,
+        employee_id: fieldCtx.employeeId,
+        start_date: new Date().toISOString().slice(0, 10),
+        expected_return_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+        status: "active",
+      });
+
+      expect(error, "la base doit refuser une prise inter-entreprises").toBeTruthy();
+      expect(error!.message).toContain("autre entreprise");
+
+      // Et l'outil du voisin reste libre pour SES employés.
+      const { count } = await admin
+        .from("tool_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("tool_id", outilVoisin!.id)
+        .eq("status", "active");
+      expect(count, "l'outil du voisin n'est pas verrouillé").toBe(0);
+    } finally {
+      await admin.from("tool_assignments").delete().eq("company_id", voisine!.id);
+      await admin.from("tools").delete().eq("company_id", voisine!.id);
+      await admin.from("companies").delete().eq("id", voisine!.id);
+    }
+  });
+
   test("le bureau voit le détenteur après une prise du terrain", async ({ page }) => {
     await libererLOutil(toolId);
     const admin = createE2EAdmin();
