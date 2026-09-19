@@ -278,7 +278,42 @@ test.describe("41. Le détenteur est visible des deux côtés", () => {
     const { error: eTaux } = await sien.from("employes_noms").select("hourly_rate").limit(1);
     expect(eTaux, "la vue ne doit pas exposer le taux horaire").toBeTruthy();
 
-    // 3. La fiche complète d'un collègue reste fermée.
+    /*
+     * 3. LA VUE EST EN LECTURE SEULE.
+     *
+     * Une vue simple sur une seule table est AUTO-MODIFIABLE en PostgreSQL, et
+     * celle-ci s'exécute avec les droits de son propriétaire pour pouvoir lire
+     * `employees` malgré sa RLS. Les deux réunis ont donné, le temps d'une
+     * migration, le droit d'écrire dans `employees` en passant par la vue :
+     * modifier puis supprimer la fiche d'un collègue étaient acceptés.
+     *
+     * La migration 051 a retiré ces droits aux rôles qui les portaient
+     * réellement — `anon` et `authenticated` — là où le `REVOKE ... FROM
+     * PUBLIC` de la 050 ne touchait rien.
+     */
+    const { error: eEcriture } = await sien
+      .from("employes_noms")
+      .update({ last_name: "PIRATE" })
+      .eq("id", premier.employeeId);
+    expect(eEcriture, "la vue ne doit accepter aucune écriture").toBeTruthy();
+    expect(eEcriture!.code).toBe("42501");
+
+    const { error: eSuppression } = await sien
+      .from("employes_noms")
+      .delete()
+      .eq("id", premier.employeeId);
+    expect(eSuppression, "ni aucune suppression").toBeTruthy();
+
+    // Et la fiche n'a pas bougé.
+    const adminVerif = createE2EAdmin();
+    const { data: intacte } = await adminVerif
+      .from("employees")
+      .select("last_name")
+      .eq("id", premier.employeeId)
+      .single();
+    expect(intacte!.last_name).not.toBe("PIRATE");
+
+    // 4. La fiche complète d'un collègue reste fermée.
     const { data: fiches } = await sien
       .from("employees")
       .select("id, hourly_rate")
