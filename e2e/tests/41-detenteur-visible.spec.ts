@@ -20,6 +20,24 @@ import { readTestCredentials } from "../helpers/test-data";
 const MARQUE = "E2E-DET";
 const MDP = process.env.E2E_DEFAULT_PASSWORD ?? "TestE2ePass123!";
 
+/**
+ * LA DATE DE L'APPLICATION, PAS CELLE D'UTC.
+ *
+ * `todayDateString()` renvoie la date LOCALE du serveur. Les épreuves
+ * semaient la date UTC (`toISOString`) :
+ * après 20 h à Montréal, c'est déjà le lendemain. La prise devenait alors une
+ * réservation future, l'outil n'était plus « en ma possession », et le bouton
+ * de retour n'existait pas.
+ *
+ * Le défaut n'apparaissait donc que le soir — d'où des passages verts le jour
+ * et rouges la nuit, sur le même code.
+ */
+function jourOuvrable(decalageJours = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + decalageJours);
+  return d.toLocaleDateString("en-CA");
+}
+
 test.describe("41. Le détenteur est visible des deux côtés", () => {
   let premier: FieldEmployeeTestContext;
   let companyId = "";
@@ -274,8 +292,8 @@ test.describe("41. Le détenteur est visible des deux côtés", () => {
   test("une réservation future n'invente pas de détenteur", async ({ browser }) => {
     await libererLOutil();
     const admin = createE2EAdmin();
-    const dans3 = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-    const dans5 = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    const dans3 = jourOuvrable(3);
+    const dans5 = jourOuvrable(5);
     await admin.from("tool_assignments").insert({
       company_id: companyId,
       tool_id: toolId,
