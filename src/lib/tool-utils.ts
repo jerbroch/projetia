@@ -1,4 +1,5 @@
 import { addDays, format, parseISO } from "date-fns";
+import { debutDeDetention } from "@/lib/detenteur-outil";
 import type {
   ToolAssignment,
   ToolAssignmentStatus,
@@ -251,6 +252,7 @@ export function buildToolListItemFromDetails(tool: ToolWithDetails): ToolListIte
     currentScheduledJobId: current?.scheduledJobId ?? null,
     currentEmployeeName: current?.employeeName,
     checkoutDate: current?.startDate,
+    depuis: current ? debutDeDetention(current) : undefined,
     expectedReturnDate: current?.expectedReturnDate,
     daysOverdue:
       current && current.expectedReturnDate < today

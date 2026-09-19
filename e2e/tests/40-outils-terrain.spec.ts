@@ -22,6 +22,24 @@ import { readTestCredentials } from "../helpers/test-data";
 
 const MARQUE = "E2E-OUTIL";
 
+/**
+ * LA DATE DE L'APPLICATION, PAS CELLE D'UTC.
+ *
+ * `todayDateString()` renvoie la date LOCALE du serveur. Les épreuves
+ * semaient la date UTC (`toISOString`) :
+ * après 20 h à Montréal, c'est déjà le lendemain. La prise devenait alors une
+ * réservation future, l'outil n'était plus « en ma possession », et le bouton
+ * de retour n'existait pas.
+ *
+ * Le défaut n'apparaissait donc que le soir — d'où des passages verts le jour
+ * et rouges la nuit, sur le même code.
+ */
+function jourOuvrable(decalageJours = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() + decalageJours);
+  return d.toLocaleDateString("en-CA");
+}
+
 test.describe("40. Les outils du terrain", () => {
   let fieldCtx: FieldEmployeeTestContext;
   let companyId: string;
@@ -89,7 +107,7 @@ test.describe("40. Les outils du terrain", () => {
     await libererLOutil(toolId);
     await ouvrirMesOutils(page);
 
-    await page.getByRole("tab", { name: /Disponibles/ }).click();
+    await page.getByRole("tab", { name: /Inventaire/ }).click();
     await page.getByTestId(`prendre-${toolId}`).click();
     await page.getByTestId("confirmer-feuille").click();
 
@@ -122,14 +140,15 @@ test.describe("40. Les outils du terrain", () => {
   test("retourner en bon état libère l'outil pour les autres", async ({ page }) => {
     await libererLOutil(toolId);
     const admin = createE2EAdmin();
-    await admin.from("tool_assignments").insert({
+    const { error: eSemis } = await admin.from("tool_assignments").insert({
       company_id: companyId,
       tool_id: toolId,
       employee_id: fieldCtx.employeeId,
-      start_date: new Date().toISOString().slice(0, 10),
-      expected_return_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      start_date: jourOuvrable(),
+      expected_return_date: jourOuvrable(1),
       status: "active",
     });
+    expect(eSemis, `la prise de départ doit s\'écrire : ${eSemis?.message}`).toBeNull();
 
     await ouvrirMesOutils(page);
     await page.getByTestId(`rendre-${toolId}`).click();
@@ -160,15 +179,16 @@ test.describe("40. Les outils du terrain", () => {
   test("un retour abîmé sort l'outil du parc et laisse une trace", async ({ page }) => {
     await libererLOutil(toolId);
     const admin = createE2EAdmin();
-    await admin.from("tool_assignments").insert({
+    const { error: eSemis } = await admin.from("tool_assignments").insert({
       company_id: companyId,
       tool_id: toolId,
       employee_id: fieldCtx.employeeId,
-      start_date: new Date().toISOString().slice(0, 10),
-      expected_return_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      start_date: jourOuvrable(),
+      expected_return_date: jourOuvrable(1),
       status: "active",
       notes: "Pour le chantier de test",
     });
+    expect(eSemis, `la prise de départ doit s\'écrire : ${eSemis?.message}`).toBeNull();
 
     await ouvrirMesOutils(page);
     await page.getByTestId(`rendre-${toolId}`).click();
@@ -218,8 +238,8 @@ test.describe("40. Les outils du terrain", () => {
       company_id: companyId,
       tool_id: autreToolId,
       employee_id: collegue!.id,
-      start_date: new Date().toISOString().slice(0, 10),
-      expected_return_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      start_date: jourOuvrable(),
+      expected_return_date: jourOuvrable(1),
       status: "active",
     });
 
@@ -227,7 +247,7 @@ test.describe("40. Les outils du terrain", () => {
 
     // Il n'apparaît ni dans ses outils, ni parmi les disponibles.
     await expect(page.getByTestId(`rendre-${autreToolId}`)).toHaveCount(0);
-    await page.getByRole("tab", { name: /Disponibles/ }).click();
+    await page.getByRole("tab", { name: /Inventaire/ }).click();
     await expect(page.getByTestId(`prendre-${autreToolId}`)).toHaveCount(0);
 
     // Et la prise du collègue est intacte.
@@ -246,8 +266,8 @@ test.describe("40. Les outils du terrain", () => {
   test("deux prises simultanées : la base n'en laisse passer qu'une", async () => {
     await libererLOutil(toolId);
     const admin = createE2EAdmin();
-    const jour = new Date().toISOString().slice(0, 10);
-    const demain = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const jour = jourOuvrable();
+    const demain = jourOuvrable(1);
 
     const { data: collegue } = await admin
       .from("employees")
@@ -329,8 +349,8 @@ test.describe("40. Les outils du terrain", () => {
         company_id: companyId,
         tool_id: outilVoisin!.id,
         employee_id: fieldCtx.employeeId,
-        start_date: new Date().toISOString().slice(0, 10),
-        expected_return_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+        start_date: jourOuvrable(),
+        expected_return_date: jourOuvrable(1),
         status: "active",
       });
 
@@ -354,14 +374,15 @@ test.describe("40. Les outils du terrain", () => {
   test("le bureau voit le détenteur après une prise du terrain", async ({ page }) => {
     await libererLOutil(toolId);
     const admin = createE2EAdmin();
-    await admin.from("tool_assignments").insert({
+    const { error: eSemis } = await admin.from("tool_assignments").insert({
       company_id: companyId,
       tool_id: toolId,
       employee_id: fieldCtx.employeeId,
-      start_date: new Date().toISOString().slice(0, 10),
-      expected_return_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+      start_date: jourOuvrable(),
+      expected_return_date: jourOuvrable(1),
       status: "active",
     });
+    expect(eSemis, `la prise de départ doit s\'écrire : ${eSemis?.message}`).toBeNull();
 
     // Le nom du détenteur, tel que le bureau doit le lire.
     const { data: emp } = await admin

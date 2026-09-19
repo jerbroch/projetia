@@ -6,6 +6,7 @@ import { getScheduleEvents, getEmployees, mapScheduleRow } from "@/lib/data/tena
 import { getToolsWithDetails } from "@/lib/data/tools-data";
 import { isAssignmentOpen } from "@/lib/tool-utils";
 import type {
+  Employee,
   FieldCatalogItem,
   FieldLaborRate,
   FieldHour,
@@ -155,7 +156,7 @@ export async function getEmployeeToolsForField(
   employeeId: string,
   isDemo: boolean
 ): Promise<ToolListItem[]> {
-  const employees = await getEmployees(companyId, isDemo);
+  const employees = await getNomsDesEmployesPourTerrain(companyId, isDemo);
   const tools = await getToolsWithDetails(companyId, isDemo, employees);
   return tools.filter((tool: ToolListItem) => tool.currentEmployeeId === employeeId);
 }
@@ -272,4 +273,55 @@ export async function tauxVisiblesTerrain(companyId: string): Promise<FieldLabor
     workerCount: row.worker_count != null ? Number(row.worker_count) : 1,
     rateType: row.rate_type ? String(row.rate_type) : "regular",
   }));
+}
+
+/**
+ * LES NOMS DES COLLÈGUES, ET RIEN DE PLUS.
+ *
+ * `getEmployees` lit la table `employees`, fermée au terrain depuis la
+ * migration 033 — elle porte les taux horaires. Un employé recevait donc une
+ * liste vide, et l'écran d'outillage affichait « Détenue par : ? ».
+ *
+ * La vue `employes_noms` expose l'identifiant, l'entreprise et le nom. On en
+ * construit des fiches minimales : ce que `getToolsWithDetails` attend pour
+ * nommer un détenteur, sans qu'un salaire transite par là.
+ */
+export async function getNomsDesEmployesPourTerrain(
+  companyId: string,
+  isDemo: boolean,
+): Promise<Employee[]> {
+  if (isDemo) return getEmployees(companyId, isDemo);
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("employes_noms")
+    .select("id, company_id, first_name, last_name, status")
+    .eq("company_id", companyId);
+
+  if (error) {
+    console.error("[getNomsDesEmployesPourTerrain]", error.message);
+    return [];
+  }
+
+  return (data ?? []).map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      id: String(r.id),
+      companyId: String(r.company_id),
+      firstName: String(r.first_name ?? ""),
+      lastName: String(r.last_name ?? ""),
+      status: (r.status as Employee["status"]) ?? "active",
+      // Le reste de la fiche n'est PAS lisible par le terrain, et ne doit pas
+      // l'être : ces champs ne servent qu'à satisfaire le type.
+      phone: "",
+      mobilePhone: "",
+      email: "",
+      truckNumber: "",
+      department: "",
+      hireDate: "",
+      hourlyRate: 0,
+      trade: "",
+    } as Employee;
+  });
 }

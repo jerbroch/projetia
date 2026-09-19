@@ -8,7 +8,7 @@ import {
   getToolsWithDetails,
   mapToolAssignmentRow,
 } from "@/lib/data/tools-data";
-import { getEmployees } from "@/lib/data/tenant-data";
+import { getNomsDesEmployesPourTerrain } from "@/lib/data/field-data";
 import {
   MESSAGE_PRISE_SIMULTANEE,
   estUnePriseSimultanee,
@@ -90,7 +90,7 @@ function revalider() {
 }
 
 async function outilsDuTerrain(companyId: string, isDemo: boolean): Promise<ToolListItem[]> {
-  const employees = await getEmployees(companyId, isDemo);
+  const employees = await getNomsDesEmployesPourTerrain(companyId, isDemo);
   return getToolsWithDetails(companyId, isDemo, employees);
 }
 

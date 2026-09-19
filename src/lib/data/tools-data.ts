@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { debutDeDetention } from "@/lib/detenteur-outil";
 import { isSupabaseConfigured } from "@/lib/supabase/admin";
 import { tools as demoTools, toolAssignments as demoToolAssignments, toolSmsReminders as demoToolSmsReminders } from "@/lib/mock-data";
 import { getEmployeeFullName } from "@/lib/employee-utils";
@@ -128,6 +129,7 @@ function enrichToolListItem(
         )
       : undefined,
     checkoutDate: current?.startDate,
+    depuis: current ? debutDeDetention(current) : undefined,
     expectedReturnDate: current?.expectedReturnDate,
     daysOverdue:
       current && current.expectedReturnDate < today
