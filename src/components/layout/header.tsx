@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, LogOut, Menu, Search, Shield, User } from "lucide-react";
+import { Bell, Building2, ChevronDown, LogOut, Menu, Search, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,11 @@ export function Header({
         className="relative shrink-0"
       >
         <Bell className="h-[18px] w-[18px]" />
+        {/*
+          LA PASTILLE DE LA RÉFÉRENCE. Elle ne s'allume pas toute seule : il
+          n'existe pas encore de notifications côté employeur, et une pastille
+          permanente apprendrait à l'ignorer. Elle attend son signal.
+        */}
       </Button>
 
       <DropdownMenu>
@@ -154,9 +159,19 @@ export function Header({
               la barre était doublement inutile. Ils restent dans le menu
               déroulant, à un clic, et dans le nom accessible du bouton.
             */}
+            {/*
+              L'AVATAR EST PÉTROLE, pas orange pâle : c'est la composition de
+              la référence, et l'orange reste réservé aux actions.
+            */}
             <Avatar className="h-9 w-9 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-accent-encre">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-petrole text-[13px] font-semibold text-petrole-foreground">
+                {initials}
+              </AvatarFallback>
             </Avatar>
+            <ChevronDown
+              className="h-4 w-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end">

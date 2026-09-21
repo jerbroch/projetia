@@ -70,7 +70,12 @@ export function BandeIndicateurs({ indicateurs }: { indicateurs: Indicateur[] })
                     />
                   )}
                 </span>
-                <span className="mt-1 block truncate text-[13px] leading-snug text-muted-foreground">
+                {/*
+                  LE LIBELLÉ PASSE À LA LIGNE PLUTÔT QUE DE SE COUPER.
+                  Sur 390 px, « Travaux du jour » devenait « Travaux du j… » :
+                  un compteur dont on ne lit pas le nom ne compte rien.
+                */}
+                <span className="mt-1 block text-[13px] leading-snug text-muted-foreground">
                   {libelle}
                 </span>
               </span>

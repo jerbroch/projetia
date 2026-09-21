@@ -124,19 +124,20 @@ export function ProchaineIntervention({
         )}
 
         {/*
-          LE BOUTON PRINCIPAL DIT CE QU'IL FAIT, ET RIEN DE PLUS.
+          LE BOUTON DIT CE QU'IL FAIT, ET RIEN DE PLUS.
 
-          La référence l'appelle « Terminer le travail ». Terminer un travail
-          exige de saisir ses heures et ses matériaux, et l'application refuse
-          la clôture sans eux — un bouton qui promettrait de terminer d'un
-          seul geste mentirait. Il ouvre donc l'intervention, là où la
-          clôture se fait vraiment, et le dit.
+          La référence l'appelle « Terminer le travail ». Ce bouton ouvre la
+          fiche : il s'appelle donc « Ouvrir l'intervention ». La clôture
+          existe toujours, entière, à l'intérieur — avec ses heures et ses
+          matériaux, que l'application exige avant de laisser terminer. Un
+          libellé qui promet de terminer d'un seul geste mentirait sur les
+          deux écrans à la fois.
         */}
         <Link
           href={`/terrain/calls/${job.id}`}
           className="mt-2 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[15px] font-semibold text-primary-foreground transition-colors duration-normal hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole focus-visible:ring-offset-2 motion-reduce:transition-none"
         >
-          {enCours ? "Terminer le travail" : "Voir l'intervention"}
+          Ouvrir l&apos;intervention
           <ChevronRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>

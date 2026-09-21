@@ -13,8 +13,10 @@ import { cn } from "@/lib/utils";
  *   • même immeuble que le bandeau d'ordinateur, cadré plus serré
  *   • partie gauche dégagée : la salutation s'y pose
  *
- * Sans lui, l'en-tête reste un aplat pétrole avec ses lignes de plan —
- * présentable, et qui ne ment pas sur ce qu'il est.
+ * La page ne passe le chemin QUE si le fichier existe sur le disque : le
+ * déposer suffit, il n'y a pas d'interrupteur à trouver. Sans lui, l'en-tête
+ * reste un aplat pétrole avec ses lignes de plan — présentable, et qui ne
+ * ment pas sur ce qu'il est.
  */
 export function FieldEnteteJournee({
   salutation,
@@ -24,6 +26,7 @@ export function FieldEnteteJournee({
 }: {
   salutation: string;
   date: string;
+  /** Le rendu de l'immeuble, ancré à droite. */
   image?: string;
   className?: string;
 }) {
@@ -35,12 +38,18 @@ export function FieldEnteteJournee({
       )}
     >
       {image && (
+        /*
+          L'IMMEUBLE EST ANCRÉ À DROITE, à sa proportion naturelle, comme sur
+          le bandeau de l'employeur. Image décorative déjà dimensionnée :
+          `next/image` n'aurait rien à optimiser ici et ajouterait un
+          chargeur.
+        */
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full object-cover object-right"
+          className="absolute inset-y-0 right-0 h-full w-auto max-w-[58%] object-cover object-left"
         />
       )}
       <div
@@ -48,7 +57,7 @@ export function FieldEnteteJournee({
         className={cn(
           "absolute inset-0",
           image
-            ? "bg-gradient-to-r from-petrole via-petrole/90 to-petrole/40"
+            ? "bg-gradient-to-r from-petrole from-42% via-petrole/85 via-64% to-petrole/25"
             : "bg-gradient-to-br from-petrole to-petrole-doux/70",
         )}
       />

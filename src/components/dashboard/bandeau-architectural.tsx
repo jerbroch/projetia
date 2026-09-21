@@ -21,21 +21,23 @@ import { cn } from "@/lib/utils";
  *   • s'il manque, le bandeau reste un aplat pétrole tenu par sa typographie
  *     et son motif au trait — présentable, et honnête sur ce qu'il est.
  *
- * FICHIER ATTENDU : `public/bandeau-chantier.webp`
- *   • 2400 × 900 px (rapport 8:3), pour rester net sur un écran dense
- *   • WebP de qualité 82, viser moins de 250 Ko
- *   • sujet : immeuble en construction vu de trois quarts, cadré à droite,
+ * FICHIERS ATTENDUS — les noms vivent dans `BANDEAU_CHANTIER`, et la page
+ * ne les passe que s'ils existent VRAIMENT sur le disque. Les déposer suffit.
+ *
+ *   `public/bandeau-chantier.webp`        2400 × 900 px (8:3), q82, < 250 Ko
+ *   `public/bandeau-chantier@1x.webp`     1200 × 450 px (8:3), q80, < 120 Ko
+ *   `public/bandeau-chantier-mobile.webp` 1200 × 600 px (2:1), q80, < 120 Ko
+ *
+ *   • sujet : immeuble en construction vu de trois quarts, cadré à DROITE,
  *     tiers gauche dégagé pour que le texte reste lisible
  *   • lumière froide, dominante bleutée, pour se marier au pétrole #102D3B
- *   • prévoir `public/bandeau-chantier@1x.webp` en 1200 × 450 px pour les
- *     téléphones, sinon on impose 250 Ko à une connexion de chantier
  * ─────────────────────────────────────────────────────────────────────────
  */
 
 interface BandeauArchitecturalProps {
   titre: string;
   sousTitre: string;
-  /** Chemin public du rendu. Absent : le bandeau tient sans lui. */
+  /** Rendu large (8:3). Absent : le bandeau tient sans lui. */
   image?: string;
   className?: string;
 }
@@ -64,17 +66,35 @@ export function BandeauArchitectural({
     >
       {image && (
         /*
-          L'image est POSÉE, pas étirée : `object-cover` avec un cadrage à
-          droite garde l'immeuble entier et laisse le texte sur la partie
-          calme. `aria-hidden` — elle n'ajoute rien qu'un lecteur d'écran
-          doive entendre, le titre dit déjà tout.
+          UN CADRAGE PAR FORMAT, PAS UNE IMAGE ÉTIRÉE.
+
+          Le même fichier 8:3 posé sur un téléphone donnerait un immeuble
+          minuscule dans une bande étroite. `<picture>` sert donc le cadrage
+          vertical sous 640 px, et le navigateur ne télécharge que celui
+          qu'il affiche — sur une connexion de chantier, c'est 120 Ko au lieu
+          de 250.
+
+          `aria-hidden` : l'image n'ajoute rien qu'un lecteur d'écran doive
+          entendre, le titre dit déjà tout.
+        */
+        /*
+          L'IMMEUBLE EST ANCRÉ À DROITE, À SA PROPORTION NATURELLE.
+
+          `object-cover` sur toute la largeur l'aurait agrandi de deux fois et
+          demie pour remplir un bandeau bien plus large que lui, en rognant le
+          haut et le bas. Ici il garde son rapport, occupe la hauteur, et se
+          colle au bord droit — exactement la composition de la référence. Le
+          pétrole occupe naturellement ce qui reste à gauche, sous le texte.
+
+          Image décorative déjà dimensionnée : `next/image` n'aurait rien à
+          optimiser ici et ajouterait un chargeur.
         */
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full object-cover object-right"
+          className="absolute inset-y-0 right-0 h-full w-auto max-w-[70%] object-cover object-left sm:max-w-[62%]"
         />
       )}
 
@@ -90,8 +110,16 @@ export function BandeauArchitectural({
         aria-hidden
         className={cn(
           "absolute inset-0",
+          /*
+            LE VOILE COUVRE LA JOINTURE DE L'IMAGE.
+
+            L'immeuble est découpé : son bord gauche laisse une arête nette au
+            milieu du bandeau. Le dégradé reste opaque jusqu'à la moitié, puis
+            s'efface — l'arête tombe dans la partie encore pleine et ne se voit
+            plus, pendant que l'immeuble garde sa lumière à droite.
+          */
           image
-            ? "bg-gradient-to-r from-petrole via-petrole/85 to-petrole/25"
+            ? "bg-gradient-to-r from-petrole from-40% via-petrole/80 via-62% to-petrole/15"
             : "bg-gradient-to-r from-petrole to-petrole-doux/60",
         )}
       />

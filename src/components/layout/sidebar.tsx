@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { MarqueConstructionIos } from "@/components/brand/marque-construction-ios";
+import { MarqueImmeuble } from "@/components/brand/marque-immeuble";
 import { MotifArchitectural } from "@/components/brand/motif-architectural";
 import type { Company, User } from "@/types";
 
@@ -98,10 +98,23 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
               className="h-8 w-8 rounded-lg object-cover"
             />
           ) : (
-            <MarqueConstructionIos className="text-primary" taille={30} />
+            /* L'immeuble, pas la maison : la référence visuelle montre des
+               volumes à étages, et l'écran s'adresse aussi au commercial. */
+            <MarqueImmeuble className="text-petrole-foreground" taille={30} />
           )}
-          <span className="truncate text-[1.0625rem] font-bold tracking-tight text-petrole-foreground">
-            Construction iOS
+          {/*
+            « CONSTRUCTION iOS » EN CAPITALES ESPACÉES, le « iOS » plus
+            marqué. C'est le lettrage de la référence ; l'ancienne casse
+            normale se lisait comme un mot de texte, pas comme une marque.
+          */}
+          {/*
+            « iOS » GARDE SA MINUSCULE. `uppercase` sur toute la ligne le
+            transformait en « IOS » — ce n'est plus la marque, c'est un
+            acronyme. La capitale ne s'applique donc qu'au premier mot.
+          */}
+          <span className="truncate text-[0.9375rem] font-semibold text-petrole-foreground">
+            <span className="uppercase tracking-[0.08em]">Construction</span>{" "}
+            <span className="font-extrabold">iOS</span>
           </span>
         </Link>
 

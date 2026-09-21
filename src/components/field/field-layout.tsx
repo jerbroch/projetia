@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { CalendarDays, Home, LogOut, Phone, Wrench } from "lucide-react";
 import { logoutAction } from "@/lib/actions/auth";
-import { MarqueConstructionIos } from "@/components/brand/marque-construction-ios";
+import { MarqueImmeuble } from "@/components/brand/marque-immeuble";
 import { cn } from "@/lib/utils";
 import type { Company, User } from "@/types";
 
@@ -68,9 +68,24 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
               className="h-7 w-7 shrink-0 rounded-md object-cover"
             />
           ) : (
-            <MarqueConstructionIos className="shrink-0 text-primary" taille={26} />
+            <MarqueImmeuble className="shrink-0 text-petrole-foreground" taille={24} />
           )}
-          <p className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold">{company.name}</p>
+          {/*
+            LA MARQUE, COMME SUR LA RÉFÉRENCE — et le nom de l'entreprise
+            juste en dessous, en petit. Le premier dit où l'on est, le second
+            chez qui l'on travaille : le travailleur a besoin des deux, et la
+            référence ne montrait que le premier parce qu'elle n'avait qu'une
+            ligne à remplir.
+          */}
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[0.875rem] font-semibold leading-tight">
+              <span className="uppercase tracking-[0.07em]">Construction</span>{" "}
+              <span className="font-extrabold">iOS</span>
+            </span>
+            <span className="block truncate text-[11px] leading-tight text-petrole-foreground/65">
+              {company.name}
+            </span>
+          </span>
 
           {/*
             La déconnexion, et rien d'autre. La maquette montre une cloche ;

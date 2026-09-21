@@ -12,6 +12,7 @@ import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
+import { CarteRevenus } from "@/components/dashboard/carte-revenus";
 import { PastilleDate, SectionTableau } from "@/components/dashboard/section-tableau";
 import { BandeauArchitectural } from "@/components/dashboard/bandeau-architectural";
 import { BandeIndicateurs } from "@/components/dashboard/bande-indicateurs";
@@ -43,6 +44,7 @@ import {
   travauxDuJour,
 } from "@/lib/tableau-de-bord-journee";
 import { getToolsWithDetails } from "@/lib/data/tools-data";
+import { bandeauDisponible } from "@/lib/ressource-publique";
 
 
 /**
@@ -164,9 +166,15 @@ async function CorpsTableauDeBord() {
         ) : (
           <>
             {/* ───────── Le bandeau ───────── */}
+            {/*
+              LES CHEMINS NE SONT PASSÉS QUE SI LES FICHIERS EXISTENT.
+              Pointer vers une image absente ferait afficher l'icône d'image
+              cassée ; ici le bandeau retombe proprement sur son aplat.
+            */}
             <BandeauArchitectural
               titre="Une équipe. Une vue d'ensemble."
               sousTitre="Vos chantiers avancent, gardez le cap."
+              image={bandeauDisponible("large")}
             />
 
             {/* ───────── Les quatre chiffres de la journée ───────── */}
@@ -234,6 +242,20 @@ async function CorpsTableauDeBord() {
               billingTotals={billingTotals}
               showSection={showReviewSection}
             />
+
+            {/*
+              ───────── Les revenus ─────────
+
+              LA MAQUETTE NE LES MONTRE PAS, et ce n'est pas une raison pour
+              les faire disparaître : `totalRevenue` ne s'affiche sur AUCUN
+              autre écran de l'application. Les retirer d'ici, c'était les
+              retirer tout court.
+
+              Ils descendent en revanche sous la journée : c'est un chiffre
+              qu'on regarde une fois par mois, pas à 6 h 30 devant son café.
+              Ils voisinent maintenant les factures, dont ils sont la somme.
+            */}
+            <CarteRevenus montant={formatCurrency(stats.totalRevenue)} />
 
             {/* ───────── Le calendrier et les factures ───────── */}
             <div className="grid gap-4 lg:grid-cols-2">

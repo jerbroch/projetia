@@ -6,6 +6,7 @@ import { ProchaineIntervention } from "@/components/field/field-prochaine-interv
 import { TuileCompteur } from "@/components/field/field-tuile-compteur";
 import { FieldEnteteJournee } from "@/components/field/field-entete-journee";
 import { FieldApercuOutils } from "@/components/field/field-apercu-outils";
+import { bandeauDisponible } from "@/lib/ressource-publique";
 import { getEmployeeToolsForField, getFieldJobsForEmployeeScoped } from "@/lib/data/field-data";
 import { getShiftsForJobs } from "@/lib/data/job-shifts-data";
 import { filterJobsByFieldView, sortJobsChronologically } from "@/lib/field-schedule-utils";
@@ -43,7 +44,11 @@ export default async function TerrainTodayPage() {
     <FieldLayout company={ctx.company} user={ctx.user}>
       <div className="space-y-5">
         {/* ───────── Qui, et quel jour ───────── */}
-        <FieldEnteteJournee salutation={salutation(ctx.user.name)} date={dateDuJour()} />
+        <FieldEnteteJournee
+          salutation={salutation(ctx.user.name)}
+          date={dateDuJour()}
+          image={bandeauDisponible("mobile")}
+        />
 
         {/* ───────── Ma journée en deux chiffres ───────── */}
         <section aria-labelledby="titre-ma-journee">
