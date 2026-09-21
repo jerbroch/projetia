@@ -4,6 +4,8 @@ import { FieldCallCard } from "@/components/field/field-call-card";
 import { FieldLayout } from "@/components/field/field-layout";
 import { ProchaineIntervention } from "@/components/field/field-prochaine-intervention";
 import { TuileCompteur } from "@/components/field/field-tuile-compteur";
+import { FieldEnteteJournee } from "@/components/field/field-entete-journee";
+import { FieldApercuOutils } from "@/components/field/field-apercu-outils";
 import { getEmployeeToolsForField, getFieldJobsForEmployeeScoped } from "@/lib/data/field-data";
 import { getShiftsForJobs } from "@/lib/data/job-shifts-data";
 import { filterJobsByFieldView, sortJobsChronologically } from "@/lib/field-schedule-utils";
@@ -41,21 +43,18 @@ export default async function TerrainTodayPage() {
     <FieldLayout company={ctx.company} user={ctx.user}>
       <div className="space-y-5">
         {/* ───────── Qui, et quel jour ───────── */}
-        <header>
-          <h1 className="text-[26px] font-bold leading-tight text-foreground">
-            {salutation(ctx.user.name)}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{dateDuJour()}</p>
-        </header>
+        <FieldEnteteJournee salutation={salutation(ctx.user.name)} date={dateDuJour()} />
 
         {/* ───────── Ma journée en deux chiffres ───────── */}
         <section aria-labelledby="titre-ma-journee">
-          <h2
-            id="titre-ma-journee"
-            className="mb-2 text-[17px] font-semibold text-foreground"
-          >
-            Ma journée
-          </h2>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 id="titre-ma-journee" className="text-[17px] font-semibold text-foreground">
+              Ma journée
+            </h2>
+            <span className="text-[13px] tabular-nums text-muted-foreground">
+              {jobs.length} {pluriel(jobs.length, "travail", "travaux")}
+            </span>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <TuileCompteur
               icone={Wrench}
@@ -87,6 +86,7 @@ export default async function TerrainTodayPage() {
                 job={prochaine}
                 employeeId={ctx.employeeId ?? undefined}
                 shifts={shifts}
+                enCours={prochaine.status === "in-progress" || prochaine.status === "en-route"}
               />
             </section>
 
@@ -141,6 +141,9 @@ export default async function TerrainTodayPage() {
             </div>
           </section>
         )}
+
+        {/* ───────── Mes outils, en aperçu ───────── */}
+        <FieldApercuOutils outils={outils} employeId={ctx.employeeId!} />
 
         {/* ───────── Le rappel du dépôt ───────── */}
         {aRetourner.length > 0 && (
