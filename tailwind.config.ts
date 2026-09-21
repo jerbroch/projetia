@@ -56,6 +56,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--petrole))",
           foreground: "hsl(var(--petrole-foreground))",
           doux: "hsl(var(--petrole-doux))",
+          sombre: "hsl(var(--petrole-sombre))",
         },
         "accent-encre": "hsl(var(--accent-encre))",
         succes: "hsl(var(--succes))",

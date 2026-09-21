@@ -15,44 +15,54 @@
      notés en commentaire sont calculés sur les valeurs exactes, et
      deux d'entre eux ont changé la palette :
 
-       • Le blanc sur l'orange #F97316 donne 2,80 — sous le seuil AA de
-         4,5. C'était le réglage en place. Le texte des boutons orange
-         est donc le bleu du texte courant : 5,70.
+       • Le blanc sur l'orange #F27535 de la référence donne 2,85 —
+         sous le seuil AA de 4,5. La maquette écrit pourtant ses boutons
+         en blanc. On garde SON orange, exactement, et on change l'encre :
+         le bleu du texte courant sur ce même orange donne 5,51. Le bouton
+         a donc la bonne couleur, la bonne forme et la bonne taille ; seule
+         la couleur de son libellé s'écarte de l'image, et c'est le seul
+         écart que la lisibilité impose.
 
-       • L'orange en TEXTE sur l'ivoire donne 2,55. Il ne peut donc pas
-         servir d'encre. `--accent-encre` est la nuance foncée qui
-         passe (5,33), pour les liens et les chiffres mis en valeur ;
-         l'orange pur reste une surface et un trait.
+       • Le gris secondaire #66788A de la référence donne 4,28 sur le
+         fond #F7F8F6 — sous le seuil AA. Assombri d'un cran à #5F7081,
+         il passe à 4,78 sans changer de caractère : c'est le même gris
+         bleuté, lisible par temps gris dans un camion.
+
+       • L'orange en TEXTE sur le fond #F7F8F6 donne 2,61. Il ne peut donc
+         pas servir d'encre. `--accent-encre` est la nuance foncée qui
+         passe, pour les liens et les chiffres mis en valeur ; l'orange pur
+         reste une surface et un trait.
      =================================================================== */
   :root {
     /* Fond ivoire très léger #F6F4EF, encre #122333 — 14,54. */
-    --background: 43 28% 95%;
-    --foreground: 209 48% 14%;
+    --background: 90 13% 97%;
+    --foreground: 207 54% 14%;
 
     /* Cartes blanches #FFFFFF — encre à 15,98. */
     --card: 0 0% 100%;
-    --card-foreground: 209 48% 14%;
+    --card-foreground: 207 54% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 209 48% 14%;
+    --popover-foreground: 207 54% 14%;
 
     /* Orange signature #F97316 : actions principales et accents. */
-    --primary: 25 95% 53%;
-    --primary-foreground: 209 48% 14%; /* 5,70 — le blanc donnait 2,80 */
+    --primary: 20 88% 58%;
+    --primary-foreground: 207 54% 14%; /* 5,70 — le blanc donnait 2,80 */
 
     /* Bleu pétrole #102D3B : menu latéral et surfaces profondes. */
-    --petrole: 200 57% 15%;
+    --petrole: 192 59% 17%;
     --petrole-foreground: 0 0% 100%; /* 14,38 */
-    --petrole-doux: 200 40% 24%;
+    --petrole-sombre: 193 76% 13%; /* #082F3A */
+    --petrole-doux: 193 50% 22%;
 
     /* L'orange comme ENCRE, seule nuance lisible sur fond clair. */
     --accent-encre: 19 95% 36%; /* 5,33 sur ivoire */
 
-    --secondary: 40 27% 91%;
-    --secondary-foreground: 209 48% 14%;
-    --muted: 40 27% 91%;
-    --muted-foreground: 208 15% 42%; /* 5,50 sur blanc */
-    --accent: 40 27% 91%;
-    --accent-foreground: 209 48% 14%;
+    --secondary: 205 30% 94%;
+    --secondary-foreground: 207 54% 14%;
+    --muted: 205 30% 94%;
+    --muted-foreground: 210 15% 44%; /* #5F7081 — 4,78 sur le fond */
+    --accent: 205 30% 94%;
+    --accent-foreground: 207 54% 14%;
 
     /* Statuts sobres, tous mesurés sur carte blanche. */
     --succes: 142 72% 29%; /* 5,02 */
@@ -64,12 +74,12 @@
     --destructive: 0 74% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 42 19% 86%;
-    --input: 42 19% 86%;
-    --ring: 25 95% 53%;
+    --border: 207 20% 91%;
+    --input: 207 20% 91%;
+    --ring: 20 88% 58%;
 
     /* Arrondis : 12 px pour les petits éléments, 16 px pour les cartes. */
-    --radius: 0.875rem;
+    --radius: 0.75rem;
 
     /* Ombres discrètes : on suggère l'épaisseur, on ne la proclame pas. */
     --ombre-carte: 0 1px 2px hsl(209 48% 14% / 0.04), 0 1px 3px hsl(209 48% 14% / 0.06);

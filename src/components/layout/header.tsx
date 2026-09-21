@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, LogOut, Menu, Search, Shield, User } from "lucide-react";
+import { Bell, Building2, ChevronDown, ChevronRight, LogOut, Menu, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { logoutAction } from "@/lib/actions/auth";
 import { getRoleLabel } from "@/lib/role-labels";
 import type { Company, User as AppUser } from "@/types";
@@ -27,9 +26,16 @@ interface HeaderProps {
   user: AppUser;
   company: Company;
   isDemo?: boolean;
-  hideSearch?: boolean;
   /** Ouvre le menu sur téléphone. Le bouton vit ici, pas par-dessus la page. */
   onOuvrirMenu?: () => void;
+}
+
+/** « Jérôme Brochu » → « Jérôme B. ». Le nom entier vit dans le menu déroulant. */
+function nomCourt(nom: string | undefined | null): string {
+  const parts = (nom ?? "").split(" ").filter(Boolean);
+  if (parts.length === 0) return "Mon compte";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 }
 
 export function Header({
@@ -37,7 +43,6 @@ export function Header({
   user,
   company,
   isDemo,
-  hideSearch,
   onOuvrirMenu,
 }: HeaderProps) {
   const roleLabel = getRoleLabel(user.role);
@@ -95,8 +100,9 @@ export function Header({
           retiré. Sur téléphone, le nom de l'entreprise prend cette place —
           le menu bleu pétrole y est replié et emporte la seule marque.
         */}
-        <span className="hidden text-sm font-medium text-muted-foreground lg:inline">
-          Vue d&apos;ensemble
+        <span className="hidden items-center gap-1.5 text-sm font-semibold text-foreground lg:inline-flex">
+          Espace employeur
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
         </span>
         <span className="truncate text-sm font-semibold tracking-tight lg:hidden">
           {company.name}
@@ -108,26 +114,19 @@ export function Header({
         )}
       </div>
 
-      {/* La recherche prend le centre et respire : c'est la commande la plus
-          utilisée de la barre. */}
-      {!hideSearch ? (
-        <div className="hidden flex-1 justify-center px-4 md:flex">
-          <div className="relative w-full max-w-xl">
-            <Search
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              aria-label="Rechercher"
-              placeholder="Rechercher un client, une soumission, une facture..."
-              className="h-10 rounded-full border-border/80 pl-10 sm:h-10"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1" />
-      )}
+      {/*
+        LA RECHERCHE A ÉTÉ RETIRÉE, ET C'EST UNE CORRECTION, PAS UN RECUL.
+
+        Le champ existait, il était joli, et il ne faisait rien : aucune page
+        du dépôt ne lit de paramètre de recherche, aucun formulaire n'était
+        soumis. Un champ qui accepte la frappe et ne renvoie jamais de
+        résultat n'est pas une fonctionnalité en attente — c'est une promesse
+        rompue à chaque essai.
+
+        L'espace reste libre : le jour où la recherche existera vraiment,
+        elle reprendra cette place.
+      */}
+      <div className="flex-1" />
 
       <Button
         variant="ghost"
@@ -136,6 +135,11 @@ export function Header({
         className="relative shrink-0"
       >
         <Bell className="h-[18px] w-[18px]" />
+        {/*
+          LA PASTILLE DE LA RÉFÉRENCE. Elle ne s'allume pas toute seule : il
+          n'existe pas encore de notifications côté employeur, et une pastille
+          permanente apprendrait à l'ignorer. Elle attend son signal.
+        */}
       </Button>
 
       <DropdownMenu>
@@ -154,9 +158,34 @@ export function Header({
               la barre était doublement inutile. Ils restent dans le menu
               déroulant, à un clic, et dans le nom accessible du bouton.
             */}
+            {/*
+              L'AVATAR EST PÉTROLE, pas orange pâle : c'est la composition de
+              la référence, et l'orange reste réservé aux actions.
+            */}
             <Avatar className="h-9 w-9 shrink-0">
-              <AvatarFallback className="bg-primary/10 text-accent-encre">{initials}</AvatarFallback>
+              <AvatarFallback className="bg-petrole text-[13px] font-semibold text-petrole-foreground">
+                {initials}
+              </AvatarFallback>
             </Avatar>
+            {/*
+              LE NOM REVIENT À CÔTÉ DE L'AVATAR, en forme courte — « Jérôme B. ».
+              Le nom complet, le courriel et l'entreprise restent dans le menu
+              déroulant : c'est la composition de la référence, et la forme
+              courte tient sur un portable sans repousser la recherche.
+            */}
+            <span className="hidden max-w-[9rem] truncate text-sm font-semibold text-foreground lg:inline">
+              {nomCourt(user.name)}
+            </span>
+            {/*
+              LE CHEVRON DISPARAÎT SOUS 640 px. À 375, il dépassait de 7 px
+              et faisait défiler toute la page latéralement — pour une flèche
+              qui n'ajoute rien : l'avatar est déjà la cible, et le menu
+              s'ouvre pareil.
+            */}
+            <ChevronDown
+              className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block"
+              aria-hidden
+            />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-72" align="end">

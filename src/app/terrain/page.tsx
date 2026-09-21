@@ -1,15 +1,20 @@
 import Link from "next/link";
-import { CalendarDays, ChevronRight, Package, Wrench } from "lucide-react";
+import { CalendarDays, ChevronRight, Wrench } from "lucide-react";
 import { FieldCallCard } from "@/components/field/field-call-card";
 import { FieldLayout } from "@/components/field/field-layout";
 import { ProchaineIntervention } from "@/components/field/field-prochaine-intervention";
-import { TuileCompteur } from "@/components/field/field-tuile-compteur";
+import { FieldEnteteJournee } from "@/components/field/field-entete-journee";
+import { FieldApercuOutils } from "@/components/field/field-apercu-outils";
+import { bandeauDisponible } from "@/lib/ressource-publique";
 import { getEmployeeToolsForField, getFieldJobsForEmployeeScoped } from "@/lib/data/field-data";
 import { getShiftsForJobs } from "@/lib/data/job-shifts-data";
 import { filterJobsByFieldView, sortJobsChronologically } from "@/lib/field-schedule-utils";
 import { toFieldSafeScheduleEvent } from "@/lib/field-permissions";
 import { requireFieldContext } from "@/lib/session";
 import { outilsARetourner, pluriel, salutation } from "@/lib/terrain-aujourdhui";
+import { heureCourte } from "@/lib/tableau-de-bord-journee";
+import { plageDeLEmploye } from "@/lib/job-shifts";
+import { cn } from "@/lib/utils";
 
 /** « Vendredi 18 septembre » — la date écrite comme on la dit. */
 function dateDuJour(): string {
@@ -36,79 +41,73 @@ export default async function TerrainTodayPage() {
 
   const aRetourner = outilsARetourner(outils);
   const [prochaine, ...suivantes] = jobs;
+  const enCours = prochaine
+    ? prochaine.status === "in-progress" || prochaine.status === "en-route"
+    : false;
+  /* L'heure affichée est celle du quart de la personne quand il existe. */
+  const debutPersonnel = prochaine
+    ? plageDeLEmploye(ctx.employeeId!, shifts, prochaine.start, prochaine.end).start
+    : prochaine;
 
   return (
     <FieldLayout company={ctx.company} user={ctx.user}>
       <div className="space-y-5">
         {/* ───────── Qui, et quel jour ───────── */}
-        <header>
-          <h1 className="text-[26px] font-bold leading-tight text-foreground">
-            {salutation(ctx.user.name)}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{dateDuJour()}</p>
-        </header>
+        <FieldEnteteJournee
+          salutation={salutation(ctx.user.name)}
+          date={dateDuJour()}
+          image={bandeauDisponible("mobile")}
+        />
 
-        {/* ───────── Ma journée en deux chiffres ───────── */}
+        {/* ───────── Ma journée ───────── */}
         <section aria-labelledby="titre-ma-journee">
-          <h2
-            id="titre-ma-journee"
-            className="mb-2 text-[17px] font-semibold text-foreground"
-          >
-            Ma journée
-          </h2>
-          <div className="grid grid-cols-2 gap-3">
-            <TuileCompteur
-              icone={Wrench}
-              valeur={jobs.length}
-              libelle={pluriel(jobs.length, "intervention")}
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 id="titre-ma-journee" className="text-[1.0625rem] font-bold text-foreground">
+              Ma journée
+            </h2>
+            <Link
               href="/terrain/horaire"
-            />
-            <TuileCompteur
-              icone={Package}
-              valeur={aRetourner.length}
-              libelle={`${pluriel(aRetourner.length, "outil")} à retourner`}
-              href="/terrain/outils"
-              attire={aRetourner.length > 0}
-            />
+              className="flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-md px-1 text-[13px] font-semibold text-accent-encre transition-colors duration-normal hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole motion-reduce:transition-none"
+            >
+              <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+              Voir l&apos;horaire
+            </Link>
           </div>
-        </section>
 
-        {/* ───────── Où je vais maintenant ───────── */}
-        {prochaine ? (
-          <>
-            <section aria-labelledby="titre-prochaine">
-              <h2
-                id="titre-prochaine"
-                className="mb-2 text-[17px] font-semibold text-foreground"
-              >
-                Prochaine intervention
-              </h2>
+          {prochaine ? (
+            <>
+              {/*
+                LA LIGNE DE TEMPS DE LA RÉFÉRENCE — une pastille, l'heure en
+                grand, et ce que cette heure représente. C'est la seule chose
+                qu'on lit à 6 h 30 dans un camion.
+
+                L'HEURE EST CELLE DE LA PERSONNE, pas celle du call : quand un
+                quart lui attribue une plage propre, c'est elle qui compte.
+              */}
+              <div className="mb-3 flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "h-2.5 w-2.5 shrink-0 rounded-full",
+                    enCours ? "bg-succes" : "bg-petrole/40",
+                  )}
+                />
+                <span className="text-[1.75rem] font-extrabold leading-none tabular-nums tracking-tight text-foreground">
+                  {heureCourte(debutPersonnel)}
+                </span>
+                <span className="min-w-0 truncate text-[15px] text-muted-foreground">
+                  {enCours ? "Chantier en cours" : "Premier chantier"}
+                </span>
+              </div>
+
               <ProchaineIntervention
                 job={prochaine}
                 employeeId={ctx.employeeId ?? undefined}
                 shifts={shifts}
+                enCours={enCours}
               />
-            </section>
-
-            {suivantes.length > 0 && (
-              <section aria-labelledby="titre-suite">
-                <h2 id="titre-suite" className="mb-2 text-[17px] font-semibold text-foreground">
-                  Ensuite aujourd&apos;hui
-                </h2>
-                <div className="space-y-3">
-                  {suivantes.map((job) => (
-                    <FieldCallCard
-                      key={job.id}
-                      job={job}
-                      employeeId={ctx.employeeId ?? undefined}
-                      shifts={shifts}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
-        ) : (
+            </>
+          ) : (
           /*
             L'ÉTAT VIDE MÈNE QUELQUE PART.
             « Aucun call aujourd'hui » et rien d'autre laisse quelqu'un devant
@@ -140,7 +139,28 @@ export default async function TerrainTodayPage() {
               </Link>
             </div>
           </section>
-        )}
+          )}
+        </section>
+
+        {suivantes.length > 0 && (
+          <section aria-labelledby="titre-suite">
+                <h2 id="titre-suite" className="mb-2 text-[17px] font-semibold text-foreground">
+                  Ensuite aujourd&apos;hui
+                </h2>
+                <div className="space-y-3">
+              {suivantes.map((job) => (
+                    <FieldCallCard
+                      key={job.id}
+                      job={job}
+                      employeeId={ctx.employeeId ?? undefined}
+                      shifts={shifts}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+        {/* ───────── Mes outils, en aperçu ───────── */}
+        <FieldApercuOutils outils={outils} employeId={ctx.employeeId!} />
 
         {/* ───────── Le rappel du dépôt ───────── */}
         {aRetourner.length > 0 && (

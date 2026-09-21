@@ -2,37 +2,68 @@ import Link from "next/link";
 import { Suspense } from "react";
 import {
   Calendar,
-  FileText,
-  FolderOpen,
   HardHat,
   MapPin,
-  Plus,
   Receipt,
   Users,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CarteRevenus } from "@/components/dashboard/carte-revenus";
-import { BandeTerrain } from "@/components/dashboard/bande-terrain";
 import { PastilleDate, SectionTableau } from "@/components/dashboard/section-tableau";
+import { BandeauArchitectural } from "@/components/dashboard/bandeau-architectural";
+import { BandeIndicateurs } from "@/components/dashboard/bande-indicateurs";
+import { TravauxDuJour } from "@/components/dashboard/travaux-du-jour";
+import { AFaireAvancer, construireChosesAFaire } from "@/components/dashboard/a-faire-avancer";
+import { SurLeTerrain } from "@/components/dashboard/sur-le-terrain";
 import { SqueletteTableau } from "@/components/dashboard/squelette-tableau";
 import { formatCurrency, formatDate, formatTimeRange } from "@/lib/utils";
-import { dateLongueFrancais, jourEtMois, prenomDe } from "@/lib/dates-francais";
-import { getDashboardStats, getInvoices, getScheduleEvents } from "@/lib/data/tenant-data";
+import { jourEtMois } from "@/lib/dates-francais";
+import {
+  getDashboardStats,
+  getEmployees,
+  getInvoices,
+  getQuotes,
+  getScheduleEvents,
+} from "@/lib/data/tenant-data";
 import { getJobBillingSheet } from "@/lib/data/billing-data";
-import { getActiveFieldJobs } from "@/lib/field-workers";
+import { getActiveFieldWorkers } from "@/lib/field-workers";
 import { filterPendingReviewJobs, canApproveBilling } from "@/lib/job-workflow";
 import { DashboardReviewSection } from "@/components/dashboard/dashboard-review-section";
 import { requireTenantContext } from "@/lib/session";
 import { buildScheduleEventLink } from "@/lib/schedule-utils";
-import { cn } from "@/lib/utils";
+import {
+  aFacturer,
+  aPlanifier,
+  equipesActives,
+  outilsEnRetard,
+  travauxDuJour,
+} from "@/lib/tableau-de-bord-journee";
+import { getToolsWithDetails } from "@/lib/data/tools-data";
+import { bandeauDisponible } from "@/lib/ressource-publique";
 
-const interactiveRowClassName =
-  "flex items-start justify-between gap-3 rounded-lg border p-3 transition-colors duration-normal hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none";
+
+/**
+ * LES DÉCOMPTES S'ÉCRIVENT SUR DEUX CHIFFRES — « 08 », pas « 8 ».
+ *
+ * C'est la référence, et ce n'est pas qu'une coquetterie : quatre compteurs
+ * alignés dont l'un passe de 9 à 10 déplacent la ligne de base du regard.
+ * Deux chiffres fixent la largeur. Au-delà de 99, on écrit le nombre entier
+ * plutôt que de le tronquer.
+ */
+function deuxChiffres(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/** Le montant sans les cents : « 12 450 $ ». Un indicateur se lit, il ne se vérifie pas. */
+function montantCourt(montant: number): string {
+  return new Intl.NumberFormat("fr-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format(montant);
+}
 
 /**
  * LE CHÂSSIS PART SANS ATTENDRE LES CHIFFRES.
@@ -48,7 +79,6 @@ const interactiveRowClassName =
  */
 export default async function DashboardPage() {
   const ctx = await requireTenantContext();
-  const prenom = prenomDe(ctx.user.name);
 
   return (
     <DashboardLayout
@@ -58,29 +88,7 @@ export default async function DashboardPage() {
       user={ctx.user}
       isDemo={ctx.isDemo}
     >
-      <div className="mx-auto w-full max-w-[1600px] space-y-5">
-        <div>
-          <p className="text-right text-sm text-muted-foreground">{dateLongueFrancais()}</p>
-
-          <div className="mt-1 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-                {prenom ? `Bonjour ${prenom}` : "Bonjour"}
-              </h1>
-              <p className="mt-1 text-lg text-muted-foreground sm:text-xl">
-                Votre entreprise, en un coup d&apos;œil.
-              </p>
-            </div>
-
-            <Button asChild size="lg" className="shrink-0">
-              <Link href="/quotes">
-                <Plus className="h-4 w-4" aria-hidden />
-                Nouvelle soumission
-              </Link>
-            </Button>
-          </div>
-        </div>
-
+      <div className="mx-auto w-full max-w-[1600px] space-y-4">
         <Suspense fallback={<SqueletteTableau />}>
           <CorpsTableauDeBord />
         </Suspense>
@@ -91,13 +99,14 @@ export default async function DashboardPage() {
 
 async function CorpsTableauDeBord() {
   const ctx = await requireTenantContext();
-  const [stats, scheduleEvents, invoices] = await Promise.all([
+  const [stats, scheduleEvents, invoices, quotes, employees] = await Promise.all([
     getDashboardStats(ctx.company.id, ctx.isDemo),
     getScheduleEvents(ctx.company.id, ctx.isDemo),
     getInvoices(ctx.company.id, ctx.isDemo),
+    getQuotes(ctx.company.id, ctx.isDemo),
+    getEmployees(ctx.company.id, ctx.isDemo),
   ]);
 
-  const activeFieldJobs = getActiveFieldJobs(scheduleEvents);
   const pendingReviewJobs = filterPendingReviewJobs(scheduleEvents);
   const showReviewSection = canApproveBilling(ctx.membershipRole);
 
@@ -111,22 +120,52 @@ async function CorpsTableauDeBord() {
     );
   }
 
+  /*
+   * LES CHIFFRES DE LA JOURNÉE, TOUS TIRÉS DE DONNÉES EXISTANTES.
+   * Aucun n'est estimé : là où la donnée manquerait, le compteur ne serait
+   * pas affiché plutôt que rempli d'une valeur plausible.
+   */
+  const duJour = travauxDuJour(scheduleEvents);
+  const equipes = equipesActives(scheduleEvents);
+  const devisAPlanifier = aPlanifier(quotes, scheduleEvents);
+  const travauxAFacturer = aFacturer(scheduleEvents);
+
+  /*
+   * LE MONTANT À FACTURER — la somme des fiches des travaux prêts.
+   *
+   * Il n'existe nulle part ailleurs : `ScheduleEvent` ne porte pas de total,
+   * seule la fiche de facturation en a un. On les lit donc, plafonnées, et
+   * uniquement pour qui a le droit d'approuver la facturation. Sans ce
+   * droit, ou sans fiche, la valeur reste `null` et la carte affiche le
+   * décompte plutôt qu'un montant inventé.
+   */
+  let montantAFacturer: number | null = null;
+  if (showReviewSection) {
+    const fiches = await Promise.all(
+      travauxAFacturer.slice(0, 12).map((job) => getJobBillingSheet(ctx.company.id, job.id))
+    );
+    const connues = fiches.filter((f): f is NonNullable<typeof f> => f !== null);
+    if (connues.length > 0) {
+      montantAFacturer = connues.reduce((somme, f) => somme + f.total, 0);
+    }
+  }
+
+  // Les outils en retard : la même lecture que l'écran Outillage, pas un
+  // second inventaire.
+  const outils = await getToolsWithDetails(ctx.company.id, ctx.isDemo, employees);
+  const enRetard = outilsEnRetard(outils);
+
+  const travailleursDehors = getActiveFieldWorkers(scheduleEvents);
+  const occupes = new Set(travailleursDehors.map((t) => t.employeeId));
+  const disponibles = employees
+    .filter((e) => e.status === "active" && !occupes.has(e.id))
+    .slice(0, 3)
+    .map((e) => ({ id: e.id, nom: `${e.firstName} ${e.lastName}`.trim() }));
+
   const upcomingEvents = scheduleEvents.filter((e) => e.status === "scheduled").slice(0, 4);
   const recentInvoices = invoices.slice(0, 4);
   const isEmpty = !ctx.isDemo && customersCountIsZero(stats);
 
-  /*
-   * LA BANDE COMPACTE NE S'AFFICHE QU'À VIDE.
-   *
-   * Tant que personne n'est sur le terrain et que rien n'attend d'être
-   * vérifié, deux grandes cartes vides ne disent rien que deux chiffres à
-   * zéro ne diraient mieux dans une bande. Dès qu'il y a quelque chose, les
-   * sections détaillées reprennent leur place — avec leurs liens, leurs
-   * adresses et leurs actions. La nouvelle présentation ne rend rien
-   * inaccessible.
-   */
-  const terrainEtVerificationSontVides =
-    activeFieldJobs.length === 0 && (!showReviewSection || pendingReviewJobs.length === 0);
 
   return (
     <>
@@ -137,111 +176,114 @@ async function CorpsTableauDeBord() {
           />
         ) : (
           <>
-            {/* ───────── Les indicateurs ───────── */}
-            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-              {/* Les revenus prennent toute la largeur tant qu'il n'y a pas
-                  quatre colonnes : c'est le chiffre qu'on lit en premier. */}
-              <div className="col-span-2 xl:col-span-1">
-                <CarteRevenus montant={formatCurrency(stats.totalRevenue)} />
-              </div>
-              <StatCard
-                title="Projets actifs"
-                value={stats.activeProjects}
-                icon={FolderOpen}
-                href="/schedule"
-              />
-              <StatCard
-                title="Clients"
-                value={stats.totalCustomers}
-                icon={Users}
-                href="/customers"
-              />
-              {/*
-                L'ORANGE SIGNALE CE QUI ATTEND QUELQU'UN, et rien d'autre. Une
-                facture en attente est une somme qu'on n'a pas encore reçue ;
-                zéro facture en attente n'appelle aucune action, donc aucune
-                couleur.
-              */}
-              <StatCard
-                title="Factures en attente"
-                value={stats.pendingInvoices}
-                icon={FileText}
-                href="/invoices"
-                aAttirerLAttention={stats.pendingInvoices > 0}
-              />
+            {/* ───────── Le bandeau ───────── */}
+            {/*
+              LES CHEMINS NE SONT PASSÉS QUE SI LES FICHIERS EXISTENT.
+              Pointer vers une image absente ferait afficher l'icône d'image
+              cassée ; ici le bandeau retombe proprement sur son aplat.
+            */}
+            <BandeauArchitectural
+              titre="Tout est prêt pour une grande journée."
+              sousTitre="Vos équipes, vos chantiers, vos priorités."
+              image={bandeauDisponible("large")}
+              imageMobile={bandeauDisponible("mobile")}
+              action={{ libelle: "Planifier un travail", href: "/schedule" }}
+            />
+
+            {/* ───────── Les quatre chiffres de la journée ───────── */}
+            <BandeIndicateurs
+              indicateurs={[
+                {
+                  icone: HardHat,
+                  valeur: deuxChiffres(duJour.length),
+                  libelle: "Travaux aujourd'hui",
+                  href: "/schedule",
+                },
+                {
+                  icone: Users,
+                  valeur: deuxChiffres(equipes),
+                  libelle: "Équipes sur le terrain",
+                  href: "/schedule",
+                },
+                {
+                  icone: Calendar,
+                  valeur: deuxChiffres(devisAPlanifier.length),
+                  libelle: "Soumissions à relancer",
+                  href: "/quotes?statut=accepted",
+                  attire: devisAPlanifier.length > 0,
+                },
+                /*
+                  LE QUATRIÈME PORTE UN MONTANT, comme sur la référence —
+                  mais seulement quand l'utilisateur a le droit de voir la
+                  facturation ET que les fiches existent. Sinon il porte le
+                  décompte : un « 0 $ » affiché faute de donnée serait un
+                  chiffre faux, pas une valeur par défaut.
+                */
+                montantAFacturer !== null
+                  ? {
+                      icone: Receipt,
+                      valeur: montantCourt(montantAFacturer),
+                      libelle: "À facturer",
+                      href: "/reviews",
+                      attire: montantAFacturer > 0,
+                    }
+                  : {
+                      icone: Receipt,
+                      valeur: deuxChiffres(travauxAFacturer.length),
+                      libelle: "Travaux à facturer",
+                      href: "/reviews",
+                      attire: travauxAFacturer.length > 0,
+                    },
+              ]}
+            />
+
+            {/* ───────── À faire en priorité, avant les travaux ───────── */}
+            <AFaireAvancer
+              choses={construireChosesAFaire({
+                aPlanifier: devisAPlanifier.length,
+                aFacturer: travauxAFacturer.length,
+                outilsEnRetard: enRetard.length,
+              })}
+            />
+
+            {/* ───────── Travaux du jour · Équipe sur le terrain ───────── */}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+              <TravauxDuJour travaux={duJour} />
+              <SurLeTerrain travailleurs={travailleursDehors} disponibles={disponibles} />
             </div>
 
-            {/* ───────── Terrain et vérification ───────── */}
-            {terrainEtVerificationSontVides ? (
-              <BandeTerrain
-                terrain={{
-                  libelle: "Travailleurs sur le terrain",
-                  valeur: stats.employeesOnSite,
-                  vide: "Aucun travailleur présentement sur le terrain.",
-                  href: "/schedule",
-                }}
-                verifier={{
-                  libelle: "Travaux à vérifier",
-                  valeur: pendingReviewJobs.length,
-                  vide: "Aucun travail à vérifier pour le moment.",
-                  href: "/reviews",
-                }}
-              />
-            ) : (
-              <>
-                {activeFieldJobs.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <Link
-                        href="/schedule"
-                        className="group block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <CardTitle className="transition-colors group-hover:text-accent-encre">
-                          Travaux en cours
-                        </CardTitle>
-                        <CardDescription>
-                          Employés actuellement assignés à des appels actifs
-                        </CardDescription>
-                      </Link>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {activeFieldJobs.map((job) => (
-                          <Link
-                            key={job.jobId}
-                            href={buildScheduleEventLink({ id: job.jobId, start: job.start })}
-                            className={cn(interactiveRowClassName, "cursor-pointer")}
-                            aria-label={`Ouvrir ${job.title} dans le calendrier`}
-                          >
-                            <div className="min-w-0 space-y-1">
-                              <p className="text-sm font-medium">{job.title}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {job.employeeNames.join(", ")}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{job.customerName}</p>
-                              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-                                {job.address}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(job.start)} · {formatTimeRange(job.start, job.end)}
-                              </p>
-                            </div>
-                            <StatusBadge status={job.status} />
-                          </Link>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+            {/*
+              ───────── Ce qui attend une vérification ─────────
 
-                <DashboardReviewSection
-                  pendingJobs={pendingReviewJobs}
-                  billingTotals={billingTotals}
-                  showSection={showReviewSection}
-                />
-              </>
-            )}
+              LA BANDE « Travailleurs sur le terrain » ET LA CARTE « Travaux
+              en cours » ONT DISPARU. Toutes deux disaient ce que la section
+              « Sur le terrain » dit maintenant, plus haut et mieux : qui est
+              dehors, où, et dans quel état. Trois endroits pour une même
+              réponse, c'est deux de trop — et c'est ainsi qu'on finit par en
+              corriger un seul le jour où la règle change.
+
+              La vérification, elle, reste : elle porte des actions
+              d'approbation qu'aucune autre section ne remplace.
+            */}
+            <DashboardReviewSection
+              pendingJobs={pendingReviewJobs}
+              billingTotals={billingTotals}
+              showSection={showReviewSection}
+            />
+
+            {/*
+              ───────── Les revenus ─────────
+
+              LA MAQUETTE NE LES MONTRE PAS, et ce n'est pas une raison pour
+              les faire disparaître : `totalRevenue` ne s'affiche sur AUCUN
+              autre écran de l'application. Les retirer d'ici, c'était les
+              retirer tout court.
+
+              Ils descendent en revanche sous la journée : c'est un chiffre
+              qu'on regarde une fois par mois, pas à 6 h 30 devant son café.
+              Ils voisinent maintenant les factures, dont ils sont la somme.
+            */}
+            <CarteRevenus montant={formatCurrency(stats.totalRevenue)} />
 
             {/* ───────── Le calendrier et les factures ───────── */}
             <div className="grid gap-4 lg:grid-cols-2">

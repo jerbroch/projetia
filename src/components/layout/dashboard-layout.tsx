@@ -9,7 +9,6 @@ interface DashboardLayoutProps {
   company: Company;
   user: User;
   isDemo?: boolean;
-  hideHeaderSearch?: boolean;
 }
 
 /**
@@ -23,7 +22,6 @@ export function DashboardLayout({
   company,
   user,
   isDemo,
-  hideHeaderSearch,
 }: DashboardLayoutProps) {
   return (
     <ChassisNavigation
@@ -32,7 +30,6 @@ export function DashboardLayout({
       company={company}
       user={user}
       isDemo={isDemo}
-      hideHeaderSearch={hideHeaderSearch}
     >
       {children}
     </ChassisNavigation>

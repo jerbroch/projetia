@@ -23,7 +23,6 @@ export interface ChassisNavigationProps {
   company: Company;
   user: User;
   isDemo?: boolean;
-  hideHeaderSearch?: boolean;
 }
 
 export function ChassisNavigation({
@@ -33,7 +32,6 @@ export function ChassisNavigation({
   company,
   user,
   isDemo,
-  hideHeaderSearch,
 }: ChassisNavigationProps) {
   const [menuOuvert, setMenuOuvert] = useState(false);
 
@@ -54,7 +52,6 @@ export function ChassisNavigation({
           user={user}
           company={company}
           isDemo={isDemo}
-          hideSearch={hideHeaderSearch}
           onOuvrirMenu={() => setMenuOuvert(true)}
         />
         {/*
