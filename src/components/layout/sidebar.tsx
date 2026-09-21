@@ -86,7 +86,7 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
         <Link
           href="/dashboard"
           onClick={onFermer}
-          className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-petrole"
+          className="flex flex-col items-start gap-1.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-petrole"
         >
           {company.logoUrl ? (
             /* Le logo personnalisé passe avant la marque : c'est l'entreprise
@@ -100,7 +100,9 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
           ) : (
             /* L'immeuble, pas la maison : la référence visuelle montre des
                volumes à étages, et l'écran s'adresse aussi au commercial. */
-            <MarqueImmeuble className="text-petrole-foreground" taille={30} />
+            /* L'immeuble est ORANGE sur la référence : c'est la seule
+               touche de couleur du haut du menu, et elle signe la marque. */
+            <MarqueImmeuble className="text-primary" taille={34} />
           )}
           {/*
             « CONSTRUCTION iOS » EN CAPITALES ESPACÉES, le « iOS » plus
@@ -112,9 +114,13 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
             transformait en « IOS » — ce n'est plus la marque, c'est un
             acronyme. La capitale ne s'applique donc qu'au premier mot.
           */}
-          <span className="truncate text-[0.9375rem] font-semibold text-petrole-foreground">
-            <span className="uppercase tracking-[0.08em]">Construction</span>{" "}
-            <span className="font-extrabold">iOS</span>
+          {/*
+            « Construction iOS » EN CASSE NORMALE. La référence l'écrit ainsi,
+            et les capitales détruisaient le « i » minuscule qui fait la
+            marque : « CONSTRUCTION IOS » se lit comme un acronyme.
+          */}
+          <span className="truncate text-[1.0625rem] font-bold tracking-tight text-petrole-foreground">
+            Construction <span className="text-primary">iOS</span>
           </span>
         </Link>
 
@@ -200,11 +206,11 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
             devise et la rendaient illisible. */}
         <MotifArchitectural className="absolute bottom-0 right-0 h-full w-[78%] text-petrole-foreground opacity-[0.18]" />
         <p className="absolute bottom-5 left-5 text-[9px] font-medium uppercase leading-[1.8] tracking-[0.16em] text-petrole-foreground/40">
-          Bâtir aujourd&apos;hui
+          Bâtir
           <br />
-          un meilleur
+          des gens
           <br />
-          demain
+          de confiance
         </p>
       </div>
 
@@ -212,7 +218,7 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
       <Link
         href="/settings"
         onClick={onFermer}
-        className="flex shrink-0 items-center gap-3 border-t border-white/10 px-5 py-3.5 transition-colors duration-normal hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none"
+        className="flex shrink-0 items-center gap-3 border-t border-white/10 px-5 py-3.5 lg:hidden transition-colors duration-normal hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none"
       >
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-petrole-foreground">
           {initiales(user.name)}
@@ -248,7 +254,7 @@ export function Sidebar({ company, user, isDemo, ouvert, onFermer }: SidebarProp
         {contenu}
       </aside>
 
-      <aside className="hidden w-[17.5rem] shrink-0 flex-col bg-petrole lg:flex">{contenu}</aside>
+      <aside className="hidden w-[13.75rem] shrink-0 flex-col bg-petrole lg:flex">{contenu}</aside>
     </>
   );
 }

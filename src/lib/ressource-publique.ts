@@ -43,19 +43,19 @@ export function imageSiPresente(chemin: string): string | undefined {
  * Écrits ici plutôt que dans chaque composant : le jour où le nom change, il
  * change à un endroit, et les deux bandeaux suivent.
  *
- * UN SEUL FICHIER EST LIVRÉ. Les cadrages téléphone et intermédiaire portent
- * un nom réservé mais n'existent pas encore : `bandeauDisponible` retombe
- * alors sur l'image large. Déposer un cadrage dédié l'active aussitôt, sans
- * toucher au code — et tant qu'il n'existe pas, on ne sert pas trois copies
- * identiques de la même image.
+ * DEUX CADRAGES SONT LIVRÉS — large et téléphone — en WebP : le même
+ * découpage pesait 192 Ko en PNG et 28 Ko ici, pour une image que tout
+ * navigateur actuel sait lire. Le cadrage intermédiaire porte un nom réservé
+ * mais n'existe pas : `bandeauDisponible` retombe alors sur l'image large
+ * plutôt que de servir une copie identique sous un troisième nom.
  */
 export const BANDEAU_CHANTIER = {
   /** Le rendu de l'immeuble, ancré à droite du bandeau. */
-  large: "/bandeau-chantier.png",
+  large: "/bandeau-chantier.webp",
   /** Cadrage intermédiaire, si un jour il est fourni. */
-  moyen: "/bandeau-chantier@1x.png",
+  moyen: "/bandeau-chantier@1x.webp",
   /** Cadrage téléphone, plus serré, si un jour il est fourni. */
-  mobile: "/bandeau-chantier-mobile.png",
+  mobile: "/bandeau-chantier-mobile.webp",
 } as const;
 
 /** Le cadrage demandé s'il existe, sinon l'image large, sinon rien. */

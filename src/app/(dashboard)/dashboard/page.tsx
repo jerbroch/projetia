@@ -4,14 +4,12 @@ import {
   Calendar,
   HardHat,
   MapPin,
-  Plus,
   Receipt,
   Users,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Button } from "@/components/ui/button";
 import { CarteRevenus } from "@/components/dashboard/carte-revenus";
 import { PastilleDate, SectionTableau } from "@/components/dashboard/section-tableau";
 import { BandeauArchitectural } from "@/components/dashboard/bandeau-architectural";
@@ -21,7 +19,7 @@ import { AFaireAvancer, construireChosesAFaire } from "@/components/dashboard/a-
 import { SurLeTerrain } from "@/components/dashboard/sur-le-terrain";
 import { SqueletteTableau } from "@/components/dashboard/squelette-tableau";
 import { formatCurrency, formatDate, formatTimeRange } from "@/lib/utils";
-import { jourEtMois, prenomDe } from "@/lib/dates-francais";
+import { jourEtMois } from "@/lib/dates-francais";
 import {
   getDashboardStats,
   getEmployees,
@@ -38,7 +36,6 @@ import { buildScheduleEventLink } from "@/lib/schedule-utils";
 import {
   aFacturer,
   aPlanifier,
-  dateDuJourEnLettres,
   equipesActives,
   outilsEnRetard,
   travauxDuJour,
@@ -46,6 +43,27 @@ import {
 import { getToolsWithDetails } from "@/lib/data/tools-data";
 import { bandeauDisponible } from "@/lib/ressource-publique";
 
+
+/**
+ * LES DÉCOMPTES S'ÉCRIVENT SUR DEUX CHIFFRES — « 08 », pas « 8 ».
+ *
+ * C'est la référence, et ce n'est pas qu'une coquetterie : quatre compteurs
+ * alignés dont l'un passe de 9 à 10 déplacent la ligne de base du regard.
+ * Deux chiffres fixent la largeur. Au-delà de 99, on écrit le nombre entier
+ * plutôt que de le tronquer.
+ */
+function deuxChiffres(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/** Le montant sans les cents : « 12 450 $ ». Un indicateur se lit, il ne se vérifie pas. */
+function montantCourt(montant: number): string {
+  return new Intl.NumberFormat("fr-CA", {
+    style: "currency",
+    currency: "CAD",
+    maximumFractionDigits: 0,
+  }).format(montant);
+}
 
 /**
  * LE CHÂSSIS PART SANS ATTENDRE LES CHIFFRES.
@@ -61,7 +79,6 @@ import { bandeauDisponible } from "@/lib/ressource-publique";
  */
 export default async function DashboardPage() {
   const ctx = await requireTenantContext();
-  const prenom = prenomDe(ctx.user.name);
 
   return (
     <DashboardLayout
@@ -71,33 +88,7 @@ export default async function DashboardPage() {
       user={ctx.user}
       isDemo={ctx.isDemo}
     >
-      <div className="mx-auto w-full max-w-[1600px] space-y-5">
-        <div>
-          <div className="mt-1 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              {/*
-                LE TITRE PARLE DE LA JOURNÉE, LA SALUTATION VIENT APRÈS.
-                « Bonjour Jérôme » en grand disait bonjour ; il ne disait rien
-                du travail. La référence inverse l'ordre, et elle a raison :
-                on ouvre cet écran pour savoir où on en est.
-              */}
-              <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-                Votre journée, en maîtrise.
-              </h1>
-              <p className="mt-1.5 text-base text-muted-foreground sm:text-lg">
-                {prenom ? `Bonjour ${prenom}` : "Bonjour"} · {dateDuJourEnLettres()}
-              </p>
-            </div>
-
-            <Button asChild size="lg" className="shrink-0">
-              <Link href="/schedule">
-                <Plus className="h-4 w-4" aria-hidden />
-                Créer un appel
-              </Link>
-            </Button>
-          </div>
-        </div>
-
+      <div className="mx-auto w-full max-w-[1600px] space-y-4">
         <Suspense fallback={<SqueletteTableau />}>
           <CorpsTableauDeBord />
         </Suspense>
@@ -139,6 +130,26 @@ async function CorpsTableauDeBord() {
   const devisAPlanifier = aPlanifier(quotes, scheduleEvents);
   const travauxAFacturer = aFacturer(scheduleEvents);
 
+  /*
+   * LE MONTANT À FACTURER — la somme des fiches des travaux prêts.
+   *
+   * Il n'existe nulle part ailleurs : `ScheduleEvent` ne porte pas de total,
+   * seule la fiche de facturation en a un. On les lit donc, plafonnées, et
+   * uniquement pour qui a le droit d'approuver la facturation. Sans ce
+   * droit, ou sans fiche, la valeur reste `null` et la carte affiche le
+   * décompte plutôt qu'un montant inventé.
+   */
+  let montantAFacturer: number | null = null;
+  if (showReviewSection) {
+    const fiches = await Promise.all(
+      travauxAFacturer.slice(0, 12).map((job) => getJobBillingSheet(ctx.company.id, job.id))
+    );
+    const connues = fiches.filter((f): f is NonNullable<typeof f> => f !== null);
+    if (connues.length > 0) {
+      montantAFacturer = connues.reduce((somme, f) => somme + f.total, 0);
+    }
+  }
+
   // Les outils en retard : la même lecture que l'écran Outillage, pas un
   // second inventaire.
   const outils = await getToolsWithDetails(ctx.company.id, ctx.isDemo, employees);
@@ -172,9 +183,11 @@ async function CorpsTableauDeBord() {
               cassée ; ici le bandeau retombe proprement sur son aplat.
             */}
             <BandeauArchitectural
-              titre="Une équipe. Une vue d'ensemble."
-              sousTitre="Vos chantiers avancent, gardez le cap."
+              titre="Tout est prêt pour une grande journée."
+              sousTitre="Vos équipes, vos chantiers, vos priorités."
               image={bandeauDisponible("large")}
+              imageMobile={bandeauDisponible("mobile")}
+              action={{ libelle: "Planifier un travail", href: "/schedule" }}
             />
 
             {/* ───────── Les quatre chiffres de la journée ───────── */}
@@ -182,47 +195,62 @@ async function CorpsTableauDeBord() {
               indicateurs={[
                 {
                   icone: HardHat,
-                  valeur: duJour.length,
-                  libelle: "Travaux du jour",
+                  valeur: deuxChiffres(duJour.length),
+                  libelle: "Travaux aujourd'hui",
                   href: "/schedule",
                 },
                 {
                   icone: Users,
-                  valeur: equipes,
-                  libelle: "Équipes actives",
+                  valeur: deuxChiffres(equipes),
+                  libelle: "Équipes sur le terrain",
                   href: "/schedule",
                 },
                 {
                   icone: Calendar,
-                  valeur: devisAPlanifier.length,
-                  libelle: "À planifier",
-                  href: "/quotes",
-                  attire: true,
+                  valeur: deuxChiffres(devisAPlanifier.length),
+                  libelle: "Soumissions à relancer",
+                  href: "/quotes?statut=accepted",
+                  attire: devisAPlanifier.length > 0,
                 },
-                {
-                  icone: Receipt,
-                  valeur: travauxAFacturer.length,
-                  libelle: "À facturer",
-                  href: "/reviews",
-                  attire: true,
-                },
+                /*
+                  LE QUATRIÈME PORTE UN MONTANT, comme sur la référence —
+                  mais seulement quand l'utilisateur a le droit de voir la
+                  facturation ET que les fiches existent. Sinon il porte le
+                  décompte : un « 0 $ » affiché faute de donnée serait un
+                  chiffre faux, pas une valeur par défaut.
+                */
+                montantAFacturer !== null
+                  ? {
+                      icone: Receipt,
+                      valeur: montantCourt(montantAFacturer),
+                      libelle: "À facturer",
+                      href: "/reviews",
+                      attire: montantAFacturer > 0,
+                    }
+                  : {
+                      icone: Receipt,
+                      valeur: deuxChiffres(travauxAFacturer.length),
+                      libelle: "Travaux à facturer",
+                      href: "/reviews",
+                      attire: travauxAFacturer.length > 0,
+                    },
               ]}
             />
 
-            {/* ───────── Travaux du jour · À faire avancer ───────── */}
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
-              <TravauxDuJour travaux={duJour} />
-              <AFaireAvancer
-                choses={construireChosesAFaire({
-                  aPlanifier: devisAPlanifier.length,
-                  aFacturer: travauxAFacturer.length,
-                  outilsEnRetard: enRetard.length,
-                })}
-              />
-            </div>
+            {/* ───────── À faire en priorité, avant les travaux ───────── */}
+            <AFaireAvancer
+              choses={construireChosesAFaire({
+                aPlanifier: devisAPlanifier.length,
+                aFacturer: travauxAFacturer.length,
+                outilsEnRetard: enRetard.length,
+              })}
+            />
 
-            {/* ───────── Sur le terrain ───────── */}
-            <SurLeTerrain travailleurs={travailleursDehors} disponibles={disponibles} />
+            {/* ───────── Travaux du jour · Équipe sur le terrain ───────── */}
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+              <TravauxDuJour travaux={duJour} />
+              <SurLeTerrain travailleurs={travailleursDehors} disponibles={disponibles} />
+            </div>
 
             {/*
               ───────── Ce qui attend une vérification ─────────

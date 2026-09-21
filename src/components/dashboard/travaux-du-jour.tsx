@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronRight, MapPin } from "lucide-react";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { buildScheduleEventLink } from "@/lib/schedule-utils";
 import { heureCourte, initialesDe } from "@/lib/tableau-de-bord-journee";
@@ -21,6 +21,18 @@ interface TravauxDuJourProps {
   travaux: ScheduleEvent[];
   /** Ligne mise en avant si elle est en cours, comme sur la référence. */
   className?: string;
+}
+
+/**
+ * LE LIEU, COURT. L'adresse complète ne tient pas dans une colonne de
+ * tableau ; la référence n'affiche d'ailleurs que la municipalité. On prend
+ * le dernier segment significatif de l'adresse, et rien si elle est absente.
+ */
+function villeDe(job: ScheduleEvent): string | null {
+  const brut = job.jobSiteAddress?.trim() || job.location?.trim();
+  if (!brut) return null;
+  const parts = brut.split(",").map((p) => p.trim()).filter(Boolean);
+  return parts.length > 1 ? parts[parts.length - 1] : brut;
 }
 
 /** Les pastilles d'équipe, deux lettres chacune. */
@@ -51,7 +63,7 @@ function Equipe({ noms }: { noms: string[] }) {
 export function TravauxDuJour({ travaux, className }: TravauxDuJourProps) {
   return (
     <section
-      className={cn("rounded-2xl border border-border bg-card shadow-sm", className)}
+      className={cn("rounded-xl border border-border bg-card shadow-carte", className)}
       aria-labelledby="titre-travaux-du-jour"
     >
       <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
@@ -62,7 +74,7 @@ export function TravauxDuJour({ travaux, className }: TravauxDuJourProps) {
           href="/schedule"
           className="flex shrink-0 items-center gap-1 rounded-md text-sm font-medium text-accent-encre transition-colors duration-normal hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
         >
-          Voir l&apos;horaire
+          Voir tout
           <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </header>
@@ -92,7 +104,7 @@ export function TravauxDuJour({ travaux, className }: TravauxDuJourProps) {
             </colgroup>
             <thead>
               <tr className="border-y border-border text-left">
-                {["Heure", "Client", "Description", "Équipe", "Statut"].map((t) => (
+                {["Heure", "Client / Lieu", "Description", "Équipe", "Statut"].map((t) => (
                   <th
                     key={t}
                     scope="col"
@@ -107,6 +119,7 @@ export function TravauxDuJour({ travaux, className }: TravauxDuJourProps) {
             <tbody className="divide-y divide-border">
               {travaux.map((job) => {
                 const enCours = job.status === "in-progress" || job.status === "en-route";
+                const lieu = villeDe(job);
                 return (
                   <tr key={job.id} className="group transition-colors hover:bg-secondary/40">
                     <td className="relative py-3 pl-5 pr-3 align-middle">
@@ -126,7 +139,18 @@ export function TravauxDuJour({ travaux, className }: TravauxDuJourProps) {
                       </span>
                     </td>
                     <td className="px-3 py-3 align-middle text-sm font-medium text-foreground">
-                      <span className="line-clamp-2">{job.customerName ?? "Client"}</span>
+                      <span className="line-clamp-1 block">{job.customerName ?? "Client"}</span>
+                      {/*
+                        LE LIEU SOUS LE CLIENT — il n'apparaît que s'il
+                        existe vraiment. Une ligne « lieu à confirmer » sous
+                        chaque travail ferait du bruit sans rien apprendre.
+                      */}
+                      {lieu && (
+                        <span className="mt-0.5 flex items-center gap-1 text-[12px] font-normal text-muted-foreground">
+                          <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                          <span className="line-clamp-1">{lieu}</span>
+                        </span>
+                      )}
                     </td>
                     <td className="px-3 py-3 align-middle text-sm text-muted-foreground">
                       <span className="line-clamp-1">{job.title}</span>
@@ -170,6 +194,12 @@ export function TravauxDuJour({ travaux, className }: TravauxDuJourProps) {
                     <span className="mt-1 block text-sm font-medium text-foreground">
                       {job.customerName ?? "Client"}
                     </span>
+                    {villeDe(job) && (
+                      <span className="mt-0.5 flex items-center gap-1 text-[12px] text-muted-foreground">
+                        <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                        <span className="line-clamp-1">{villeDe(job)}</span>
+                      </span>
+                    )}
                     <span className="mt-0.5 line-clamp-1 block text-[13px] text-muted-foreground">
                       {job.title}
                     </span>

@@ -1,167 +1,180 @@
+import Link from "next/link";
+import { ArrowRight, CalendarPlus } from "lucide-react";
 import { MotifArchitectural } from "@/components/brand/motif-architectural";
 import { cn } from "@/lib/utils";
 
 /**
- * LE BANDEAU DE L'ACCUEIL — « Une équipe. Une vue d'ensemble. »
+ * LE BANDEAU DE L'ACCUEIL — la bande sombre de la référence.
+ *
+ * Composition, de gauche à droite : le titre en deux lignes, le sous-titre,
+ * le bouton orange, une colonne de verbes très en retrait, puis le rendu
+ * architectural collé au bord droit. Les lignes de plan passent entre les
+ * deux et font la jointure.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * CE QUI MANQUE, ET QUE JE NE PRÉTENDS PAS AVOIR REPRODUIT.
+ * SUR L'IMAGE, ET SANS EMBELLISSEMENT.
  *
- * La référence superpose deux choses : un RENDU ARCHITECTURAL RÉALISTE d'un
- * immeuble, et des lignes de plan par-dessus. Le dépôt ne contient aucune
- * image de ce genre — `public/` ne porte que le logo Stripe, et les
- * composants de marque sont des tracés SVG.
+ * `public/bandeau-chantier.webp` est un DÉCOUPAGE de la maquette de
+ * référence — 445 × 216 px. Il ne contient ni texte d'interface ni bouton :
+ * la zone a été choisie entre les deux blocs de texte incrustés. Mais à
+ * cette taille il est affiché autour de 1,4× sur un écran ordinaire, et
+ * 2,8× sur un écran haute densité. CE N'EST PAS UN ASSET DÉFINITIF.
  *
- * On ne fabrique pas un rendu photoréaliste avec des primitives SVG. Trois
- * cubes en dégradé ne seraient pas « presque » l'image demandée : ce serait
- * une autre image, moins bonne, présentée comme la bonne.
+ * Le fichier attendu, aux mêmes cadrage et composition :
  *
- * Ce composant est donc construit pour ACCUEILLIR le fichier :
- *   • s'il est présent, il occupe le bandeau et les lignes passent dessus ;
- *   • s'il manque, le bandeau reste un aplat pétrole tenu par sa typographie
- *     et son motif au trait — présentable, et honnête sur ce qu'il est.
+ *   `public/bandeau-chantier.webp`        1600 × 560 px  (≈ 2,9:1)
+ *   `public/bandeau-chantier-mobile.webp`  900 × 700 px  (≈ 1,3:1)
  *
- * FICHIERS ATTENDUS — les noms vivent dans `BANDEAU_CHANTIER`, et la page
- * ne les passe que s'ils existent VRAIMENT sur le disque. Les déposer suffit.
- *
- *   `public/bandeau-chantier.webp`        2400 × 900 px (8:3), q82, < 250 Ko
- *   `public/bandeau-chantier@1x.webp`     1200 × 450 px (8:3), q80, < 120 Ko
- *   `public/bandeau-chantier-mobile.webp` 1200 × 600 px (2:1), q80, < 120 Ko
- *
- *   • sujet : immeuble en construction vu de trois quarts, cadré à DROITE,
- *     tiers gauche dégagé pour que le texte reste lisible
- *   • lumière froide, dominante bleutée, pour se marier au pétrole #102D3B
+ * Le déposer sous le même nom suffit : aucune ligne de code à changer.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
 interface BandeauArchitecturalProps {
   titre: string;
   sousTitre: string;
-  /** Rendu large (8:3). Absent : le bandeau tient sans lui. */
+  /** Rendu large, ancré à droite. Absent : le bandeau tient sans lui. */
   image?: string;
+  /** Cadrage plus serré pour les petits écrans. */
+  imageMobile?: string;
+  /** L'action principale de la journée, reliée à un parcours réel. */
+  action?: { libelle: string; href: string };
   className?: string;
 }
 
-/** Les trois mots de la colonne de droite, comme sur la référence. */
-const DEVISE = ["Planifier", "Bâtir", "Avancer"];
+/** Les verbes de la référence, en colonne, très en retrait. */
+const VERBES = ["Planifier", "Coordonner", "Réaliser", "Bâtir plus loin"];
 
 export function BandeauArchitectural({
   titre,
   sousTitre,
   image,
+  imageMobile,
+  action,
   className,
 }: BandeauArchitecturalProps) {
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-2xl bg-petrole text-petrole-foreground",
-        // Plus bas tant que le rendu manque : un grand aplat vide se
-        // remarque, alors qu'une bande tenue par sa typographie ne se
-        // remarque pas. L'image, quand elle arrivera, mérite la hauteur.
-        image
-          ? "min-h-[168px] sm:min-h-[200px] lg:min-h-[232px]"
-          : "min-h-[140px] sm:min-h-[156px] lg:min-h-[172px]",
+        "relative isolate overflow-hidden rounded-xl bg-petrole-sombre text-petrole-foreground",
+        // Hauteur contenue : le bandeau ne doit pas repousser les compteurs
+        // hors de l'écran sur un portable de 800 px de haut.
+        "min-h-[168px] sm:min-h-[188px] lg:min-h-[208px]",
         className,
       )}
     >
       {image && (
         /*
-          UN CADRAGE PAR FORMAT, PAS UNE IMAGE ÉTIRÉE.
+          UN CADRAGE PAR FORMAT. Le rendu large est ancré à droite et garde
+          sa proportion ; sous 640 px, le cadrage serré prend le relais et
+          n'occupe que le tiers droit, sinon le titre n'a plus de place.
 
-          Le même fichier 8:3 posé sur un téléphone donnerait un immeuble
-          minuscule dans une bande étroite. `<picture>` sert donc le cadrage
-          vertical sous 640 px, et le navigateur ne télécharge que celui
-          qu'il affiche — sur une connexion de chantier, c'est 120 Ko au lieu
-          de 250.
+          `width`/`height` sont déclarés : sans eux, la bande se réajuste à
+          l'arrivée de l'image et pousse la page d'un cran.
 
-          `aria-hidden` : l'image n'ajoute rien qu'un lecteur d'écran doive
-          entendre, le titre dit déjà tout.
-        */
-        /*
-          L'IMMEUBLE EST ANCRÉ À DROITE, À SA PROPORTION NATURELLE.
-
-          `object-cover` sur toute la largeur l'aurait agrandi de deux fois et
-          demie pour remplir un bandeau bien plus large que lui, en rognant le
-          haut et le bas. Ici il garde son rapport, occupe la hauteur, et se
-          colle au bord droit — exactement la composition de la référence. Le
-          pétrole occupe naturellement ce qui reste à gauche, sous le texte.
-
-          Image décorative déjà dimensionnée : `next/image` n'aurait rien à
+          Image décorative déjà dimensionnée — `next/image` n'aurait rien à
           optimiser ici et ajouterait un chargeur.
         */
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={image}
-          alt=""
-          aria-hidden
-          className="absolute inset-y-0 right-0 h-full w-auto max-w-[70%] object-cover object-left sm:max-w-[62%]"
-        />
+        <picture>
+          {imageMobile && <source media="(max-width: 639px)" srcSet={imageMobile} />}
+          <img
+            src={image}
+            alt=""
+            aria-hidden
+            width={445}
+            height={216}
+            decoding="async"
+            className={cn(
+              "absolute inset-y-0 right-0 -z-10 h-full w-auto object-cover object-left",
+              "max-w-[46%] sm:max-w-[56%] lg:max-w-[52%]",
+              /*
+                LE BORD GAUCHE DE L'IMAGE S'EFFACE.
+
+                Le dégradé posé PAR-DESSUS laissait encore une arête nette :
+                il s'éclaircit progressivement, l'image commence d'un coup.
+                Un masque sur l'image elle-même règle la jointure à la
+                source — l'immeuble naît du pétrole au lieu d'y être collé.
+              */
+              "[-webkit-mask-image:linear-gradient(to_right,transparent_0%,black_26%)]",
+              "[mask-image:linear-gradient(to_right,transparent_0%,black_26%)]",
+            )}
+          />
+        </picture>
       )}
 
       {/*
-        LE VOILE QUI REND LE TEXTE LISIBLE.
-
-        Sans lui, un titre blanc posé sur une façade claire devient illisible
-        dès que l'image change. Le dégradé part du pétrole plein à gauche et
-        s'efface vers la droite : le texte garde son fond, l'immeuble garde sa
-        lumière.
+        LE VOILE. Il part du pétrole plein à gauche et s'efface vers la
+        droite : le texte garde son fond, l'immeuble garde sa lumière, et
+        l'arête de découpe tombe dans la partie encore opaque.
       */}
       <div
         aria-hidden
         className={cn(
-          "absolute inset-0",
-          /*
-            LE VOILE COUVRE LA JOINTURE DE L'IMAGE.
-
-            L'immeuble est découpé : son bord gauche laisse une arête nette au
-            milieu du bandeau. Le dégradé reste opaque jusqu'à la moitié, puis
-            s'efface — l'arête tombe dans la partie encore pleine et ne se voit
-            plus, pendant que l'immeuble garde sa lumière à droite.
-          */
+          "absolute inset-0 -z-10",
           image
-            ? "bg-gradient-to-r from-petrole from-40% via-petrole/80 via-62% to-petrole/15"
-            : "bg-gradient-to-r from-petrole to-petrole-doux/60",
+            ? "bg-gradient-to-r from-petrole-sombre from-30% via-petrole-sombre/70 via-52% to-transparent"
+            : "bg-gradient-to-r from-petrole-sombre to-petrole",
         )}
       />
 
-      {/* Les lignes de plan, par-dessus. C'est la moitié que nous avons. */}
+      {/* Les lignes de plan, entre le texte et le rendu. */}
       <MotifArchitectural
-        className="pointer-events-none absolute bottom-0 right-0 h-full w-[62%] text-petrole-foreground opacity-[0.16]"
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-[30%] -z-10 hidden h-full w-[34%] text-petrole-foreground opacity-[0.22] md:block"
       />
 
-      <div className="relative flex h-full items-center gap-6 px-5 py-6 sm:px-7 sm:py-8">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-balance text-xl font-bold leading-tight sm:text-2xl lg:text-[1.75rem]">
+      <div className="relative flex h-full items-center gap-6 px-5 py-6 sm:px-7 sm:py-7 lg:px-8">
+        <div className="min-w-0 max-w-[30rem] flex-1">
+          <h1 className="text-balance text-[1.375rem] font-extrabold leading-[1.15] tracking-tight sm:text-[1.625rem] lg:text-[1.875rem]">
             {titre}
-          </h2>
-          <p className="mt-1.5 max-w-md text-sm leading-relaxed text-petrole-foreground/75 sm:text-base">
+          </h1>
+          <p className="mt-2 text-sm leading-snug text-petrole-foreground/80 sm:text-[0.9375rem]">
             {sousTitre}
           </p>
-          <span
-            aria-hidden
-            className="mt-4 block h-px w-16 bg-petrole-foreground/30"
-          />
+
+          {action && (
+            <Link
+              href={action.href}
+              className={cn(
+                "mt-4 inline-flex min-h-[44px] items-center gap-2.5 rounded-[10px] bg-primary px-4 text-[0.9375rem] font-bold text-primary-foreground sm:px-5",
+                "transition-colors duration-normal hover:bg-primary/90 motion-reduce:transition-none",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-petrole-sombre",
+              )}
+            >
+              <CalendarPlus className="h-[18px] w-[18px] shrink-0" aria-hidden />
+              {action.libelle}
+              <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+            </Link>
+          )}
         </div>
 
         {/*
-          La devise en colonne, très en retrait. Masquée sous `lg` : sur un
-          écran étroit elle mangerait la largeur du titre pour trois mots qui
-          n'apportent rien d'actionnable.
+          Les verbes, masqués sous `lg` : sur un écran étroit ils mangeraient
+          la largeur du titre pour quatre mots qui n'appellent aucune action.
         */}
-        <ul
-          aria-hidden
-          className="hidden shrink-0 space-y-1.5 border-l border-petrole-foreground/20 pl-5 lg:block"
-        >
-          {DEVISE.map((mot) => (
+        <ul aria-hidden className="hidden shrink-0 space-y-2 lg:block">
+          {VERBES.map((mot) => (
             <li
               key={mot}
-              className="text-[10px] font-semibold uppercase tracking-[0.18em] text-petrole-foreground/55"
+              className="text-[10px] font-semibold uppercase tracking-[0.16em] text-petrole-foreground/45"
             >
               {mot}
             </li>
           ))}
         </ul>
       </div>
+
+      {/*
+        La mention du coin droit, comme sur la référence — en VRAI texte,
+        pas incrustée dans l'image : elle reste sélectionnable, traduisible,
+        et suit la taille de police du système.
+      */}
+      <p
+        aria-hidden
+        className="absolute right-6 top-7 hidden w-[7rem] text-[9px] font-semibold uppercase leading-[1.9] tracking-[0.18em] text-petrole-foreground/55 xl:block"
+      >
+        Des projets qui bâtissent demain
+        <span className="mt-2 block h-px w-8 bg-primary" />
+      </p>
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, Clock, MapPin, Navigation, Phone } from "lucide-react";
+import { Check, ChevronRight, Clock, MapPin, Navigation, Phone } from "lucide-react";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatFieldJobTime } from "@/lib/field-schedule-utils";
 import { lienItineraire } from "@/lib/terrain-aujourdhui";
@@ -124,21 +124,30 @@ export function ProchaineIntervention({
         )}
 
         {/*
-          LE BOUTON DIT CE QU'IL FAIT, ET RIEN DE PLUS.
+          LE BOUTON SUIT LE STATUT RÉEL DU TRAVAIL.
 
-          La référence l'appelle « Terminer le travail ». Ce bouton ouvre la
-          fiche : il s'appelle donc « Ouvrir l'intervention ». La clôture
-          existe toujours, entière, à l'intérieur — avec ses heures et ses
-          matériaux, que l'application exige avant de laisser terminer. Un
-          libellé qui promet de terminer d'un seul geste mentirait sur les
-          deux écrans à la fois.
+          Quand l'intervention est commencée, il porte le libellé de la
+          référence — « Terminer le travail ». Il OUVRE la fiche de clôture :
+          les heures et les matériaux que l'application exige avant de
+          terminer sont demandés là, et rien n'est clôturé d'un seul geste.
+          Tant que le travail n'est pas commencé, promettre de le terminer
+          n'aurait aucun sens : le bouton ouvre alors l'intervention.
         */}
         <Link
           href={`/terrain/calls/${job.id}`}
-          className="mt-2 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[15px] font-semibold text-primary-foreground transition-colors duration-normal hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole focus-visible:ring-offset-2 motion-reduce:transition-none"
+          className="mt-2 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[10px] bg-primary px-4 text-[15px] font-bold text-primary-foreground transition-colors duration-normal hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-petrole focus-visible:ring-offset-2 motion-reduce:transition-none"
         >
-          Ouvrir l&apos;intervention
-          <ChevronRight className="h-4 w-4" aria-hidden />
+          {enCours ? (
+            <>
+              Terminer le travail
+              <Check className="h-[18px] w-[18px]" aria-hidden />
+            </>
+          ) : (
+            <>
+              Ouvrir l&apos;intervention
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </>
+          )}
         </Link>
       </div>
     </article>

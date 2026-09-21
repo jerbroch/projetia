@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, ChevronDown, LogOut, Menu, Search, Shield, User } from "lucide-react";
+import { Bell, Building2, ChevronDown, ChevronRight, LogOut, Menu, Search, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,14 @@ interface HeaderProps {
   hideSearch?: boolean;
   /** Ouvre le menu sur téléphone. Le bouton vit ici, pas par-dessus la page. */
   onOuvrirMenu?: () => void;
+}
+
+/** « Jérôme Brochu » → « Jérôme B. ». Le nom entier vit dans le menu déroulant. */
+function nomCourt(nom: string | undefined | null): string {
+  const parts = (nom ?? "").split(" ").filter(Boolean);
+  if (parts.length === 0) return "Mon compte";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 }
 
 export function Header({
@@ -95,8 +103,9 @@ export function Header({
           retiré. Sur téléphone, le nom de l'entreprise prend cette place —
           le menu bleu pétrole y est replié et emporte la seule marque.
         */}
-        <span className="hidden text-sm font-medium text-muted-foreground lg:inline">
-          Vue d&apos;ensemble
+        <span className="hidden items-center gap-1.5 text-sm font-semibold text-foreground lg:inline-flex">
+          Espace employeur
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
         </span>
         <span className="truncate text-sm font-semibold tracking-tight lg:hidden">
           {company.name}
@@ -120,7 +129,7 @@ export function Header({
             <Input
               type="search"
               aria-label="Rechercher"
-              placeholder="Rechercher un client, une soumission, une facture..."
+              placeholder="Rechercher un client, un chantier, une facture..."
               className="h-10 rounded-full border-border/80 pl-10 sm:h-10"
             />
           </div>
@@ -168,8 +177,23 @@ export function Header({
                 {initials}
               </AvatarFallback>
             </Avatar>
+            {/*
+              LE NOM REVIENT À CÔTÉ DE L'AVATAR, en forme courte — « Jérôme B. ».
+              Le nom complet, le courriel et l'entreprise restent dans le menu
+              déroulant : c'est la composition de la référence, et la forme
+              courte tient sur un portable sans repousser la recherche.
+            */}
+            <span className="hidden max-w-[9rem] truncate text-sm font-semibold text-foreground lg:inline">
+              {nomCourt(user.name)}
+            </span>
+            {/*
+              LE CHEVRON DISPARAÎT SOUS 640 px. À 375, il dépassait de 7 px
+              et faisait défiler toute la page latéralement — pour une flèche
+              qui n'ajoute rien : l'avatar est déjà la cible, et le menu
+              s'ouvre pareil.
+            */}
             <ChevronDown
-              className="h-4 w-4 shrink-0 text-muted-foreground"
+              className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block"
               aria-hidden
             />
           </Button>

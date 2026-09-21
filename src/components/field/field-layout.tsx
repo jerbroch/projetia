@@ -68,7 +68,7 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
               className="h-7 w-7 shrink-0 rounded-md object-cover"
             />
           ) : (
-            <MarqueImmeuble className="shrink-0 text-petrole-foreground" taille={24} />
+            <MarqueImmeuble className="shrink-0 text-primary" taille={26} />
           )}
           {/*
             LA MARQUE, COMME SUR LA RÉFÉRENCE — et le nom de l'entreprise
@@ -78,9 +78,8 @@ export function FieldLayout({ children, company, user }: FieldLayoutProps) {
             ligne à remplir.
           */}
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[0.875rem] font-semibold leading-tight">
-              <span className="uppercase tracking-[0.07em]">Construction</span>{" "}
-              <span className="font-extrabold">iOS</span>
+            <span className="block truncate text-[0.9375rem] font-bold leading-tight tracking-tight">
+              Construction <span className="text-primary">iOS</span>
             </span>
             <span className="block truncate text-[11px] leading-tight text-petrole-foreground/65">
               {company.name}
