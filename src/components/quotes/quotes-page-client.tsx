@@ -341,7 +341,6 @@ export function QuotesPageClient({
       company={company}
       user={user}
       isDemo={isDemo}
-      hideHeaderSearch
     >
       <PageHeader
         title="Soumissions"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Building2, ChevronDown, ChevronRight, LogOut, Menu, Search, Shield, User } from "lucide-react";
+import { Bell, Building2, ChevronDown, ChevronRight, LogOut, Menu, Shield, User } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { logoutAction } from "@/lib/actions/auth";
 import { getRoleLabel } from "@/lib/role-labels";
 import type { Company, User as AppUser } from "@/types";
@@ -27,7 +26,6 @@ interface HeaderProps {
   user: AppUser;
   company: Company;
   isDemo?: boolean;
-  hideSearch?: boolean;
   /** Ouvre le menu sur téléphone. Le bouton vit ici, pas par-dessus la page. */
   onOuvrirMenu?: () => void;
 }
@@ -45,7 +43,6 @@ export function Header({
   user,
   company,
   isDemo,
-  hideSearch,
   onOuvrirMenu,
 }: HeaderProps) {
   const roleLabel = getRoleLabel(user.role);
@@ -117,26 +114,19 @@ export function Header({
         )}
       </div>
 
-      {/* La recherche prend le centre et respire : c'est la commande la plus
-          utilisée de la barre. */}
-      {!hideSearch ? (
-        <div className="hidden flex-1 justify-center px-4 md:flex">
-          <div className="relative w-full max-w-xl">
-            <Search
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              aria-label="Rechercher"
-              placeholder="Rechercher un client, un chantier, une facture..."
-              className="h-10 rounded-full border-border/80 pl-10 sm:h-10"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1" />
-      )}
+      {/*
+        LA RECHERCHE A ÉTÉ RETIRÉE, ET C'EST UNE CORRECTION, PAS UN RECUL.
+
+        Le champ existait, il était joli, et il ne faisait rien : aucune page
+        du dépôt ne lit de paramètre de recherche, aucun formulaire n'était
+        soumis. Un champ qui accepte la frappe et ne renvoie jamais de
+        résultat n'est pas une fonctionnalité en attente — c'est une promesse
+        rompue à chaque essai.
+
+        L'espace reste libre : le jour où la recherche existera vraiment,
+        elle reprendra cette place.
+      */}
+      <div className="flex-1" />
 
       <Button
         variant="ghost"
