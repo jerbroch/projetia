@@ -4,14 +4,15 @@ import { landingLoginLink, landingRegisterLink } from "../helpers/locators";
 
 /**
  * `titre` diffère de `name` quand l'écran ne s'annonce pas comme son entrée
- * de menu. Le tableau de bord titre « Votre journée, en maîtrise. » — la
- * salutation est passée en sous-titre. Le menu
+ * de menu. Le tableau de bord titre « Tout est prêt pour une grande
+ * journée. » : depuis la refonte de l'accueil, le titre principal vit dans
+ * le bandeau, qui porte le `h1` de l'écran. Le menu
  * doit rester « Tableau de bord », c'est un repère de navigation, mais le
  * titre de l'écran est une salutation. On vérifie donc les deux, chacun pour
  * ce qu'il est.
  */
 const SIDEBAR_LINKS = [
-  { href: "/dashboard", name: "Tableau de bord", titre: /^Votre journée/ },
+  { href: "/dashboard", name: "Tableau de bord", titre: /^Tout est prêt/ },
   { href: "/customers", name: "Clients" },
   { href: "/quotes", name: "Soumissions" },
   { href: "/invoices", name: "Factures" },

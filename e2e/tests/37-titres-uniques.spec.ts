@@ -24,7 +24,7 @@ const ECRANS = [
      est passée en sous-titre, avec la date. Un titre qui dit bonjour ne dit
      rien du travail, et c'est le travail qu'on vient voir. Le prénom vient
      du compte connecté, donc on vérifie la forme, pas une valeur. */
-  ["/dashboard", /^Votre journée/],
+  ["/dashboard", /^Tout est prêt/],
   ["/customers", "Clients"],
   ["/quotes", "Soumissions"],
   // Le menu dit « À vérifier », l'écran « Travaux à vérifier ». Les deux sont
