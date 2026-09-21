@@ -1,4 +1,3 @@
-import { MotifArchitectural } from "@/components/brand/motif-architectural";
 import { cn } from "@/lib/utils";
 
 /**
@@ -9,10 +8,10 @@ import { cn } from "@/lib/utils";
  * à droite, le texte garde le tiers gauche.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * SUR L'IMAGE. `public/bandeau-chantier-mobile.webp` est un DÉCOUPAGE de la
- * maquette de référence — 268 × 200 px, sans aucun texte d'interface. À
- * cette taille il reste net dans un cadre de 140 px de large, mais pas
- * au-delà. Le fichier attendu : 900 × 700 px, même cadrage.
+ * SUR L'IMAGE. `public/bandeau-chantier-mobile.webp` — 600 × 572 px, cadré
+ * plus serré que la version ordinateur sur la zone où le filaire devient
+ * béton. Aucun texte d'interface. À cette résolution il reste net même sur
+ * un écran à trois fois la densité.
  * ─────────────────────────────────────────────────────────────────────────
  *
  * AUCUNE PRÉSENCE N'EST AFFICHÉE. La référence montre une pastille
@@ -50,11 +49,11 @@ export function FieldEnteteJournee({
           src={image}
           alt=""
           aria-hidden
-          width={268}
-          height={200}
+          width={600}
+          height={572}
           decoding="async"
           className={cn(
-            "absolute inset-y-0 right-0 -z-10 h-full w-auto max-w-[48%] object-cover object-left",
+            "absolute inset-y-0 right-0 -z-10 h-full w-auto max-w-[56%] object-cover object-[38%_45%]",
             /*
               LE BORD GAUCHE S'EFFACE. Sans masque, le découpage laisse un
               rectangle net au milieu du pétrole — on voit l'image collée,
@@ -71,14 +70,9 @@ export function FieldEnteteJournee({
         className={cn(
           "absolute inset-0 -z-10",
           image
-            ? "bg-gradient-to-r from-petrole from-40% via-petrole/88 via-62% to-petrole/20"
+            ? "bg-gradient-to-r from-petrole from-30% via-petrole/78 via-52% to-transparent"
             : "bg-gradient-to-br from-petrole to-petrole-doux/70",
         )}
-      />
-
-      <MotifArchitectural
-        aria-hidden
-        className="pointer-events-none absolute bottom-0 right-0 -z-10 h-full w-[52%] text-petrole-foreground opacity-[0.12]"
       />
 
       <div className="relative flex items-start justify-between gap-3">
